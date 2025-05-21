@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { setupEmailService } from "./email";
-import { userRoleEnum } from "@shared/schema";
+import { userRoleEnum, insertTeamSchema } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { ZodError } from "zod";
 import {
