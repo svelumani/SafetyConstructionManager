@@ -1,11 +1,13 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
-import { Plus, RefreshCw, Search } from "lucide-react";
-
+import { useLocation } from "wouter";
+import { Plus, Users } from "lucide-react";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Team } from "@shared/schema";
+import { requirePermission } from "@/lib/permissions";
 import {
   Table,
   TableBody,
@@ -14,162 +16,114 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Team } from "@shared/schema";
-import { PageHeader } from "@/components/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { requirePermission } from "@/lib/permissions";
+import { formatDate } from "@/lib/utils";
 
-export default function TeamsPage() {
+export default function Teams() {
   requirePermission("teams", "read");
   const [, navigate] = useLocation();
-  const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const {
-    data: teams,
-    isLoading,
-    refetch,
-    isRefetching,
-  } = useQuery<Team[]>({
+  
+  const { data: teams, isLoading } = useQuery<Team[]>({
     queryKey: ["/api/teams"],
   });
-
-  const filteredTeams = teams?.filter((team) =>
-    team.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <Layout>
       <div className="container py-6">
         <PageHeader
           title="Teams"
-          description="Manage teams across your sites"
+          description="Manage your construction teams"
           actions={
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()}
-                disabled={isRefetching}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+            requirePermission("teams", "create", false) ? (
+              <Button size="sm" onClick={() => navigate("/teams/create")}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Team
               </Button>
-              <Button size="sm" asChild>
-                <Link href="/teams/create">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Team
-                </Link>
-              </Button>
-            </div>
+            ) : null
           }
         />
 
         <Card className="mt-6">
-          <CardContent className="pt-6">
-            <div className="mb-4">
-              <Input
-                placeholder="Search teams..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="max-w-sm"
-                prefix={<Search className="h-4 w-4 text-gray-500" />}
-              />
-            </div>
-
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Team Name</TableHead>
-                    <TableHead>Site</TableHead>
-                    <TableHead>Leader</TableHead>
-                    <TableHead>Members</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    // Loading skeletons for teams
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <TableRow key={`skeleton-${i}`}>
-                        <TableCell>
-                          <Skeleton className="h-5 w-[180px]" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-5 w-[150px]" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-5 w-[120px]" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-5 w-[80px]" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton className="h-8 w-[100px]" />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : filteredTeams && filteredTeams.length > 0 ? (
-                    filteredTeams.map((team) => (
-                      <TableRow key={team.id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900" onClick={() => navigate(`/teams/${team.id}`)}>
+          <CardHeader>
+            <CardTitle>All Teams</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : teams && teams.length > 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[180px]">Name</TableHead>
+                      <TableHead>Site</TableHead>
+                      <TableHead>Members</TableHead>
+                      <TableHead>Leader</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {teams.map((team) => (
+                      <TableRow key={team.id}>
                         <TableCell className="font-medium">
                           <div className="flex items-center">
-                            {team.color && (
-                              <div
-                                className="w-4 h-4 rounded-full mr-2"
-                                style={{ backgroundColor: team.color }}
-                              />
-                            )}
+                            <div
+                              className="w-3 h-3 rounded-full mr-2"
+                              style={{ backgroundColor: team.color || "#3B82F6" }}
+                            ></div>
                             {team.name}
                           </div>
                         </TableCell>
+                        <TableCell>Site #{team.siteId}</TableCell>
+                        <TableCell>{team.memberCount || 0}</TableCell>
                         <TableCell>
-                          <Link href={`/sites/${team.siteId}`} className="text-blue-600 dark:text-blue-400 hover:underline" onClick={(e) => e.stopPropagation()}>
-                            Site #{team.siteId}
-                          </Link>
+                          {team.leaderId ? `Leader #${team.leaderId}` : "Unassigned"}
                         </TableCell>
-                        <TableCell>
-                          {team.leaderId ? (
-                            <Link href={`/users/${team.leaderId}`} className="text-blue-600 dark:text-blue-400 hover:underline" onClick={(e) => e.stopPropagation()}>
-                              Leader #{team.leaderId}
-                            </Link>
-                          ) : (
-                            <Badge variant="outline">No Leader</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge>{0}</Badge>
-                        </TableCell>
-                        <TableCell>
+                        <TableCell>{formatDate(team.createdAt)}</TableCell>
+                        <TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="sm"
-                            asChild
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={() => navigate(`/teams/${team.id}`)}
                           >
-                            <Link href={`/teams/${team.id}/edit`}>Edit</Link>
+                            View
                           </Button>
+                          {requirePermission("teams", "update", false) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/teams/${team.id}/edit`)}
+                            >
+                              Edit
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        {searchQuery ? (
-                          <>No teams match your search query.</>
-                        ) : (
-                          <>No teams found. <Link href="/teams/create" className="text-blue-600 dark:text-blue-400 hover:underline">Create your first team</Link>.</>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="py-8 text-center">
+                <Users className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-muted-foreground">No teams found</p>
+                {requirePermission("teams", "create", false) && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-4"
+                    onClick={() => navigate("/teams/create")}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Team
+                  </Button>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
