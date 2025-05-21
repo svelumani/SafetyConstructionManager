@@ -1205,6 +1205,22 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
   }
+  
+  async listTeamsBySite(siteId: number): Promise<Team[]> {
+    try {
+      // Use raw SQL query with proper parameter binding
+      const result = await db.query(`
+        SELECT * FROM teams 
+        WHERE site_id = $1 AND is_active = true 
+        ORDER BY name
+      `, [siteId]);
+      
+      return result.rows as Team[];
+    } catch (error) {
+      console.error("Error fetching teams for site:", error);
+      return [];
+    }
+  }
 
   async getTeamMembers(teamId: number): Promise<any[]> {
     // Get all personnel assigned to this team
