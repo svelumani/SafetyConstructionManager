@@ -15,16 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AlertCircle, Mail } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-// Extend the insertUserSchema with client-side validation
-const addUserSchema = insertUserSchema.omit({ password: true }).extend({
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
+// Simplified schema without username and password fields
+const addUserSchema = insertUserSchema.omit({ password: true, username: true }).extend({});
 
 type AddUserFormValues = z.infer<typeof addUserSchema>;
 
@@ -32,6 +28,9 @@ interface AddUserFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+// Standard password for development
+const DEFAULT_PASSWORD = "SafetyFirst123!";
 
 export function AddUserForm({ open, onOpenChange }: AddUserFormProps) {
   const { toast } = useToast();
@@ -45,13 +44,10 @@ export function AddUserForm({ open, onOpenChange }: AddUserFormProps) {
   } = useForm<AddUserFormValues>({
     resolver: zodResolver(addUserSchema),
     defaultValues: {
-      username: "",
       email: "",
       firstName: "",
       lastName: "",
       role: "employee",
-      password: "",
-      confirmPassword: "",
       phone: "",
       jobTitle: "",
       department: "",
@@ -59,8 +55,17 @@ export function AddUserForm({ open, onOpenChange }: AddUserFormProps) {
   });
   
   const addUserMutation = useMutation({
-    mutationFn: async (data: Omit<AddUserFormValues, "confirmPassword">) => {
-      const { confirmPassword, ...userData } = data as any;
+    mutationFn: async (data: AddUserFormValues) => {
+      // Generate username from email (before @ symbol)
+      const username = data.email.split('@')[0];
+      
+      // Add standard password and username to the data
+      const userData = {
+        ...data,
+        username,
+        password: DEFAULT_PASSWORD,
+      };
+      
       const response = await apiRequest("POST", "/api/users", userData);
       if (!response.ok) {
         const error = await response.json();
@@ -68,12 +73,20 @@ export function AddUserForm({ open, onOpenChange }: AddUserFormProps) {
       }
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       toast({
-        title: "User created",
-        description: "The user has been created successfully",
+        title: "User created successfully",
+        description: `An email with login instructions has been sent to ${data.email}`,
       });
+      
+      // For development, show a mock email notification
+      toast({
+        title: "Development Note",
+        description: `No actual email sent. Default password is: ${DEFAULT_PASSWORD}`,
+        variant: "default",
+      });
+      
       reset();
       onOpenChange(false);
     },
@@ -87,8 +100,7 @@ export function AddUserForm({ open, onOpenChange }: AddUserFormProps) {
   });
   
   const onSubmit = (data: AddUserFormValues) => {
-    const { confirmPassword, ...userData } = data;
-    addUserMutation.mutate(userData);
+    addUserMutation.mutate(data);
   };
   
   return (
@@ -96,9 +108,20 @@ export function AddUserForm({ open, onOpenChange }: AddUserFormProps) {
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
+          <DialogDescription>
+            New users will receive an email with login instructions.
+          </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
+        <Alert className="mb-4">
+          <Mail className="h-4 w-4" />
+          <AlertTitle>Development Mode</AlertTitle>
+          <AlertDescription>
+            Email delivery is mocked. All users created will have the password: {DEFAULT_PASSWORD}
+          </AlertDescription>
+        </Alert>
+        
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
@@ -118,14 +141,6 @@ export function AddUserForm({ open, onOpenChange }: AddUserFormProps) {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
-            <Input id="username" {...register("username")} />
-            {errors.username && (
-              <p className="text-sm text-red-500">{errors.username.message}</p>
-            )}
-          </div>
-          
-          <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input id="email" type="email" {...register("email")} />
             {errors.email && (
@@ -139,24 +154,6 @@ export function AddUserForm({ open, onOpenChange }: AddUserFormProps) {
             {errors.phone && (
               <p className="text-sm text-red-500">{errors.phone.message}</p>
             )}
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" {...register("password")} />
-              {errors.password && (
-                <p className="text-sm text-red-500">{errors.password.message}</p>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input id="confirmPassword" type="password" {...register("confirmPassword")} />
-              {errors.confirmPassword && (
-                <p className="text-sm text-red-500">{errors.confirmPassword.message}</p>
-              )}
-            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
