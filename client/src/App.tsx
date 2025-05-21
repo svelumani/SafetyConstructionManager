@@ -22,7 +22,7 @@ function Router() {
     <Switch>
       {/* Public routes */}
       <Route path="/auth" component={AuthPage} />
-      {/* <Route path="/tenant-registration" component={TenantRegistration} /> */}
+      <Route path="/tenant-registration" component={TenantRegistration} />
       
       {/* Protected routes */}
       <ProtectedRoute path="/" component={Dashboard} />
