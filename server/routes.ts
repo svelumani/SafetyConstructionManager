@@ -388,6 +388,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
       
+      // Update the session user if they changed their own role
+      if (req.user.id === id) {
+        req.user.role = role;
+      }
+      
       res.json({ 
         success: true, 
         user: { 

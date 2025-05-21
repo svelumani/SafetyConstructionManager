@@ -90,7 +90,10 @@ export function RoleManagementDialog({
       return await response.json();
     },
     onSuccess: () => {
+      // Invalidate both the users list and the current user data if the user is updating their own role
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      
       toast({
         title: "Role updated successfully",
         description: `${user?.firstName} ${user?.lastName} is now a ${formatRoleName(selectedRole || '')}`,
