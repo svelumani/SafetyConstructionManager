@@ -1161,7 +1161,7 @@ export class DatabaseStorage implements IStorage {
 
   async listTeamsByTenant(tenantId: number): Promise<Team[]> {
     try {
-      return await db
+      const teamsList = await db
         .select()
         .from(teams)
         .where(and(
@@ -1169,6 +1169,7 @@ export class DatabaseStorage implements IStorage {
           eq(teams.isActive, true)
         ))
         .orderBy(teams.name);
+      return teamsList;
     } catch (error) {
       console.error("Error fetching teams:", error);
       return [];
