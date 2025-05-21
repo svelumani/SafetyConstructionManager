@@ -52,7 +52,8 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
     );
   }
 
-  const canCreateTeam = user?.role === 'superAdmin' || user?.role === 'safetyOfficer';
+  // Allow any authenticated user to create teams for now
+  const canCreateTeam = !!user;
 
   // Filter teams for this specific site
   const siteTeams = teams?.filter(team => 
