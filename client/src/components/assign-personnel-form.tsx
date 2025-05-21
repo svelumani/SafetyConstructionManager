@@ -62,15 +62,26 @@ export function AssignPersonnelForm({ siteId, onSuccess }: AssignPersonnelFormPr
     },
   });
   
+  // Get the current user for assignedById
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/user'],
+  });
+  
   // Handle form submission
   const assignMutation = useMutation({
     mutationFn: async (values: AssignPersonnelValues) => {
+      if (!currentUser) {
+        throw new Error("User must be logged in to assign personnel");
+      }
+      
       const response = await apiRequest("POST", `/api/sites/${siteId}/personnel`, {
         userId: parseInt(values.userId),
         siteRole: values.siteRole,
         startDate: values.startDate ? format(values.startDate, "yyyy-MM-dd") : undefined,
         endDate: values.endDate ? format(values.endDate, "yyyy-MM-dd") : undefined,
         notes: values.notes,
+        tenantId: currentUser.tenantId,
+        assignedById: currentUser.id,
       });
       return await response.json();
     },
