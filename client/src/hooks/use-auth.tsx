@@ -54,8 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (userData: any) => {
-      const data = insertUserSchema.parse(userData);
-      const res = await apiRequest("POST", "/api/register", data);
+      // Don't parse with schema to allow tenant data to pass through
+      const res = await apiRequest("POST", "/api/register", userData);
       return await res.json();
     },
     onSuccess: (user: User) => {
