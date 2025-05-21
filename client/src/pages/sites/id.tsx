@@ -64,6 +64,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import SitePersonnelList from "@/components/site-personnel-list";
 
 // Form schema for site update
 const siteFormSchema = z.object({
@@ -745,47 +746,8 @@ export default function SiteDetailPage() {
           </TabsContent>
           
           <TabsContent value="teams">
-            <Card>
-              <CardHeader>
-                <CardTitle>Site Teams</CardTitle>
-                <CardDescription>Personnel assigned to this construction site</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {site.personnel && site.personnel.length > 0 ? (
-                  <div className="space-y-4">
-                    {site.personnel.map((person) => (
-                      <div key={person.id} className="flex items-center justify-between border-b pb-4">
-                        <div>
-                          <div className="font-medium">{person.name}</div>
-                          <div className="text-sm text-muted-foreground">{person.role}</div>
-                          <div className="text-sm text-muted-foreground">{person.email}</div>
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No teams assigned to this site yet</p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4" 
-                      onClick={() => {
-                        // For now, we'll just show a toast with a temporary message
-                        toast({
-                          title: "Coming Soon",
-                          description: "Team assignment functionality will be available in the next update.",
-                        });
-                      }}
-                    >
-                      Assign Personnel
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Use our new SitePersonnelList component instead of the placeholder */}
+            <SitePersonnelList siteId={siteId} siteName={site.name} />
           </TabsContent>
         </Tabs>
       )}

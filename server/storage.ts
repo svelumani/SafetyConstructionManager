@@ -50,6 +50,14 @@ export interface IStorage {
   deleteSite(id: number): Promise<boolean>;
   listSites(tenantId: number, options?: { limit?: number; offset?: number; }): Promise<Site[]>;
   countSites(tenantId: number): Promise<number>;
+  
+  // Site personnel operations
+  getSitePersonnel(id: number): Promise<SitePersonnel | undefined>;
+  assignUserToSite(data: InsertSitePersonnel): Promise<SitePersonnel>;
+  updateSitePersonnel(id: number, data: Partial<InsertSitePersonnel>): Promise<SitePersonnel | undefined>;
+  removeSitePersonnel(id: number): Promise<boolean>;
+  listSitePersonnelBySite(siteId: number, options?: { limit?: number; offset?: number; }): Promise<SitePersonnel[]>;
+  countSitePersonnel(siteId: number): Promise<number>;
 
   // Subcontractor operations
   getSubcontractor(id: number): Promise<Subcontractor | undefined>;
