@@ -60,15 +60,29 @@ export default function AddSitePersonnel() {
 
   // Update available users when queries complete
   useEffect(() => {
+    console.log("Users data:", usersQuery.data);
+    console.log("Site personnel data:", sitePersonnelQuery.data);
+    
     if (usersQuery.data?.users && sitePersonnelQuery.data?.personnel) {
       const users = usersQuery.data.users || [];
       const personnel = sitePersonnelQuery.data.personnel || [];
       
+      console.log("Raw users:", users);
+      console.log("Raw personnel:", personnel);
+      
       // Get IDs of users already assigned to this site
       const assignedUserIds = personnel.map((person: any) => person.userId);
+      console.log("Assigned user IDs:", assignedUserIds);
       
       // Filter out users who are already assigned to this site
-      const available = users.filter((user: any) => !assignedUserIds.includes(user.id));
+      const available = users.filter((user: any) => {
+        console.log(`Checking user ${user.id}, ${user.firstName} ${user.lastName}`);
+        const isAvailable = !assignedUserIds.includes(user.id);
+        console.log(`User ${user.id} available: ${isAvailable}`);
+        return isAvailable;
+      });
+      
+      console.log("Available users after filtering:", available);
       setAvailableUsers(available);
     }
   }, [usersQuery.data, sitePersonnelQuery.data]);
