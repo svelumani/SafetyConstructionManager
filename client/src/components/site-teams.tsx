@@ -57,7 +57,7 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
 
   // Filter teams for this specific site
   const siteTeams = teams?.filter(team => 
-    team.siteIds?.includes(siteId) || team.primarySiteId === siteId
+    team.site_id === siteId
   ) || [];
   
   if (!siteTeams.length) {
