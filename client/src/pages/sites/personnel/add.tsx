@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { z } from "zod";
@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 import Layout from "@/components/layout";
-import PageHeader from "@/components/page-header";
+import { PageHeader } from "@/components/page-header";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 
