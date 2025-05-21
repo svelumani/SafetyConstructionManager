@@ -1015,6 +1015,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch team members" });
     }
   });
+  
+  // Add personnel to team
+  app.post("/api/teams/:teamId/members/:personnelId", requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.teamId);
+      const personnelId = parseInt(req.params.personnelId);
+      
+      if (isNaN(teamId) || isNaN(personnelId)) {
+        return res.status(400).json({ message: "Invalid team ID or personnel ID" });
+      }
+      
+      // Check if team exists and belongs to user's tenant
+      const team = await storage.getTeam(teamId);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (team.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to modify this team" });
+      }
+      
+      // Check if personnel exists and belongs to the same site as the team
+      const personnel = await storage.getSitePersonnel(personnelId);
+      if (!personnel) {
+        return res.status(404).json({ message: "Personnel not found" });
+      }
+      
+      if (personnel.siteId !== team.siteId) {
+        return res.status(400).json({ message: "Personnel does not belong to the same site as the team" });
+      }
+      
+      // Assign personnel to team
+      const updatedPersonnel = await storage.assignPersonnelToTeam(personnelId, teamId);
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "personnel_assigned_to_team",
+        entityType: "team",
+        entityId: teamId.toString(),
+        details: { 
+          teamId,
+          personnelId,
+          teamName: team.name,
+          siteId: team.siteId
+        },
+      });
+      
+      res.status(200).json(updatedPersonnel);
+    } catch (err) {
+      console.error("Error assigning personnel to team:", err);
+      res.status(500).json({ message: "Failed to assign personnel to team" });
+    }
+  });
+  
+  // Remove personnel from team
+  app.delete("/api/teams/:teamId/members/:personnelId", requireAuth, async (req, res) => {
+    try {
+      const teamId = parseInt(req.params.teamId);
+      const personnelId = parseInt(req.params.personnelId);
+      
+      if (isNaN(teamId) || isNaN(personnelId)) {
+        return res.status(400).json({ message: "Invalid team ID or personnel ID" });
+      }
+      
+      // Check if team exists and belongs to user's tenant
+      const team = await storage.getTeam(teamId);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (team.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to modify this team" });
+      }
+      
+      // Check if personnel exists
+      const personnel = await storage.getSitePersonnel(personnelId);
+      if (!personnel) {
+        return res.status(404).json({ message: "Personnel not found" });
+      }
+      
+      // Remove personnel from team
+      const updatedPersonnel = await storage.removePersonnelFromTeam(personnelId);
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "personnel_removed_from_team",
+        entityType: "team",
+        entityId: teamId.toString(),
+        details: { 
+          teamId,
+          personnelId,
+          teamName: team.name,
+          siteId: team.siteId
+        },
+      });
+      
+      res.status(200).json(updatedPersonnel);
+    } catch (err) {
+      console.error("Error removing personnel from team:", err);
+      res.status(500).json({ message: "Failed to remove personnel from team" });
+    }
+  });
 
   // Site Personnel Management
   app.get("/api/sites/:siteId/personnel", requireAuth, async (req, res) => {
