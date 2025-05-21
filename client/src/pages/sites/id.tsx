@@ -748,9 +748,45 @@ export default function SiteDetailPage() {
             </Card>
           </TabsContent>
           
+          <TabsContent value="personnel">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold">Site Personnel</h3>
+                  <p className="text-sm text-muted-foreground">Manage personnel assigned to this site</p>
+                </div>
+                
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Assign Personnel
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                      <DialogTitle>Assign Personnel to Site</DialogTitle>
+                      <DialogDescription>
+                        Select a user and their role for this construction site.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <AssignPersonnelForm siteId={siteId} />
+                  </DialogContent>
+                </Dialog>
+              </div>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <SitePersonnelList siteId={siteId} />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          
           <TabsContent value="teams">
-            {/* Use our new SitePersonnelList component instead of the placeholder */}
-            <SitePersonnelList siteId={siteId} siteName={site.name} />
+            <div className="text-center py-10">
+              <p className="text-muted-foreground">Team management coming soon</p>
+            </div>
           </TabsContent>
         </Tabs>
       )}

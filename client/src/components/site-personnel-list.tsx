@@ -45,9 +45,29 @@ export function SitePersonnelList({ siteId, onEdit }: SitePersonnelListProps) {
   const { user } = useAuth();
   const [deleteId, setDeleteId] = useState<number | null>(null);
   
+  interface SitePersonnel {
+    id: number;
+    userId: number;
+    userName: string;
+    userEmail: string;
+    siteId: number;
+    role: string;
+    startDate: string | null;
+    endDate: string | null;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }
+
+  interface PersonnelResponse {
+    personnel: SitePersonnel[];
+  }
+
   // Query to fetch site personnel
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error } = useQuery<PersonnelResponse, Error>({
     queryKey: [`/api/sites/${siteId}/personnel`],
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
   
   // Mutation to remove personnel from site
