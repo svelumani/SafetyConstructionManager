@@ -28,8 +28,8 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
         }),
   });
   
-  // Use the teams directly from the response
-  const teams = data || [];
+  // Use the teams from the response - check for both formats
+  const teams = data?.teams || data || [];
 
   if (isLoading) {
     return (
