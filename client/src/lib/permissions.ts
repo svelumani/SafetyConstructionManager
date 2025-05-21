@@ -47,14 +47,6 @@ export function requirePermission(resource: Resource, action: Action, throwError
     }
   }
   
-  // If authenticated but no specific role, allow basic read access to teams and other resources
-  if (user && action === "read" && 
-      (resource === "teams" || resource === "hazards" || 
-       resource === "inspections" || resource === "permits" ||
-       resource === "incidents")) {
-    return true;
-  }
-  
   // Subcontractor has minimal permissions
   if (user?.role === "subcontractor") {
     // Subcontractors can read certain resources

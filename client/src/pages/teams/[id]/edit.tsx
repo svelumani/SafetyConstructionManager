@@ -369,7 +369,7 @@ export default function EditTeamPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="none">No leader</SelectItem>
+                            <SelectItem value="">No leader</SelectItem>
                             {users?.map((user) => (
                               <SelectItem key={user.id} value={user.id.toString()}>
                                 {user.firstName} {user.lastName}

@@ -4,7 +4,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
-// We'll use the Toaster component directly without a separate provider
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import Dashboard from "@/pages/dashboard";
@@ -20,7 +19,6 @@ import Sites from "@/pages/sites";
 import TenantRegistration from "@/pages/tenant-registration";
 import NewSitePage from "@/pages/sites/new";
 import SiteDetailPage from "@/pages/sites/id";
-import AddSitePersonnelPage from "@/pages/sites/personnel-add";
 import Teams from "@/pages/teams";
 import CreateTeamPage from "@/pages/teams/create";
 import TeamDetailPage from "@/pages/teams/[id]";
@@ -47,7 +45,6 @@ function Router() {
       <ProtectedRoute path="/users/:id" component={UserProfile} />
       <ProtectedRoute path="/sites" component={Sites} />
       <ProtectedRoute path="/sites/new" component={NewSitePage} />
-      <ProtectedRoute path="/sites/:id/personnel/add" component={AddSitePersonnelPage} />
       <ProtectedRoute path="/sites/:id" component={SiteDetailPage} />
       
       {/* Team management routes */}
@@ -67,10 +64,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
-          <>
-            <Router />
-            <Toaster />
-          </>
+          <Toaster />
+          <Router />
         </TooltipProvider>
       </AuthProvider>
     </QueryClientProvider>
