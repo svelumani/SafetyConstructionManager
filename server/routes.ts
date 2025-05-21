@@ -807,7 +807,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const teams = await storage.listTeamsBySite(siteId);
-      res.json(teams);
+      console.log("Teams found for site:", siteId, teams);
+      res.json({ teams: teams });
     } catch (err) {
       console.error("Error fetching teams for site:", err);
       res.status(500).json({ message: "Failed to fetch teams for this site" });
