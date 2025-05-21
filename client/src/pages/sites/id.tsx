@@ -17,6 +17,9 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
+  X,
+  Check,
+  UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -748,10 +751,39 @@ export default function SiteDetailPage() {
                 <CardDescription>Personnel assigned to this construction site</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No teams assigned to this site yet</p>
-                  <Button variant="outline" className="mt-4">Assign Personnel</Button>
-                </div>
+                {site.personnel && site.personnel.length > 0 ? (
+                  <div className="space-y-4">
+                    {site.personnel.map((person) => (
+                      <div key={person.id} className="flex items-center justify-between border-b pb-4">
+                        <div>
+                          <div className="font-medium">{person.name}</div>
+                          <div className="text-sm text-muted-foreground">{person.role}</div>
+                          <div className="text-sm text-muted-foreground">{person.email}</div>
+                        </div>
+                        <Button variant="ghost" size="sm">
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No teams assigned to this site yet</p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-4" 
+                      onClick={() => {
+                        // For now, we'll just show a toast with a temporary message
+                        toast({
+                          title: "Coming Soon",
+                          description: "Team assignment functionality will be available in the next update.",
+                        });
+                      }}
+                    >
+                      Assign Personnel
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
