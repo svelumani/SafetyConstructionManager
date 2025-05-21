@@ -18,8 +18,8 @@ import {
   Trash2,
   AlertTriangle,
   X,
-  Check,
   UserPlus,
+  Check,
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
