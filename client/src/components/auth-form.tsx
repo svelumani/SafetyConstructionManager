@@ -16,7 +16,6 @@ const loginSchema = z.object({
 
 const registerSchema = z.object({
   // User information
-  username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1, "First name is required"),
@@ -49,7 +48,6 @@ export default function AuthForm() {
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: "",
       email: "",
       password: "",
       firstName: "",
@@ -68,9 +66,11 @@ export default function AuthForm() {
   };
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    // Transform the data to include tenant creation info
+    // Transform the data to include tenant creation info and generate username from email
     const registrationData = {
       ...data,
+      // Generate username from email (before the @ symbol)
+      username: data.email.split('@')[0],
       tenant: {
         name: data.companyName,
         email: data.companyEmail,
@@ -170,18 +170,7 @@ export default function AuthForm() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="register-username">Username</Label>
-                <Input
-                  id="register-username"
-                  type="text"
-                  placeholder="johndoe"
-                  {...registerForm.register("username")}
-                />
-                {registerForm.formState.errors.username && (
-                  <p className="text-sm text-red-500">{registerForm.formState.errors.username.message}</p>
-                )}
-              </div>
+
 
               <div className="space-y-2">
                 <Label htmlFor="register-email">Email</Label>
