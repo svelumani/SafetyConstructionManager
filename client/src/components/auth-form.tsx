@@ -34,7 +34,7 @@ export default function AuthForm() {
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -78,15 +78,15 @@ export default function AuthForm() {
           <TabsContent value="login" className="space-y-4">
             <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="login-username">Username</Label>
+                <Label htmlFor="login-email">Email</Label>
                 <Input
-                  id="login-username"
-                  type="text"
-                  placeholder="Enter your username"
-                  {...loginForm.register("username")}
+                  id="login-email"
+                  type="email"
+                  placeholder="Enter your email"
+                  {...loginForm.register("email")}
                 />
-                {loginForm.formState.errors.username && (
-                  <p className="text-sm text-red-500">{loginForm.formState.errors.username.message}</p>
+                {loginForm.formState.errors.email && (
+                  <p className="text-sm text-red-500">{loginForm.formState.errors.email.message}</p>
                 )}
               </div>
 
