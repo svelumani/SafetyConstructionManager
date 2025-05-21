@@ -94,7 +94,7 @@ export function RoleManagementDialog({
       toast({
         title: "Role updated successfully",
         description: `${user?.firstName} ${user?.lastName} is now a ${formatRoleName(selectedRole || '')}`,
-        variant: "success",
+        variant: "default",
       });
       onOpenChange(false);
     },
