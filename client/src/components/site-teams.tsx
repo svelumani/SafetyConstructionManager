@@ -15,7 +15,7 @@ interface SiteTeamsProps {
 export default function SiteTeams({ siteId }: SiteTeamsProps) {
   const { user } = useAuth();
   
-  const { data: teams, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['/api/teams'],
     queryFn: ({ signal }) => 
       fetch(`/api/teams`, { signal })
@@ -26,6 +26,9 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
           return res.json();
         }),
   });
+  
+  // Extract teams from the response
+  const teams = data?.teams || [];
 
   if (isLoading) {
     return (
@@ -56,9 +59,7 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
   const canCreateTeam = !!user;
 
   // Filter teams for this specific site
-  const siteTeams = teams?.filter(team => 
-    team.siteIds?.includes(siteId) || team.primarySiteId === siteId
-  ) || [];
+  const siteTeams = teams.filter(team => team.siteId === siteId) || [];
   
   if (!siteTeams.length) {
     return (
