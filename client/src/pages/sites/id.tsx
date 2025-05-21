@@ -68,6 +68,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SitePersonnelList } from "@/components/site-personnel-list";
 import { AssignPersonnelForm } from "@/components/assign-personnel-form";
 import { EditPersonnelForm } from "@/components/edit-personnel-form";
+import SiteTeamsTab from "@/components/site-teams-tab";
 
 // Form schema for site update
 const siteFormSchema = z.object({
@@ -808,9 +809,7 @@ export default function SiteDetailPage() {
           </TabsContent>
           
           <TabsContent value="teams">
-            <div className="text-center py-10">
-              <p className="text-muted-foreground">Team management coming soon</p>
-            </div>
+            {site && <SiteTeamsTab siteId={site.id} />}
           </TabsContent>
         </Tabs>
       )}
