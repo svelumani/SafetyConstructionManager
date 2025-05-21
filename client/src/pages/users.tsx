@@ -3,7 +3,7 @@ import Layout from "@/components/layout";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { 
-  Users, 
+  Users as UsersIcon, 
   Plus, 
   Filter,
   UserCog,
@@ -182,7 +182,7 @@ export default function Users() {
             }}
             emptyState={
               <div className="py-8 text-center">
-                <Users className="mx-auto h-10 w-10 text-muted-foreground/60 mb-2" />
+                <UsersIcon className="mx-auto h-10 w-10 text-muted-foreground/60 mb-2" />
                 <p className="text-muted-foreground">No users found</p>
                 <Button variant="outline" className="mt-4" asChild>
                   <Link href="/users/new">Add user</Link>
