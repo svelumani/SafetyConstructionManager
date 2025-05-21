@@ -778,8 +778,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Team Management
   app.get("/api/teams", requireAuth, async (req, res) => {
     try {
+      console.log("Fetching teams for tenant:", req.user.tenantId);
       const teams = await storage.listTeamsByTenant(req.user.tenantId);
-      res.json(teams);
+      console.log("Teams found:", teams?.length || 0);
+      
+      // Return empty array if no teams found (avoid null)
+      res.json({ teams: teams || [] });
     } catch (err) {
       console.error("Error fetching teams:", err);
       res.status(500).json({ message: "Failed to fetch teams" });
