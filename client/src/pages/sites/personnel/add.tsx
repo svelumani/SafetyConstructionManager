@@ -189,6 +189,14 @@ export default function AddSitePersonnel() {
                         Select a user to assign to this site.
                       </FormDescription>
                       <FormMessage />
+                      {availableUsers.length === 0 && (
+                        <div className="mt-2 text-sm text-amber-600 bg-amber-50 rounded p-3 border border-amber-200">
+                          <p className="font-medium mb-1">All users are already assigned to this site.</p>
+                          <Link href="/users" className="text-blue-600 hover:underline">
+                            Click here to add new users to the system first.
+                          </Link>
+                        </div>
+                      )}
                     </FormItem>
                   )}
                 />
