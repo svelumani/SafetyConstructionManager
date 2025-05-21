@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { z } from "zod";
@@ -189,6 +189,19 @@ export default function AddTeamMember() {
                         Select personnel to add to this team. Only personnel from the same site are available.
                       </FormDescription>
                       <FormMessage />
+                      {availablePersonnel.length === 0 && (
+                        <div className="mt-2 text-sm text-amber-600 bg-amber-50 rounded p-3 border border-amber-200">
+                          <p className="font-medium mb-1">No available personnel found for this site.</p>
+                          <p className="mb-1">This could be because:</p>
+                          <ul className="list-disc ml-5 mb-1">
+                            <li>All site personnel are already assigned to this team</li>
+                            <li>There are no personnel assigned to this site yet</li>
+                          </ul>
+                          <Link href={`/sites/${siteId}/personnel/add`} className="text-blue-600 hover:underline">
+                            Click here to add personnel to this site first.
+                          </Link>
+                        </div>
+                      )}
                     </FormItem>
                   )}
                 />
