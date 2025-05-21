@@ -43,3 +43,41 @@ export function formatUTCToLocal(utcDateString: string | null, formatString: str
     return 'Invalid date';
   }
 }
+
+// Format date for display
+export function formatDate(date: Date | string | null, formatString: string = 'PPP'): string {
+  if (!date) return 'N/A';
+  try {
+    const dateObj = typeof date === 'string' ? parseISO(date) : date;
+    return format(dateObj, formatString);
+  } catch (error) {
+    console.error("Error formatting date:", error);
+    return 'Invalid date';
+  }
+}
+
+// Format role name for display
+export function formatRoleName(role: string): string {
+  if (!role) return 'N/A';
+  
+  // Split by underscores or hyphens and capitalize each word
+  return role
+    .split(/[_-]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+// Get initials from name
+export function getInitials(name: string): string {
+  if (!name) return '';
+  
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return name.slice(0, 2).toUpperCase();
+  }
+  
+  return parts
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join('');
+}

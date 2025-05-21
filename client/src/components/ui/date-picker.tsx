@@ -12,12 +12,11 @@ import {
 } from "@/components/ui/popover"
 
 interface DatePickerProps {
-  date?: Date;
-  onSelect?: (date: Date | undefined) => void;
-  disabled?: boolean;
+  date?: Date
+  setDate: (date?: Date) => void
 }
 
-export function DatePicker({ date, onSelect, disabled }: DatePickerProps) {
+export function DatePicker({ date, setDate }: DatePickerProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -27,17 +26,16 @@ export function DatePicker({ date, onSelect, disabled }: DatePickerProps) {
             "w-full justify-start text-left font-normal",
             !date && "text-muted-foreground"
           )}
-          disabled={disabled}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
           {date ? format(date, "PPP") : <span>Pick a date</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0">
         <Calendar
           mode="single"
           selected={date}
-          onSelect={onSelect}
+          onSelect={setDate}
           initialFocus
         />
       </PopoverContent>

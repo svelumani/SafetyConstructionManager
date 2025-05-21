@@ -1,252 +1,350 @@
-import React, { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { CalendarIcon, Loader2 } from "lucide-react";
+import { format } from "date-fns";
 
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { DatePicker } from '@/components/ui/date-picker';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
-// Define schema for site personnel
-const sitePersonnelSchema = z.object({
-  userId: z.string().min(1, { message: "User is required" }),
-  siteRole: z.string().min(1, { message: "Role is required" }),
-  startDate: z.date().optional(),
+const siteRoles = [
+  { value: "site_manager", label: "Site Manager" },
+  { value: "safety_coordinator", label: "Safety Coordinator" },
+  { value: "foreman", label: "Foreman" },
+  { value: "worker", label: "Worker" },
+  { value: "subcontractor", label: "Subcontractor" },
+  { value: "visitor", label: "Visitor" },
+];
+
+// Form schema for validation
+const formSchema = z.object({
+  userId: z.number({
+    required_error: "User is required",
+  }),
+  siteRole: z.string({
+    required_error: "Site role is required",
+  }),
+  startDate: z.date({
+    required_error: "Start date is required",
+  }),
   endDate: z.date().optional(),
-  teamId: z.string().optional(),
   notes: z.string().optional(),
+  assignToTeam: z.boolean().default(false),
+  teamId: z.number().optional(),
 });
 
-type FormValues = z.infer<typeof sitePersonnelSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
 interface AssignPersonnelFormProps {
   siteId: number;
-  teams?: any[];
-  onSuccess: () => void;
+  teamId?: number;
+  onSuccess?: () => void;
+  availableUsers: Array<{ id: number; name: string; email: string }>;
+  availableTeams?: Array<{ id: number; name: string }>;
+  defaultValues?: Partial<FormValues>;
 }
 
-export default function AssignPersonnelForm({ siteId, teams = [], onSuccess }: AssignPersonnelFormProps) {
+export function AssignPersonnelForm({
+  siteId,
+  teamId,
+  onSuccess,
+  availableUsers,
+  availableTeams = [],
+  defaultValues,
+}: AssignPersonnelFormProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [addToTeam, setAddToTeam] = useState(false);
-
-  // Fetch all users that are not yet assigned to this site
-  const { data: users, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ['/api/users', { unassigned: true, siteId }],
-    queryFn: () => fetch(`/api/users?unassigned=true&siteId=${siteId}`).then(res => res.json()),
-  });
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(sitePersonnelSchema),
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      userId: '',
-      siteRole: '',
-      notes: '',
+      userId: defaultValues?.userId,
+      siteRole: defaultValues?.siteRole || "worker",
+      startDate: defaultValues?.startDate || new Date(),
+      endDate: defaultValues?.endDate,
+      notes: defaultValues?.notes || "",
+      assignToTeam: Boolean(teamId) || defaultValues?.assignToTeam || false,
+      teamId: teamId || defaultValues?.teamId,
     },
   });
 
-  const assignMutation = useMutation({
-    mutationFn: async (data: FormValues) => {
+  const watchAssignToTeam = form.watch("assignToTeam");
+
+  async function onSubmit(values: FormValues) {
+    setIsSubmitting(true);
+    try {
       const payload = {
-        ...data,
-        userId: parseInt(data.userId),
-        teamId: data.teamId ? parseInt(data.teamId) : null,
+        ...values,
         siteId,
-        startDate: data.startDate ? format(data.startDate, 'yyyy-MM-dd') : null,
-        endDate: data.endDate ? format(data.endDate, 'yyyy-MM-dd') : null,
+        startDate: values.startDate ? format(values.startDate, "yyyy-MM-dd") : null,
+        endDate: values.endDate ? format(values.endDate, "yyyy-MM-dd") : null,
+        teamId: values.assignToTeam ? values.teamId : null,
       };
-      
-      const response = await fetch(`/api/sites/${siteId}/personnel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to assign personnel');
-      }
-      
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Success',
-        description: 'Personnel successfully assigned to site',
-      });
-      queryClient.invalidateQueries({ queryKey: [`/api/sites/${siteId}/personnel`] });
-      queryClient.invalidateQueries({ queryKey: ['/api/users', { unassigned: true, siteId }] });
-      onSuccess();
-      form.reset();
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
 
-  const onSubmit = (data: FormValues) => {
-    assignMutation.mutate(data);
-  };
+      const res = await apiRequest("POST", "/api/site-personnel", payload);
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to assign personnel");
+      }
+
+      toast({
+        title: "Success",
+        description: "Personnel assigned successfully",
+      });
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: [`/api/sites/${siteId}/personnel`] });
+      if (values.assignToTeam && values.teamId) {
+        queryClient.invalidateQueries({ 
+          queryKey: [`/api/teams/${values.teamId}/personnel`] 
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/teams"] });
+
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      // Reset form
+      form.reset();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Assign Personnel to Site</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="userId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>User</FormLabel>
-                  <Select
-                    disabled={isLoadingUsers || assignMutation.isPending}
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a user" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {isLoadingUsers ? (
-                        <SelectItem value="loading">Loading users...</SelectItem>
-                      ) : !users || users.length === 0 ? (
-                        <SelectItem value="none" disabled>No available users</SelectItem>
-                      ) : (
-                        users.map((user: any) => (
-                          <SelectItem key={user.id} value={user.id.toString()}>
-                            {user.username} ({user.email})
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="siteRole"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select
-                    disabled={assignMutation.isPending}
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="site_manager">Site Manager</SelectItem>
-                      <SelectItem value="safety_coordinator">Safety Coordinator</SelectItem>
-                      <SelectItem value="foreman">Foreman</SelectItem>
-                      <SelectItem value="worker">Worker</SelectItem>
-                      <SelectItem value="subcontractor">Subcontractor</SelectItem>
-                      <SelectItem value="visitor">Visitor</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value}
-                        onSelect={field.onChange}
-                        disabled={assignMutation.isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem className="flex-1">
-                    <FormLabel>End Date (Optional)</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        date={field.value}
-                        onSelect={field.onChange}
-                        disabled={assignMutation.isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="addToTeam"
-                checked={addToTeam}
-                onCheckedChange={(checked) => {
-                  setAddToTeam(checked as boolean);
-                  if (!checked) {
-                    form.setValue('teamId', '');
-                  }
-                }}
-                disabled={teams.length === 0 || assignMutation.isPending}
-              />
-              <label
-                htmlFor="addToTeam"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="userId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>User</FormLabel>
+              <Select
+                onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                defaultValue={field.value?.toString()}
               >
-                Add to Team {teams.length === 0 && '(No teams available for this site)'}
-              </label>
-            </div>
-            
-            {addToTeam && (
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a user" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {availableUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id.toString()}>
+                      {user.name} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                The user to be assigned to this site
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="siteRole"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Site Role</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {siteRoles.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                The role of the user at this site
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Start Date</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  Date when the user starts working on this site
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>End Date (Optional)</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "PPP")
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value || undefined}
+                      onSelect={field.onChange}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  Expected end date (leave blank if indefinite)
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes (Optional)</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Enter any additional information about this assignment"
+                  className="resize-none"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                Any additional details about this assignment
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {availableTeams.length > 0 && (
+          <>
+            <FormField
+              control={form.control}
+              name="assignToTeam"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Assign to Team</FormLabel>
+                    <FormDescription>
+                      Add this person to a team within the site
+                    </FormDescription>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {watchAssignToTeam && (
               <FormField
                 control={form.control}
                 name="teamId"
@@ -254,9 +352,8 @@ export default function AssignPersonnelForm({ siteId, teams = [], onSuccess }: A
                   <FormItem>
                     <FormLabel>Team</FormLabel>
                     <Select
-                      disabled={assignMutation.isPending}
-                      onValueChange={field.onChange}
-                      value={field.value}
+                      onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                      defaultValue={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -264,60 +361,35 @@ export default function AssignPersonnelForm({ siteId, teams = [], onSuccess }: A
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {teams.map((team) => (
+                        {availableTeams.map((team) => (
                           <SelectItem key={team.id} value={team.id.toString()}>
                             {team.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormDescription>
+                      The team this person will be assigned to
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             )}
-            
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Add any additional notes about this assignment"
-                      disabled={assignMutation.isPending}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="flex justify-end space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onSuccess}
-                disabled={assignMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={
-                  assignMutation.isPending ||
-                  isLoadingUsers ||
-                  !form.formState.isValid
-                }
-              >
-                {assignMutation.isPending ? 'Assigning...' : 'Assign Personnel'}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+          </>
+        )}
+
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Assigning...
+            </>
+          ) : (
+            "Assign Personnel"
+          )}
+        </Button>
+      </form>
+    </Form>
   );
 }
