@@ -1,18 +1,17 @@
-import React, { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
-import { format } from 'date-fns';
-import { Loader2, Plus, Trash2, UserPlus } from 'lucide-react';
-import { Button } from './ui/button';
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { format, parseISO } from "date-fns";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-} from './ui/table';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,204 +21,206 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from './ui/alert-dialog';
-import { Badge } from './ui/badge';
-import AssignPersonnelForm from './assign-personnel-form';
-import { useToast } from '@/hooks/use-toast';
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { Edit, MoreHorizontal, Trash2, UserCheck, UserMinus } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
 
 interface SitePersonnelListProps {
   siteId: number;
-  siteName: string;
+  onEdit?: (personnelId: number) => void;
 }
 
-export default function SitePersonnelList({ siteId, siteName }: SitePersonnelListProps) {
+export function SitePersonnelList({ siteId, onEdit }: SitePersonnelListProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [personnelToRemove, setPersonnelToRemove] = useState<number | null>(null);
-
-  // Fetch site personnel
-  const { data, isLoading, isError } = useQuery({
+  const { user } = useAuth();
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  
+  // Query to fetch site personnel
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: [`/api/sites/${siteId}/personnel`],
   });
-
-  // Remove personnel mutation
+  
+  // Mutation to remove personnel from site
   const removeMutation = useMutation({
     mutationFn: async (personnelId: number) => {
-      const res = await apiRequest('DELETE', `/api/site-personnel/${personnelId}`);
-      return await res.json();
+      const response = await apiRequest("DELETE", `/api/sites/${siteId}/personnel/${personnelId}`);
+      return await response.json();
     },
     onSuccess: () => {
-      // Invalidate queries to refresh data
+      toast({
+        title: "Personnel Removed",
+        description: "The user has been removed from this site.",
+      });
+      
+      // Invalidate site personnel queries to refresh the data
       queryClient.invalidateQueries({ queryKey: [`/api/sites/${siteId}/personnel`] });
-      setPersonnelToRemove(null);
-      toast({
-        title: 'Personnel removed',
-        description: 'The team member has been removed from this site.',
-      });
+      setDeleteId(null);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: 'Failed to remove personnel',
-        description: 'There was an error removing the team member. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: error.message || "Failed to remove personnel from site.",
+        variant: "destructive",
       });
-      console.error('Error removing personnel:', error);
+      setDeleteId(null);
     },
   });
-
-  // Format site role for display
-  const formatRole = (role: string) => {
-    return role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, ' ');
-  };
-
-  // Get badge color based on role
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'site_manager':
-        return 'bg-blue-500';
-      case 'safety_coordinator':
-        return 'bg-green-500';
-      case 'foreman':
-        return 'bg-amber-500';
-      case 'worker':
-        return 'bg-slate-500';
-      case 'subcontractor':
-        return 'bg-purple-500';
-      case 'visitor':
-        return 'bg-gray-400';
-      default:
-        return 'bg-gray-500';
+  
+  // Format date helper function
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Not set";
+    try {
+      return format(parseISO(dateString), "PPP");
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return dateString;
     }
   };
-
-  const handleRemovePersonnel = (id: number) => {
-    setPersonnelToRemove(id);
+  
+  // Get role badge color based on role
+  const getRoleBadge = (role: string) => {
+    const roleStyles = {
+      site_manager: "bg-blue-500",
+      safety_coordinator: "bg-green-500",
+      foreman: "bg-amber-500",
+      worker: "bg-slate-500",
+      subcontractor: "bg-purple-500",
+      visitor: "bg-gray-500",
+    };
+    
+    return (
+      <Badge className={roleStyles[role as keyof typeof roleStyles] || "bg-gray-500"}>
+        {role.replace("_", " ")}
+      </Badge>
+    );
   };
-
-  const confirmRemovePersonnel = () => {
-    if (personnelToRemove) {
-      removeMutation.mutate(personnelToRemove);
-    }
+  
+  // Determine if user can edit/delete based on permissions
+  const canModify = () => {
+    return user?.role === "super_admin" || user?.role === "safety_officer";
   };
-
+  
+  // Render loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+      </div>
+    );
+  }
+  
+  // Render error state
+  if (isError) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-red-500">Error loading personnel: {(error as Error).message}</p>
+      </div>
+    );
+  }
+  
+  // Render empty state
+  if (!data?.personnel || data.personnel.length === 0) {
+    return (
+      <div className="text-center p-6 border rounded-lg">
+        <UserMinus className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-lg font-medium">No Personnel Assigned</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          There are no personnel assigned to this site yet.
+        </p>
+      </div>
+    );
+  }
+  
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Site Personnel</CardTitle>
-            <CardDescription>Manage the team members assigned to this site</CardDescription>
-          </div>
-          <Button onClick={() => setIsAssignDialogOpen(true)}>
-            <UserPlus className="mr-2 h-4 w-4" />
-            Assign Personnel
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : isError ? (
-            <div className="py-8 text-center text-muted-foreground">
-              Failed to load personnel data
-            </div>
-          ) : data?.personnel?.length ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Start Date</TableHead>
-                  <TableHead>End Date</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.personnel.map((person: any) => {
-                  // Find the user data
-                  const startDate = new Date(person.startDate);
-                  const endDate = person.endDate ? new Date(person.endDate) : null;
-                  
-                  return (
-                    <TableRow key={person.id}>
-                      <TableCell className="font-medium">{person.userName || 'Unknown'}</TableCell>
-                      <TableCell>
-                        <Badge className={getRoleBadgeColor(person.role)}>
-                          {formatRole(person.role)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{format(startDate, 'MMM d, yyyy')}</TableCell>
-                      <TableCell>
-                        {endDate ? format(endDate, 'MMM d, yyyy') : 'Ongoing'}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {person.notes || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemovePersonnel(person.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="py-8 text-center text-muted-foreground">
-              No personnel assigned to this site yet.
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsAssignDialogOpen(true)}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Assign First Team Member
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Assign Personnel Dialog */}
-      <AssignPersonnelForm
-        open={isAssignDialogOpen}
-        onOpenChange={setIsAssignDialogOpen}
-        siteId={siteId}
-        siteName={siteName}
-      />
-
-      {/* Confirmation Dialog for Removing Personnel */}
-      <AlertDialog
-        open={!!personnelToRemove}
-        onOpenChange={(open) => !open && setPersonnelToRemove(null)}
-      >
+      <Table>
+        <TableCaption>Site personnel list</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Start Date</TableHead>
+            <TableHead>End Date</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.personnel.map((person: any) => (
+            <TableRow key={person.id}>
+              <TableCell className="font-medium">{person.userName}</TableCell>
+              <TableCell>{person.userEmail}</TableCell>
+              <TableCell>{getRoleBadge(person.role)}</TableCell>
+              <TableCell>{formatDate(person.startDate)}</TableCell>
+              <TableCell>{formatDate(person.endDate)}</TableCell>
+              <TableCell className="text-right">
+                {canModify() && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="h-8 w-8 p-0">
+                        <span className="sr-only">Open menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit && onEdit(person.id)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => setDeleteId(person.id)}
+                        className="text-red-600 focus:text-red-600"
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      
+      {/* Confirmation dialog for removal */}
+      <AlertDialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Personnel</AlertDialogTitle>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove this team member from the site? 
-              This action cannot be undone.
+              This will remove the personnel from this site. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={confirmRemovePersonnel}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            <AlertDialogAction
+              onClick={() => deleteId && removeMutation.mutate(deleteId)}
+              className="bg-red-600 focus:ring-red-600"
             >
-              {removeMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {removeMutation.isPending ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Removing...
+                </span>
+              ) : (
+                "Remove"
               )}
-              Remove
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
