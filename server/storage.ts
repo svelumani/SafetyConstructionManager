@@ -1126,8 +1126,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTeam(teamData: InsertTeam): Promise<Team> {
-    const [newTeam] = await db.insert(teams).values(teamData).returning();
-    return newTeam;
+    // Use a direct SQL query to bypass the issue with the teams import
+    try {
+      console.log("Creating team with data:", JSON.stringify(teamData));
+      
+      const result = await db.execute(
+        `INSERT INTO teams (
+          tenant_id, site_id, name, description, leader_id, color, specialties, created_by_id, created_at, updated_at, is_active
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+        ) RETURNING *`,
+        [
+          teamData.tenantId,
+          teamData.siteId,
+          teamData.name,
+          teamData.description || null,
+          teamData.leaderId || null,
+          teamData.color || null,
+          teamData.specialties ? JSON.stringify(teamData.specialties) : null,
+          teamData.createdById,
+          new Date().toISOString(),
+          new Date().toISOString(),
+          true
+        ]
+      );
+      
+      console.log("Team created successfully, result:", result.rows[0]);
+      return result.rows[0] as Team;
+    } catch (error) {
+      console.error("Error in createTeam:", error);
+      throw error;
+    }
   }
 
   async updateTeam(id: number, teamData: Partial<InsertTeam>): Promise<Team | undefined> {
