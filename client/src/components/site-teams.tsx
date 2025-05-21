@@ -105,7 +105,7 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
         )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {teams.map((team: any) => (
+        {siteTeams.map((team: any) => (
           <Card key={team.id} className="border shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
