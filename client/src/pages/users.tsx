@@ -10,7 +10,8 @@ import {
   Mail,
   Phone,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -33,6 +34,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { RoleManagementDialog } from "@/components/role-management-dialog";
 import { AddUserForm } from "@/components/add-user-form";
+import { UserBulkUpload } from "@/components/user-bulk-upload";
 
 interface User {
   id: number;
@@ -56,6 +58,7 @@ export default function Users() {
   const [pageSize, setPageSize] = useState(10);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [showAddUserDialog, setShowAddUserDialog] = useState(false);
+  const [showBulkUploadDialog, setShowBulkUploadDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
   // Get the current user for comparison
@@ -188,9 +191,14 @@ export default function Users() {
           <h1 className="text-2xl font-bold">Users & Teams</h1>
           <p className="text-muted-foreground">Manage users, roles, and permissions across your organization</p>
         </div>
-        <Button onClick={() => setShowAddUserDialog(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add User
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowBulkUploadDialog(true)}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" /> Bulk Upload
+          </Button>
+          <Button onClick={() => setShowAddUserDialog(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add User
+          </Button>
+        </div>
       </div>
       
       <Card>
