@@ -86,6 +86,7 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
+      console.log("Registration request body:", JSON.stringify(req.body, null, 2));
       const { email, password, firstName, lastName, username, role, tenant } = req.body;
       
       const existingUser = await storage.getUserByEmail(email);
@@ -95,16 +96,28 @@ export function setupAuth(app: Express) {
 
       // Create tenant if provided in the request
       let tenantId = null;
+      console.log("Tenant data:", JSON.stringify(tenant, null, 2));
+      
       if (tenant && tenant.name) {
         try {
-          const newTenant = await storage.createTenant({
+          console.log("Creating tenant with name:", tenant.name);
+          
+          const tenantData = {
             name: tenant.name,
             email: tenant.email || email, // Use company email or fallback to user email
             phone: tenant.phone,
             address: tenant.address,
             subscriptionPlan: 'basic',
-            subscriptionStatus: 'active'
-          });
+            subscriptionStatus: 'active',
+            isActive: true,
+            maxUsers: 25,
+            maxSites: 10,
+            activeUsers: 1,
+            activeSites: 0
+          };
+          
+          console.log("Tenant data for creation:", JSON.stringify(tenantData, null, 2));
+          const newTenant = await storage.createTenant(tenantData);
           
           tenantId = newTenant.id;
           
@@ -120,8 +133,11 @@ export function setupAuth(app: Express) {
           });
         } catch (err) {
           console.error("Error creating tenant:", err);
+          console.error(err.stack);
           // Continue with user creation even if tenant creation fails
         }
+      } else {
+        console.log("No tenant data provided or missing tenant name");
       }
 
       const hashedPassword = await hashPassword(password);
