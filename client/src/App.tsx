@@ -14,6 +14,7 @@ import Incidents from "@/pages/incidents";
 import Training from "@/pages/training";
 import SafetyScores from "@/pages/safety-scores";
 import Users from "@/pages/users";
+import UserProfile from "@/pages/user-profile";
 import Sites from "@/pages/sites";
 import TenantRegistration from "@/pages/tenant-registration";
 import { ProtectedRoute, SuperAdminRoute } from "@/components/protected-route";
@@ -35,6 +36,7 @@ function Router() {
       <ProtectedRoute path="/training" component={Training} />
       <ProtectedRoute path="/safety-scores" component={SafetyScores} />
       <ProtectedRoute path="/users" component={Users} />
+      <ProtectedRoute path="/users/:id" component={UserProfile} />
       <ProtectedRoute path="/sites" component={Sites} />
       
       {/* Fallback to 404 */}
