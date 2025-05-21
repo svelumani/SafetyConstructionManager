@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -6,24 +6,26 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import Layout from "@/components/layout";
 import PageHeader from "@/components/page-header";
+import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 
 // Define the schema for adding personnel to a site
 const formSchema = z.object({
   userId: z.string().min(1, "User is required"),
-  siteRole: z.enum(["site_manager", "safety_coordinator", "foreman", "worker", "subcontractor", "visitor"]),
+  siteRole: z.enum(["site-manager", "safety-coordinator", "foreman", "worker", "subcontractor", "visitor"], {
+    required_error: "Site role is required",
+  }),
   startDate: z.date().optional(),
   endDate: z.date().optional(),
-  teamId: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -42,49 +44,60 @@ export default function AddSitePersonnel() {
     queryFn: ({ signal }) => fetch(`/api/sites/${siteId}`, { signal }).then(res => res.json()),
   });
 
-  // Query to get all users for selection
+  // Query to get users that are not already assigned to this site
   const usersQuery = useQuery({
     queryKey: ['/api/users'],
-    queryFn: ({ signal }) => fetch(`/api/users`, { signal }).then(res => res.json()).then(data => data.users || []),
+    queryFn: ({ signal }) => fetch('/api/users', { signal }).then(res => res.json()),
   });
 
-  // Query to get teams for this site
-  const teamsQuery = useQuery({
-    queryKey: ['/api/sites', siteId, 'teams'],
-    queryFn: ({ signal }) => fetch(`/api/sites/${siteId}/teams`, { signal })
-      .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch teams");
-        return res.json();
-      })
-      .then(data => data.teams || data || []),
+  // Query to get personnel already assigned to the site
+  const sitePersonnelQuery = useQuery({
+    queryKey: ['/api/sites', siteId, 'personnel'],
+    queryFn: ({ signal }) => fetch(`/api/sites/${siteId}/personnel`, { signal }).then(res => res.json()),
   });
+
+  // Filter out users who are already assigned to this site
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+
+  // Update available users when queries complete
+  useEffect(() => {
+    if (usersQuery.data?.users && sitePersonnelQuery.data?.personnel) {
+      const users = usersQuery.data.users || [];
+      const personnel = sitePersonnelQuery.data.personnel || [];
+      
+      // Get IDs of users already assigned to this site
+      const assignedUserIds = personnel.map((person: any) => person.userId);
+      
+      // Filter out users who are already assigned to this site
+      const available = users.filter((user: any) => !assignedUserIds.includes(user.id));
+      setAvailableUsers(available);
+    }
+  }, [usersQuery.data, sitePersonnelQuery.data]);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       userId: "",
-      siteRole: "worker",
+      siteRole: undefined,
       notes: "",
     },
   });
 
-  const assignPersonnelMutation = useMutation({
+  const addPersonnelMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      // Convert dates to ISO strings for the API
-      const apiData = {
+      // Format dates if provided
+      const formattedData = {
         ...data,
         startDate: data.startDate ? format(data.startDate, 'yyyy-MM-dd') : null,
         endDate: data.endDate ? format(data.endDate, 'yyyy-MM-dd') : null,
-        userId: parseInt(data.userId),
-        teamId: data.teamId ? parseInt(data.teamId) : null,
       };
-
-      return apiRequest('POST', `/api/sites/${siteId}/personnel`, apiData);
+      
+      return apiRequest('POST', `/api/sites/${siteId}/personnel`, formattedData);
     },
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "Personnel successfully assigned to site",
+        description: "Personnel successfully added to site",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/sites', siteId, 'personnel'] });
       navigate(`/sites/${siteId}`);
@@ -92,32 +105,33 @@ export default function AddSitePersonnel() {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: `Failed to assign personnel: ${error.message}`,
+        description: `Failed to add personnel to site: ${error.message}`,
         variant: "destructive",
       });
     }
   });
 
   const onSubmit = (data: FormData) => {
-    assignPersonnelMutation.mutate(data);
+    addPersonnelMutation.mutate(data);
   };
 
-  const isLoading = usersQuery.isLoading || siteQuery.isLoading || teamsQuery.isLoading || assignPersonnelMutation.isPending;
+  const isLoading = siteQuery.isLoading || usersQuery.isLoading || 
+                   sitePersonnelQuery.isLoading || addPersonnelMutation.isPending;
 
   return (
     <Layout>
       <PageHeader
-        title="Assign Personnel to Site"
-        subtitle={`Assign personnel to ${siteQuery.data?.name || 'site'}`}
+        title="Add Personnel to Site"
+        subtitle={`Add user to ${siteQuery.data?.name || 'site'}`}
         backButton={`/sites/${siteId}`}
       />
 
       <div className="container mx-auto py-6">
         <Card>
           <CardHeader>
-            <CardTitle>Assign Personnel</CardTitle>
+            <CardTitle>Add Personnel</CardTitle>
             <CardDescription>
-              Assign a user to this site with a specific role and optional team membership.
+              Assign a user to this site with a specific role.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -136,13 +150,18 @@ export default function AddSitePersonnel() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a user" />
+                            <SelectValue placeholder="Select user" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {usersQuery.data?.map((user: any) => (
+                          {availableUsers.length === 0 && (
+                            <SelectItem value="none" disabled>
+                              No available users
+                            </SelectItem>
+                          )}
+                          {availableUsers.map((user: any) => (
                             <SelectItem key={user.id} value={user.id.toString()}>
-                              {user.firstName} {user.lastName} ({user.email})
+                              {user.name || user.username || user.email}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -172,8 +191,8 @@ export default function AddSitePersonnel() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="site_manager">Site Manager</SelectItem>
-                          <SelectItem value="safety_coordinator">Safety Coordinator</SelectItem>
+                          <SelectItem value="site-manager">Site Manager</SelectItem>
+                          <SelectItem value="safety-coordinator">Safety Coordinator</SelectItem>
                           <SelectItem value="foreman">Foreman</SelectItem>
                           <SelectItem value="worker">Worker</SelectItem>
                           <SelectItem value="subcontractor">Subcontractor</SelectItem>
@@ -181,110 +200,65 @@ export default function AddSitePersonnel() {
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        Specify the role this person will have at the site.
+                        The role of this person at the site.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="teamId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Team (Optional)</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        disabled={isLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a team (optional)" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="">No Team</SelectItem>
-                          {teamsQuery.data?.map((team: any) => (
-                            <SelectItem key={team.id} value={team.id.toString()}>
-                              {team.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Optionally assign this person to a team at the site.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="startDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Start Date</FormLabel>
+                        <DatePicker
+                          date={field.value}
+                          onSelect={field.onChange}
+                        />
+                        <FormDescription>
+                          When this person starts working at the site.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Start Date (Optional)</FormLabel>
-                      <Input
-                        type="date"
-                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            field.onChange(new Date(e.target.value));
-                          }
-                        }}
-                        disabled={isLoading}
-                      />
-                      <FormDescription>
-                        When this person will start working at the site.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>End Date (Optional)</FormLabel>
-                      <Input
-                        type="date"
-                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            field.onChange(new Date(e.target.value));
-                          }
-                        }}
-                        disabled={isLoading}
-                      />
-                      <FormDescription>
-                        When this person will finish working at the site.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="endDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>End Date</FormLabel>
+                        <DatePicker
+                          date={field.value}
+                          onSelect={field.onChange}
+                        />
+                        <FormDescription>
+                          When this person finishes working at the site (optional).
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 <FormField
                   control={form.control}
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
+                      <FormLabel>Notes</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Any additional notes about this personnel assignment..."
-                          className="resize-none"
+                          placeholder="Additional information about this assignment"
                           {...field}
-                          disabled={isLoading}
                         />
                       </FormControl>
                       <FormDescription>
-                        Any additional information about this assignment.
+                        Any additional notes about this personnel assignment.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -300,9 +274,9 @@ export default function AddSitePersonnel() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isLoading}>
+                  <Button type="submit" disabled={isLoading || availableUsers.length === 0}>
                     {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Assign Personnel
+                    Add to Site
                   </Button>
                 </div>
               </form>

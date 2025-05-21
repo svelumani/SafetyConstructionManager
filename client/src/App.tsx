@@ -24,6 +24,8 @@ import CreateTeamPage from "@/pages/teams/create";
 import TeamDetailPage from "@/pages/teams/[id]";
 import EditTeamPage from "@/pages/teams/[id]/edit";
 import { ProtectedRoute, SuperAdminRoute } from "@/components/protected-route";
+import AddSitePersonnel from "@/pages/sites/personnel/add";
+import AddTeamMember from "@/pages/teams/members/add";
 
 function Router() {
   return (
@@ -46,11 +48,13 @@ function Router() {
       <ProtectedRoute path="/sites" component={Sites} />
       <ProtectedRoute path="/sites/new" component={NewSitePage} />
       <ProtectedRoute path="/sites/:id" component={SiteDetailPage} />
+      <ProtectedRoute path="/sites/:id/personnel/add" component={AddSitePersonnel} />
       
       {/* Team management routes */}
       <ProtectedRoute path="/teams" component={Teams} />
       <ProtectedRoute path="/teams/create" component={CreateTeamPage} />
       <ProtectedRoute path="/teams/:id/edit" component={EditTeamPage} />
+      <ProtectedRoute path="/teams/:id/members/add" component={AddTeamMember} />
       <ProtectedRoute path="/teams/:id" component={TeamDetailPage} />
       
       {/* Fallback to 404 */}
