@@ -5,6 +5,7 @@ import { relations } from "drizzle-orm";
 
 // Enums
 export const userRoleEnum = pgEnum('user_role', ['super_admin', 'safety_officer', 'supervisor', 'subcontractor', 'employee']);
+export const siteRoleEnum = pgEnum('site_role', ['site_manager', 'safety_coordinator', 'foreman', 'worker', 'subcontractor', 'visitor']);
 export const hazardSeverityEnum = pgEnum('hazard_severity', ['low', 'medium', 'high', 'critical']);
 export const hazardStatusEnum = pgEnum('hazard_status', ['open', 'assigned', 'in_progress', 'resolved', 'closed']);
 export const inspectionStatusEnum = pgEnum('inspection_status', ['pending', 'in_progress', 'completed']);
@@ -109,6 +110,7 @@ export const sitesRelations = relations(sites, ({ one, many }) => ({
   inspections: many(inspections),
   permitRequests: many(permitRequests),
   incidentReports: many(incidentReports),
+  personnel: many(sitePersonnel),
 }));
 
 // Subcontractors
@@ -446,6 +448,43 @@ export const trainingRecordsRelations = relations(trainingRecords, ({ one }) => 
   course: one(trainingCourses, {
     fields: [trainingRecords.courseId],
     references: [trainingCourses.id],
+  }),
+}));
+
+// Site Personnel
+export const sitePersonnel = pgTable('site_personnel', {
+  id: serial('id').primaryKey(),
+  siteId: integer('site_id').references(() => sites.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  tenantId: integer('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  siteRole: siteRoleEnum('site_role').notNull().default('worker'),
+  assignedById: integer('assigned_by_id').references(() => users.id).notNull(),
+  startDate: date('start_date', { mode: 'string' }),
+  endDate: date('end_date', { mode: 'string' }),
+  permissions: jsonb('permissions'),
+  teamId: text('team_id'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
+  isActive: boolean('is_active').notNull().default(true),
+});
+
+export const sitePersonnelRelations = relations(sitePersonnel, ({ one }) => ({
+  site: one(sites, {
+    fields: [sitePersonnel.siteId],
+    references: [sites.id],
+  }),
+  user: one(users, {
+    fields: [sitePersonnel.userId],
+    references: [users.id],
+  }),
+  tenant: one(tenants, {
+    fields: [sitePersonnel.tenantId],
+    references: [tenants.id],
+  }),
+  assignedBy: one(users, {
+    fields: [sitePersonnel.assignedById],
+    references: [users.id],
   }),
 }));
 
