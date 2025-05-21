@@ -6,7 +6,7 @@ interface PageHeaderProps {
   action?: React.ReactNode;
 }
 
-export default function PageHeader({ title, subtitle, action }: PageHeaderProps) {
+function PageHeader({ title, subtitle, action }: PageHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
       <div>
@@ -17,3 +17,6 @@ export default function PageHeader({ title, subtitle, action }: PageHeaderProps)
     </div>
   );
 }
+
+export default PageHeader;
+export { PageHeader };
