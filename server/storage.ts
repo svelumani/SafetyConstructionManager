@@ -2,6 +2,7 @@ import {
   users, tenants, sites, hazardReports, hazardAssignments, hazardComments,
   inspections, permitRequests, incidentReports, trainingContent, trainingCourses,
   trainingRecords, systemLogs, emailTemplates, rolePermissions, subcontractors, sitePersonnel,
+  teams,
   type User, type InsertUser, type Tenant, type InsertTenant, type Site, type InsertSite,
   type HazardReport, type InsertHazardReport, type HazardAssignment, type InsertHazardAssignment,
   type HazardComment, type InsertHazardComment, type Inspection, type InsertInspection,
@@ -9,7 +10,8 @@ import {
   type TrainingContent, type InsertTrainingContent, type TrainingCourse, type InsertTrainingCourse,
   type TrainingRecord, type InsertTrainingRecord, type SystemLog, type EmailTemplate,
   type InsertEmailTemplate, type RolePermission, type InsertRolePermission, type Subcontractor,
-  type InsertSubcontractor, type RegisterTenant, type SitePersonnel, type InsertSitePersonnel
+  type InsertSubcontractor, type RegisterTenant, type SitePersonnel, type InsertSitePersonnel,
+  type Team, type InsertTeam
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull, desc, asc, or, sql, like, not } from "drizzle-orm";
