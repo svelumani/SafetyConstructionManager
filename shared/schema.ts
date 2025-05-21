@@ -76,6 +76,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   permitRequests: many(permitRequests),
   incidentReports: many(incidentReports),
   trainingRecords: many(trainingRecords),
+  siteAssignments: many(sitePersonnel),
 }));
 
 // Sites
@@ -640,6 +641,12 @@ export const insertRolePermissionSchema = createInsertSchema(rolePermissions).om
   updatedAt: true 
 });
 
+export const insertSitePersonnelSchema = createInsertSchema(sitePersonnel).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+
 export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({ 
   id: true, 
   createdAt: true, 
@@ -661,6 +668,7 @@ export type InsertTrainingCourse = z.infer<typeof insertTrainingCourseSchema>;
 export type InsertTrainingRecord = z.infer<typeof insertTrainingRecordSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type InsertSitePersonnel = z.infer<typeof insertSitePersonnelSchema>;
 
 // Type exports for select schemas
 export type Tenant = typeof tenants.$inferSelect;
@@ -679,6 +687,7 @@ export type TrainingRecord = typeof trainingRecords.$inferSelect;
 export type SystemLog = typeof systemLogs.$inferSelect;
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type RolePermission = typeof rolePermissions.$inferSelect;
+export type SitePersonnel = typeof sitePersonnel.$inferSelect;
 
 // Extended schemas for authentication
 export const loginSchema = z.object({
