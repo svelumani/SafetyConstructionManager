@@ -15,6 +15,7 @@ import Training from "@/pages/training";
 import SafetyScores from "@/pages/safety-scores";
 import Users from "@/pages/users";
 import Sites from "@/pages/sites";
+import TenantRegistration from "@/pages/tenant-registration";
 import { ProtectedRoute, SuperAdminRoute } from "@/components/protected-route";
 
 function Router() {
