@@ -20,13 +20,12 @@ const registerSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  phone: z.string().optional(),
+  phone: z.string().min(10, "Please enter a valid phone number"),
   jobTitle: z.string().min(1, "Job title is required"),
   
   // Company information
   companyName: z.string().min(2, "Company name must be at least 2 characters"),
   companyEmail: z.string().email("Please enter a valid company email"),
-  companyPhone: z.string().min(10, "Please enter a valid company phone").optional(),
   companyAddress: z.string().min(5, "Company address is required").optional(),
 });
 
@@ -56,7 +55,6 @@ export default function AuthForm() {
       jobTitle: "",
       companyName: "",
       companyEmail: "",
-      companyPhone: "",
       companyAddress: ""
     },
   });
@@ -74,7 +72,7 @@ export default function AuthForm() {
       tenant: {
         name: data.companyName,
         email: data.companyEmail,
-        phone: data.companyPhone,
+        phone: data.phone, // Use the user's phone number for the company as well
         address: data.companyAddress
       }
     };
@@ -200,7 +198,7 @@ export default function AuthForm() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="register-phone">Phone (Optional)</Label>
+                  <Label htmlFor="register-phone">Phone Number</Label>
                   <Input
                     id="register-phone"
                     type="tel"
@@ -244,32 +242,17 @@ export default function AuthForm() {
                 )}
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="register-companyEmail">Company Email</Label>
-                  <Input
-                    id="register-companyEmail"
-                    type="email"
-                    placeholder="info@abcconstruction.com"
-                    {...registerForm.register("companyEmail")}
-                  />
-                  {registerForm.formState.errors.companyEmail && (
-                    <p className="text-sm text-red-500">{registerForm.formState.errors.companyEmail.message}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="register-companyPhone">Company Phone (Optional)</Label>
-                  <Input
-                    id="register-companyPhone"
-                    type="tel"
-                    placeholder="(123) 456-7890"
-                    {...registerForm.register("companyPhone")}
-                  />
-                  {registerForm.formState.errors.companyPhone && (
-                    <p className="text-sm text-red-500">{registerForm.formState.errors.companyPhone.message}</p>
-                  )}
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="register-companyEmail">Company Email</Label>
+                <Input
+                  id="register-companyEmail"
+                  type="email"
+                  placeholder="info@abcconstruction.com"
+                  {...registerForm.register("companyEmail")}
+                />
+                {registerForm.formState.errors.companyEmail && (
+                  <p className="text-sm text-red-500">{registerForm.formState.errors.companyEmail.message}</p>
+                )}
               </div>
               
               <div className="space-y-2">
