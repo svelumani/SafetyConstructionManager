@@ -16,10 +16,15 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
   const { user } = useAuth();
   
   const { data: teams, isLoading } = useQuery({
-    queryKey: ['/api/teams', { siteId }],
+    queryKey: ['/api/teams'],
     queryFn: ({ signal }) => 
-      fetch(`/api/teams?siteId=${siteId}`, { signal })
-        .then(res => res.json()),
+      fetch(`/api/teams`, { signal })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error('Failed to fetch teams');
+          }
+          return res.json();
+        }),
   });
 
   if (isLoading) {
@@ -49,7 +54,12 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
 
   const canCreateTeam = user?.role === 'superAdmin' || user?.role === 'safetyOfficer';
 
-  if (!teams || teams.length === 0) {
+  // Filter teams for this specific site
+  const siteTeams = teams?.filter(team => 
+    team.siteIds?.includes(siteId) || team.primarySiteId === siteId
+  ) || [];
+  
+  if (!siteTeams.length) {
     return (
       <div className="space-y-4">
         <div className="flex justify-between items-center">
