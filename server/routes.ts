@@ -1430,6 +1430,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: { title: hazard.title, severity: hazard.severity, siteId: hazard.siteId },
       });
       
+      // Send email notifications to safety officers and site managers
+      try {
+        // Get the site for the name
+        const site = await storage.getSite(hazard.siteId);
+        
+        // Get the user who reported the hazard
+        const reportedBy = await storage.getUser(hazard.reportedById);
+        
+        // Get safety officers and site managers for the tenant
+        const safetyOfficers = await storage.getUsersByRole(hazard.tenantId, 'safety_officer');
+        
+        // Get site personnel with site manager role
+        const siteManagers = await storage.getSitePersonnelByRole(hazard.siteId, 'site_manager');
+        const siteManagerUsers = await Promise.all(
+          siteManagers.map(sm => storage.getUser(sm.userId))
+        );
+        
+        // Combine recipients and filter out the reporter to avoid duplicate notifications
+        const recipients = [...safetyOfficers, ...siteManagerUsers.filter(u => u !== null)]
+          .filter(user => user.id !== hazard.reportedById);
+        
+        if (site && reportedBy && recipients.length > 0) {
+          // Import is inside try block to handle potential missing module gracefully
+          const { sendHazardReportedNotification } = await import('./notifications/hazard-notifications');
+          
+          // Send notification (don't await, let it process in background)
+          sendHazardReportedNotification(
+            hazard,
+            reportedBy,
+            site.name,
+            recipients
+          ).catch(error => {
+            console.error('Error sending hazard notification:', error);
+          });
+        }
+      } catch (notificationError) {
+        // Log but don't fail the request if notification sending fails
+        console.error("Error sending hazard notification:", notificationError);
+      }
+      
       res.status(201).json(hazard);
     } catch (err) {
       console.error("Error creating hazard:", err);
@@ -1526,6 +1566,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
       
+      // Send email notification if assigned to a user
+      try {
+        if (data.assignedToUserId) {
+          // Get site information
+          const site = await storage.getSite(hazard.siteId);
+          
+          // Get the user who was assigned and the user who assigned
+          const assignedTo = await storage.getUser(data.assignedToUserId);
+          const assignedBy = await storage.getUser(req.user.id);
+          
+          if (site && assignedTo && assignedBy) {
+            // Import notification service
+            const { sendHazardAssignedNotification } = await import('./notifications/hazard-notifications');
+            
+            // Send notification (don't await, let it process in background)
+            sendHazardAssignedNotification(
+              hazard,
+              assignment,
+              assignedBy,
+              assignedTo,
+              site.name
+            ).catch(error => {
+              console.error('Error sending hazard assignment notification:', error);
+            });
+          }
+        }
+      } catch (notificationError) {
+        // Log but don't fail the request if notification fails
+        console.error("Error sending hazard assignment notification:", notificationError);
+      }
+      
       res.status(201).json(assignment);
     } catch (err) {
       console.error("Error creating assignment:", err);
@@ -1558,6 +1629,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entityType: "hazard",
         entityId: hazardId.toString(),
       });
+      
+      // Send email notification to relevant parties
+      try {
+        // Get the commenter
+        const commenter = await storage.getUser(req.user.id);
+        
+        // Collect potential notification recipients
+        
+        // 1. Get the reporter of the hazard
+        const reporter = hazard.reportedById !== req.user.id ? 
+          await storage.getUser(hazard.reportedById) : null;
+        
+        // 2. Get users assigned to this hazard
+        const assignments = await storage.listHazardAssignments(hazardId);
+        const assignedUserIds = assignments
+          .filter(a => a.assignedToUserId && a.assignedToUserId !== req.user.id)
+          .map(a => a.assignedToUserId);
+        
+        const assignedUsers = await Promise.all(
+          assignedUserIds.map(id => id ? storage.getUser(id) : null)
+        );
+        
+        // 3. Get previous commenters on this hazard
+        const previousComments = await storage.listHazardComments(hazardId);
+        const commenterIds = [...new Set(previousComments
+          .filter(c => c.userId !== req.user.id)
+          .map(c => c.userId))];
+        
+        const commenters = await Promise.all(
+          commenterIds.map(id => storage.getUser(id))
+        );
+        
+        // Combine all recipients, filter out nulls and duplicates
+        const recipients = [
+          reporter, 
+          ...assignedUsers, 
+          ...commenters
+        ].filter((user, index, self) => 
+          user && 
+          self.findIndex(u => u && u.id === user.id) === index
+        );
+        
+        if (commenter && recipients.length > 0) {
+          // Import notification service
+          const { sendHazardCommentNotification } = await import('./notifications/hazard-notifications');
+          
+          // Send notification (don't await, let it process in background)
+          sendHazardCommentNotification(
+            hazard,
+            commenter,
+            comment.comment,
+            recipients
+          ).catch(error => {
+            console.error('Error sending comment notification:', error);
+          });
+        }
+      } catch (notificationError) {
+        // Log but don't fail the request if notification fails
+        console.error("Error sending comment notification:", notificationError);
+      }
       
       res.status(201).json(comment);
     } catch (err) {
