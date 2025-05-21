@@ -660,35 +660,37 @@ export class DatabaseStorage implements IStorage {
   }
   
   async listSitePersonnelBySite(siteId: number, options?: { limit?: number; offset?: number; }): Promise<SitePersonnel[]> {
-    // Query site personnel with user information joined
-    const query = db.select({
-      id: sitePersonnel.id,
-      siteId: sitePersonnel.siteId,
-      userId: sitePersonnel.userId,
-      role: sitePersonnel.role,
-      startDate: sitePersonnel.startDate,
-      endDate: sitePersonnel.endDate,
-      notes: sitePersonnel.notes,
-      createdAt: sitePersonnel.createdAt,
-      updatedAt: sitePersonnel.updatedAt,
-      userName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
-      userRole: users.role,
-      userEmail: users.email,
-    })
-    .from(sitePersonnel)
-    .leftJoin(users, eq(sitePersonnel.userId, users.id))
-    .where(eq(sitePersonnel.siteId, siteId))
-    .orderBy(asc(users.firstName), asc(users.lastName));
-    
-    if (options?.limit) {
-      query.limit(options.limit);
+    try {
+      // First get the site personnel records
+      const personnelRecords = await db
+        .select()
+        .from(sitePersonnel)
+        .where(eq(sitePersonnel.siteId, siteId));
+      
+      // Then get the user details for each personnel record
+      const personnel = await Promise.all(
+        personnelRecords.map(async (record) => {
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, record.userId));
+          
+          // Combine the data
+          return {
+            ...record,
+            userName: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
+            userEmail: user ? user.email : '',
+            userRole: user ? user.role : null
+          };
+        })
+      );
+      
+      // Sort the results
+      return personnel.sort((a, b) => a.userName.localeCompare(b.userName));
+    } catch (error) {
+      console.error("Error in listSitePersonnelBySite:", error);
+      return [];
     }
-    
-    if (options?.offset) {
-      query.offset(options.offset);
-    }
-    
-    return await query;
   }
   
   async countSitePersonnel(siteId: number): Promise<number> {
