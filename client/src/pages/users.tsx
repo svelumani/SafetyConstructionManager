@@ -9,8 +9,10 @@ import {
   UserCog,
   Mail,
   Phone,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle
 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -53,6 +55,9 @@ export default function Users() {
   const [pageSize, setPageSize] = useState(10);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  
+  // Get the current user for comparison
+  const { user: currentUser } = useAuth();
   
   const { data, isLoading } = useQuery<{ users: User[], total: number }>({
     queryKey: ['/api/users', { 
@@ -137,23 +142,40 @@ export default function Users() {
     {
       header: "Actions",
       accessorKey: "actions",
-      cell: (item: User) => (
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => handleRoleChange(item)}
-            className="bg-blue-50 hover:bg-blue-100 border-blue-200"
-          >
-            <ShieldCheck className="h-4 w-4 mr-1 text-blue-600" /> Change Role
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/users/${item.id}`}>
-              <UserCog className="h-4 w-4 mr-1" /> Manage
-            </Link>
-          </Button>
-        </div>
-      ),
+      cell: (item: User) => {
+        // Check if this is the current user
+        const isCurrentUser = currentUser && currentUser.id === item.id;
+        
+        return (
+          <div className="flex items-center gap-2">
+            {isCurrentUser ? (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={true}
+                className="bg-gray-50 hover:bg-gray-50 border-gray-200 cursor-not-allowed"
+                title="You cannot change your own role"
+              >
+                <AlertCircle className="h-4 w-4 mr-1 text-amber-500" /> Cannot Change Own Role
+              </Button>
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleRoleChange(item)}
+                className="bg-blue-50 hover:bg-blue-100 border-blue-200"
+              >
+                <ShieldCheck className="h-4 w-4 mr-1 text-blue-600" /> Change Role
+              </Button>
+            )}
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/users/${item.id}`}>
+                <UserCog className="h-4 w-4 mr-1" /> Manage
+              </Link>
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
