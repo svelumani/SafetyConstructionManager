@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { setupAuth } from "./auth";
 import { setupEmailService } from "./email";
 import { userRoleEnum, insertTeamSchema } from "@shared/schema";
@@ -834,21 +835,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/teams", requireAuth, async (req, res) => {
     try {
-      const data = insertTeamSchema.parse({
-        ...req.body,
-        tenantId: req.user.tenantId,
-        createdById: req.user.id
-      });
+      console.log("Team creation request received:", req.body);
       
-      const team = await storage.createTeam(data);
+      // Simple validation
+      if (!req.body.name) {
+        return res.status(400).json({ message: "Team name is required" });
+      }
       
+      const siteId = req.body.siteId || req.body.primarySiteId;
+      if (!siteId) {
+        return res.status(400).json({ message: "Site ID is required" });
+      }
+      
+      // Direct database query using pool from db.ts
+      const { pool } = await import('./db');
+      
+      const query = `
+        INSERT INTO teams (
+          tenant_id, site_id, name, description, leader_id, color, specialties, 
+          created_by_id, created_at, updated_at, is_active
+        ) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+        RETURNING *
+      `;
+      
+      const values = [
+        req.user.tenantId,
+        siteId,
+        req.body.name,
+        req.body.description || null,
+        req.body.leaderId || null,
+        req.body.color || null,
+        req.body.specialties ? JSON.stringify(req.body.specialties) : null,
+        req.user.id,
+        new Date().toISOString(),
+        new Date().toISOString(),
+        true
+      ];
+      
+      console.log("Executing SQL with values:", values);
+      
+      const result = await pool.query(query, values);
+      
+      if (!result.rows || result.rows.length === 0) {
+        console.error("No rows returned after team creation");
+        return res.status(500).json({ message: "Failed to create team" });
+      }
+      
+      const team = result.rows[0];
+      console.log("Team created successfully:", team);
+      
+      // Log the team creation
       await storage.createSystemLog({
         tenantId: req.user.tenantId,
         userId: req.user.id,
         action: "team_created",
         entityType: "team",
         entityId: team.id.toString(),
-        details: { name: team.name, siteId: team.siteId },
+        details: { name: team.name, site_id: team.site_id },
       });
       
       res.status(201).json(team);
