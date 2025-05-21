@@ -35,12 +35,10 @@ export default function Teams() {
           title="Teams"
           description="Manage your construction teams"
           actions={
-            requirePermission("teams", "create", false) ? (
-              <Button size="sm" onClick={() => navigate("/teams/create")}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Team
-              </Button>
-            ) : null
+            <Button size="sm" onClick={() => navigate("/teams/create")}>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Team
+            </Button>
           }
         />
 
