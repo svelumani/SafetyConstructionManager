@@ -17,6 +17,8 @@ import Users from "@/pages/users";
 import UserProfile from "@/pages/user-profile";
 import Sites from "@/pages/sites";
 import TenantRegistration from "@/pages/tenant-registration";
+import NewSitePage from "@/pages/sites/new";
+import SiteDetailPage from "@/pages/sites/id";
 import { ProtectedRoute, SuperAdminRoute } from "@/components/protected-route";
 
 function Router() {
@@ -38,6 +40,8 @@ function Router() {
       <ProtectedRoute path="/users" component={Users} />
       <ProtectedRoute path="/users/:id" component={UserProfile} />
       <ProtectedRoute path="/sites" component={Sites} />
+      <ProtectedRoute path="/sites/new" component={NewSitePage} />
+      <ProtectedRoute path="/sites/:id" component={SiteDetailPage} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />
