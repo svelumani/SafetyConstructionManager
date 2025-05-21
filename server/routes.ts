@@ -21,6 +21,7 @@ import {
   insertTrainingRecordSchema,
   insertRolePermissionSchema,
   insertEmailTemplateSchema,
+  insertSitePersonnelSchema,
   registerTenantSchema,
   loginSchema
 } from "@shared/schema";
