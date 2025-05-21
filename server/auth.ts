@@ -86,11 +86,42 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      const { email, password, firstName, lastName, username, tenantId, role } = req.body;
+      const { email, password, firstName, lastName, username, role, tenant } = req.body;
       
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "User already exists with this email" });
+      }
+
+      // Create tenant if provided in the request
+      let tenantId = null;
+      if (tenant && tenant.name) {
+        try {
+          const newTenant = await storage.createTenant({
+            name: tenant.name,
+            email: tenant.email || email, // Use company email or fallback to user email
+            phone: tenant.phone,
+            address: tenant.address,
+            subscriptionPlan: 'basic',
+            subscriptionStatus: 'active'
+          });
+          
+          tenantId = newTenant.id;
+          
+          console.log("Created tenant:", newTenant.name, "with ID:", newTenant.id);
+          
+          // Log tenant creation
+          await storage.createSystemLog({
+            tenantId: tenantId,
+            action: "tenant_created",
+            entityType: "tenant",
+            entityId: tenantId.toString(),
+            details: { name: tenant.name }
+          });
+        } catch (err) {
+          console.error("Error creating tenant:", err);
+          // Continue with user creation even if tenant creation fails
+        }
       }
 
       const hashedPassword = await hashPassword(password);
@@ -102,7 +133,7 @@ export function setupAuth(app: Express) {
         lastName,
         username,
         tenantId,
-        role: role || "employee",
+        role: role || (tenantId ? "safety_officer" : "employee"), // Make first user a safety officer if they created a tenant
       });
 
       await storage.createSystemLog({
