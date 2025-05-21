@@ -438,6 +438,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Password reset endpoint for safety officers
+  app.post("/api/users/:id/reset-password", requireAuth, requirePermission("users", "update"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Prevent resetting own password through this endpoint
+      if (req.user.id === id) {
+        return res.status(403).json({
+          message: "To reset your own password, use the profile settings page"
+        });
+      }
+      
+      const user = await storage.getUser(id);
+      
+      if (!user || user.tenantId !== req.user.tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if user is safety officer (role-based permission check)
+      if (req.user.role !== "safety_officer" && req.user.role !== "super_admin") {
+        return res.status(403).json({ message: "Only safety officers can reset passwords" });
+      }
+      
+      // Generate a temporary password or reset token
+      // In production, you would generate a secure token and send a reset link via email
+      const tempPassword = "SafetyFirst123!";
+      
+      // Update user with hashed password
+      const updatedUser = await storage.updateUser(id, { 
+        password: await hashPassword(tempPassword)
+      });
+      
+      // In production, send email with password reset link
+      // For development, we're using a standard password
+      
+      // Create system log for audit trail
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "password_reset",
+        entityType: "user",
+        entityId: id.toString(),
+        details: { 
+          username: user.username,
+          email: user.email
+        },
+      });
+      
+      res.json({ 
+        success: true,
+        message: "Password has been reset"
+      });
+    } catch (err) {
+      console.error("Error resetting password:", err);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+  
+  // Suspend user account endpoint
+  app.post("/api/users/:id/suspend", requireAuth, requirePermission("users", "update"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Prevent suspending own account
+      if (req.user.id === id) {
+        return res.status(403).json({
+          message: "You cannot suspend your own account"
+        });
+      }
+      
+      const user = await storage.getUser(id);
+      
+      if (!user || user.tenantId !== req.user.tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if user is safety officer (role-based permission check)
+      if (req.user.role !== "safety_officer" && req.user.role !== "super_admin") {
+        return res.status(403).json({ message: "Only safety officers can suspend accounts" });
+      }
+      
+      const updatedUser = await storage.updateUser(id, { isActive: false });
+      
+      // Create system log for audit trail
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "account_suspended",
+        entityType: "user",
+        entityId: id.toString(),
+        details: { 
+          username: user.username,
+          email: user.email
+        },
+      });
+      
+      res.json({ 
+        success: true,
+        user: updatedUser
+      });
+    } catch (err) {
+      console.error("Error suspending user account:", err);
+      res.status(500).json({ message: "Failed to suspend user account" });
+    }
+  });
+  
+  // Activate user account endpoint
+  app.post("/api/users/:id/activate", requireAuth, requirePermission("users", "update"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      const user = await storage.getUser(id);
+      
+      if (!user || user.tenantId !== req.user.tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if user is safety officer (role-based permission check)
+      if (req.user.role !== "safety_officer" && req.user.role !== "super_admin") {
+        return res.status(403).json({ message: "Only safety officers can activate accounts" });
+      }
+      
+      const updatedUser = await storage.updateUser(id, { isActive: true });
+      
+      // Create system log for audit trail
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "account_activated",
+        entityType: "user",
+        entityId: id.toString(),
+        details: { 
+          username: user.username,
+          email: user.email
+        },
+      });
+      
+      res.json({ 
+        success: true,
+        user: updatedUser
+      });
+    } catch (err) {
+      console.error("Error activating user account:", err);
+      res.status(500).json({ message: "Failed to activate user account" });
+    }
+  });
+
   // Sites
   app.get("/api/sites", requireAuth, requirePermission("sites", "read"), async (req, res) => {
     try {
