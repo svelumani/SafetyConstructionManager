@@ -74,7 +74,17 @@ export function SitePersonnelList({ siteId, onEdit }: SitePersonnelListProps) {
   const removeMutation = useMutation({
     mutationFn: async (personnelId: number) => {
       const response = await apiRequest("DELETE", `/api/sites/${siteId}/personnel/${personnelId}`);
-      return await response.json();
+      // Check if the response is a success without trying to parse JSON
+      if (response.ok) {
+        return true;
+      }
+      // Only try to parse JSON if we have a non-empty response
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json") && response.status !== 204) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to remove personnel");
+      }
+      throw new Error("Failed to remove personnel from site");
     },
     onSuccess: () => {
       toast({
