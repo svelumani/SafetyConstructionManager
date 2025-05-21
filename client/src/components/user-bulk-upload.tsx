@@ -12,11 +12,11 @@ import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 
-// Sample CSV format
-const SAMPLE_CSV = `firstName,lastName,email,phone,jobTitle,department,role
-John,Doe,john.doe@example.com,1234567890,Foreman,Construction,supervisor
-Jane,Smith,jane.smith@example.com,0987654321,Engineer,Design,employee
-Robert,Johnson,robert.johnson@example.com,5551234567,Contractor,External,subcontractor`;
+// Sample CSV format - use consistent headers with valid roles
+const SAMPLE_CSV = `firstName,lastName,email,role,phone,jobTitle,department
+John,Doe,john.doe@example.com,employee,1234567890,Foreman,Construction
+Jane,Smith,jane.smith@example.com,safety_officer,0987654321,Engineer,Design
+Robert,Johnson,robert.johnson@example.com,supervisor,5551234567,Contractor,External`;
 
 // Default password for all users
 const DEFAULT_PASSWORD = "SafetyFirst123!";
@@ -302,7 +302,7 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
               <Info className="h-4 w-4" />
               <AlertTitle>CSV Format</AlertTitle>
               <AlertDescription>
-                Your CSV should include headers: firstName, lastName, email, phone, jobTitle, department, role.
+                Your CSV must include these headers in this exact order: firstName, lastName, email, role, phone, jobTitle, department.
                 <Button variant="link" className="h-auto p-0 ml-1" onClick={downloadSample}>
                   Download sample CSV
                 </Button>
@@ -338,7 +338,7 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
                 id="csv-data" 
                 value={csvData} 
                 onChange={(e) => setCsvData(e.target.value)}
-                placeholder="firstName,lastName,email,phone,jobTitle,department,role"
+                placeholder="firstName,lastName,email,role,phone,jobTitle,department"
                 className="min-h-[200px] font-mono text-sm"
               />
             </div>
