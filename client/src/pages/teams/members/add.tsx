@@ -180,7 +180,7 @@ export default function AddTeamMember() {
                           )}
                           {availablePersonnel.map((person: any) => (
                             <SelectItem key={person.id} value={person.id.toString()}>
-                              {person.userName || `User ${person.userId}`} - {person.siteRole}
+                              {person.userName || `User ${person.userId}`} - {person.siteRole.replace(/_/g, ' ')}
                             </SelectItem>
                           ))}
                         </SelectContent>

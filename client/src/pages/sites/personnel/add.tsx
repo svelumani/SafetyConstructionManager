@@ -164,7 +164,9 @@ export default function AddSitePersonnel() {
                           )}
                           {availableUsers.map((user: any) => (
                             <SelectItem key={user.id} value={user.id.toString()}>
-                              {user.name || user.username || user.email}
+                              {user.firstName && user.lastName 
+                                ? `${user.firstName} ${user.lastName}` 
+                                : user.username || user.email}
                             </SelectItem>
                           ))}
                         </SelectContent>
