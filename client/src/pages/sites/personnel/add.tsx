@@ -83,6 +83,8 @@ export default function AddSitePersonnel() {
     },
   });
 
+  const [, setLocation] = useLocation();
+  
   const addPersonnelMutation = useMutation({
     mutationFn: async (data: FormData) => {
       // Format dates if provided
@@ -100,7 +102,7 @@ export default function AddSitePersonnel() {
         description: "Personnel successfully added to site",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/sites', siteId, 'personnel'] });
-      navigate(`/sites/${siteId}`);
+      setLocation(`/sites/${siteId}`);
     },
     onError: (error: Error) => {
       toast({

@@ -85,6 +85,8 @@ export default function AddTeamMember() {
     },
   });
 
+  const [, setLocation] = useLocation();
+  
   const addTeamMemberMutation = useMutation({
     mutationFn: async (data: FormData) => {
       return apiRequest('POST', `/api/teams/${teamId}/members/${data.personnelId}`, {});
@@ -95,7 +97,7 @@ export default function AddTeamMember() {
         description: "Personnel successfully added to team",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/teams', teamId, 'members'] });
-      navigate(`/teams/${teamId}`);
+      setLocation(`/teams/${teamId}`);
     },
     onError: (error: Error) => {
       toast({
