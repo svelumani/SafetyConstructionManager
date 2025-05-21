@@ -182,7 +182,7 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
     }
   };
 
-  // Process all users
+  // Process users in batches to avoid overwhelming the database
   const processBulkUpload = async () => {
     if (!csvData.trim()) {
       toast({
@@ -217,45 +217,62 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
         errors: []
       });
       
-      // Process each user sequentially
-      for (const user of users) {
-        try {
-          console.log("Processing user:", user);
-          await createUser(user);
-          
-          setStatus(prev => ({
-            ...prev,
-            processed: prev.processed + 1,
-            success: prev.success + 1
-          }));
-        } catch (error: any) {
-          console.error("Error creating user:", error);
-          
-          setStatus(prev => ({
-            ...prev,
-            processed: prev.processed + 1,
-            failed: prev.failed + 1,
-            errors: [...prev.errors, error.message]
-          }));
+      // Process users in small batches to prevent database connection errors
+      const BATCH_SIZE = 3;
+      
+      for (let i = 0; i < users.length; i += BATCH_SIZE) {
+        // Get the current batch
+        const batch = users.slice(i, i + BATCH_SIZE);
+        
+        // Process all users in the batch concurrently
+        const promises = batch.map(async (user) => {
+          try {
+            console.log("Processing user:", user);
+            await createUser(user);
+            
+            return { success: true, error: null };
+          } catch (error: any) {
+            console.error("Error creating user:", error);
+            return { success: false, error: error.message };
+          }
+        });
+        
+        // Wait for all users in this batch to be processed
+        const results = await Promise.all(promises);
+        
+        // Update status based on results
+        results.forEach(result => {
+          if (result.success) {
+            setStatus(prev => ({
+              ...prev,
+              processed: prev.processed + 1,
+              success: prev.success + 1
+            }));
+          } else {
+            setStatus(prev => ({
+              ...prev,
+              processed: prev.processed + 1,
+              failed: prev.failed + 1,
+              errors: [...prev.errors, result.error]
+            }));
+          }
+        });
+        
+        // Add a small delay between batches to prevent database overload
+        if (i + BATCH_SIZE < users.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
       
       // Refresh the users list
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       
-      if (status.success > 0) {
-        toast({
-          title: "Bulk upload completed",
-          description: `Successfully added ${status.success} of ${status.total} users.`,
-          variant: status.failed > 0 ? "destructive" : "default",
-        });
-      } else {
-        toast({
-          title: "Bulk upload failed",
-          description: "No users were created. Please check the error messages.",
-          variant: "destructive",
-        });
-      }
+      // Show toast with final results
+      toast({
+        title: "Bulk upload completed",
+        description: `Successfully added ${status.success} of ${status.total} users.`,
+        variant: status.failed > 0 ? "destructive" : "default",
+      });
       
     } catch (error) {
       console.error("Error processing CSV:", error);
