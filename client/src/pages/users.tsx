@@ -8,7 +8,8 @@ import {
   Filter,
   UserCog,
   Mail,
-  Phone
+  Phone,
+  ShieldCheck
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +29,7 @@ import { cn, formatRoleName, formatUTCToLocal } from "@/lib/utils";
 import { Link } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
+import { RoleManagementDialog } from "@/components/role-management-dialog";
 
 interface User {
   id: number;
@@ -49,6 +51,8 @@ export default function Users() {
   const [activeTab, setActiveTab] = useState("all");
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
   const { data, isLoading } = useQuery<{ users: User[], total: number }>({
     queryKey: ['/api/users', { 
@@ -60,6 +64,11 @@ export default function Users() {
 
   const users = data?.users || [];
   const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
+  
+  const handleRoleChange = (user: User) => {
+    setSelectedUser(user);
+    setShowRoleDialog(true);
+  };
 
   const columns = [
     {
@@ -130,6 +139,14 @@ export default function Users() {
       accessorKey: "actions",
       cell: (item: User) => (
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => handleRoleChange(item)}
+            className="bg-blue-50 hover:bg-blue-100 border-blue-200"
+          >
+            <ShieldCheck className="h-4 w-4 mr-1 text-blue-600" /> Change Role
+          </Button>
           <Button variant="outline" size="sm" asChild>
             <Link href={`/users/${item.id}`}>
               <UserCog className="h-4 w-4 mr-1" /> Manage
@@ -141,16 +158,16 @@ export default function Users() {
   ];
 
   return (
-    <Layout title="Users & Teams" description="Manage users, roles, and permissions across your organization">
+    <Layout>
       <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Users & Teams</h1>
+          <p className="text-muted-foreground">Manage users, roles, and permissions across your organization</p>
+        </div>
         <Button asChild>
           <Link href="/users/new">
             <Plus className="mr-2 h-4 w-4" /> Add User
           </Link>
-        </Button>
-        
-        <Button variant="outline">
-          <Filter className="mr-2 h-4 w-4" /> Filter
         </Button>
       </div>
       
@@ -192,6 +209,13 @@ export default function Users() {
           />
         </CardContent>
       </Card>
+      
+      {/* Role Management Dialog */}
+      <RoleManagementDialog 
+        open={showRoleDialog} 
+        onOpenChange={setShowRoleDialog} 
+        user={selectedUser} 
+      />
     </Layout>
   );
 }
