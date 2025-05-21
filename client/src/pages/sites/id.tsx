@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import Layout from "@/components/layout";
 import { useForm } from "react-hook-form";
