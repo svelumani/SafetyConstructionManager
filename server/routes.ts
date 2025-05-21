@@ -355,6 +355,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const { role } = req.body;
       
+      // Prevent users from changing their own role (more user-friendly for safety officers)
+      if (req.user.id === id) {
+        return res.status(403).json({ 
+          message: "You cannot change your own role. Please ask another administrator to change your role if needed." 
+        });
+      }
+      
       if (!role || !userRoleEnum.enumValues.includes(role)) {
         return res.status(400).json({ 
           message: "Invalid role", 
@@ -387,11 +394,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           newRole: updatedUser?.role 
         },
       });
-      
-      // Update the session user if they changed their own role
-      if (req.user.id === id) {
-        req.user.role = role;
-      }
       
       res.json({ 
         success: true, 
