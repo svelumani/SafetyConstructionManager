@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import Layout from "@/components/layout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { AlertCircle, ArrowLeft, User, Calendar, Mail, Phone, HardHat, Building, ChevronRight, FileText, Clock } from "lucide-react";
 import { formatRoleName, formatUTCToLocal, getInitials } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 interface UserProfile {
   id: number;
@@ -38,11 +41,78 @@ export default function UserProfilePage() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const userId = parseInt(params.id);
+  const { toast } = useToast();
+  const { user: currentUser } = useAuth();
+  
+  // Check if current user is safety officer
+  const isSafetyOfficer = currentUser?.role === "safety_officer";
   
   // Fetch user profile data
   const { data: user, isLoading, error } = useQuery<UserProfile>({
     queryKey: [`/api/users/${userId}`],
     enabled: !isNaN(userId),
+  });
+  
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/users/${userId}/reset-password`, {});
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to reset password");
+      }
+      return await response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Password reset email sent",
+        description: "A password reset link has been sent to the user's email",
+      });
+      
+      // For development, show a mock email notification
+      toast({
+        title: "Development Note",
+        description: `No actual email sent. User can login with the default password: SafetyFirst123!`,
+        variant: "default",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to send reset email",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Toggle account status mutation
+  const toggleStatusMutation = useMutation({
+    mutationFn: async () => {
+      const action = user?.isActive ? "suspend" : "activate";
+      const response = await apiRequest("POST", `/api/users/${userId}/${action}`, {});
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || `Failed to ${action} user`);
+      }
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      
+      const action = user?.isActive ? "suspended" : "activated";
+      toast({
+        title: `User ${action}`,
+        description: `User account has been ${action} successfully`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update account status",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   // If no valid ID, redirect to users list
@@ -256,7 +326,13 @@ export default function UserProfilePage() {
                         Send a password reset email to this user
                       </div>
                     </div>
-                    <Button variant="outline" disabled>Send Reset Link</Button>
+                    <Button 
+                      variant="outline" 
+                      disabled={!isSafetyOfficer || resetPasswordMutation.isPending}
+                      onClick={() => resetPasswordMutation.mutate()}
+                    >
+                      {resetPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
+                    </Button>
                   </div>
                   
                   <div className="flex items-center justify-between bg-muted p-4 rounded-md">
@@ -273,13 +349,25 @@ export default function UserProfilePage() {
                     <div>
                       <div className="font-medium flex items-center">
                         <AlertCircle className="h-4 w-4 mr-2 text-amber-500" />
-                        Suspend Account
+                        {user?.isActive ? "Suspend Account" : "Activate Account"}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Temporarily disable this user's access
+                        {user?.isActive 
+                          ? "Temporarily disable this user's access" 
+                          : "Restore this user's access to the system"
+                        }
                       </div>
                     </div>
-                    <Button variant="outline" disabled>Suspend</Button>
+                    <Button 
+                      variant={user?.isActive ? "outline" : "default"}
+                      disabled={!isSafetyOfficer || toggleStatusMutation.isPending}
+                      onClick={() => toggleStatusMutation.mutate()}
+                    >
+                      {toggleStatusMutation.isPending 
+                        ? "Processing..." 
+                        : user?.isActive ? "Suspend" : "Activate"
+                      }
+                    </Button>
                   </div>
                 </div>
               </div>
