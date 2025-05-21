@@ -1190,7 +1190,7 @@ export class DatabaseStorage implements IStorage {
     return teamList;
   }
 
-  async listTeamsByTenant(tenantId: number): Promise<Team[]> {
+  async listTeamsByTenant(tenantId: number): Promise<any[]> {
     try {
       // Use Drizzle ORM to query teams
       const teamList = await db
@@ -1202,14 +1202,42 @@ export class DatabaseStorage implements IStorage {
         ))
         .orderBy(teams.name);
       
-      return teamList;
+      // Enhance teams with member counts
+      const enhancedTeams = await Promise.all(
+        teamList.map(async (team) => {
+          const memberCount = await this.countTeamMembers(team.id);
+          return {
+            ...team,
+            memberCount
+          };
+        })
+      );
+      
+      return enhancedTeams;
     } catch (error) {
       console.error("Error fetching teams:", error);
       return [];
     }
   }
   
-  async listTeamsBySite(siteId: number): Promise<Team[]> {
+  async countTeamMembers(teamId: number): Promise<number> {
+    try {
+      const [result] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(sitePersonnel)
+        .where(and(
+          eq(sitePersonnel.teamId, teamId),
+          eq(sitePersonnel.isActive, true)
+        ));
+      
+      return result?.count || 0;
+    } catch (error) {
+      console.error("Error counting team members:", error);
+      return 0;
+    }
+  }
+  
+  async listTeamsBySite(siteId: number): Promise<any[]> {
     try {
       // Use Drizzle ORM to query teams by site
       const teamList = await db
@@ -1221,7 +1249,18 @@ export class DatabaseStorage implements IStorage {
         ))
         .orderBy(teams.name);
       
-      return teamList;
+      // Enhance teams with member counts
+      const enhancedTeams = await Promise.all(
+        teamList.map(async (team) => {
+          const memberCount = await this.countTeamMembers(team.id);
+          return {
+            ...team,
+            memberCount
+          };
+        })
+      );
+      
+      return enhancedTeams;
     } catch (error) {
       console.error("Error fetching teams for site:", error);
       return [];
