@@ -102,22 +102,21 @@ export function setupAuth(app: Express) {
         try {
           console.log("Creating tenant with name:", tenant.name);
           
-          const tenantData = {
+          // Create the new tenant with all the required fields
+          const [newTenant] = await db.insert(tenants).values({
             name: tenant.name,
-            email: tenant.email || email, // Use company email or fallback to user email
+            email: tenant.email || email,
             phone: tenant.phone,
             address: tenant.address,
-            subscriptionPlan: 'basic',
+            // Using the enum value for subscription plan
+            subscriptionPlan: "basic" as const, 
             subscriptionStatus: 'active',
             isActive: true,
             maxUsers: 25,
             maxSites: 10,
             activeUsers: 1,
             activeSites: 0
-          };
-          
-          console.log("Tenant data for creation:", JSON.stringify(tenantData, null, 2));
-          const newTenant = await storage.createTenant(tenantData);
+          }).returning();
           
           tenantId = newTenant.id;
           
