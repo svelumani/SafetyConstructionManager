@@ -1117,6 +1117,94 @@ export class DatabaseStorage implements IStorage {
     return result?.count || 0;
   }
 
+  // Team operations
+  async getTeam(id: number): Promise<Team | undefined> {
+    const [team] = await db.select().from(teams).where(eq(teams.id, id));
+    return team;
+  }
+
+  async createTeam(teamData: InsertTeam): Promise<Team> {
+    const [newTeam] = await db.insert(teams).values(teamData).returning();
+    return newTeam;
+  }
+
+  async updateTeam(id: number, teamData: Partial<InsertTeam>): Promise<Team | undefined> {
+    const [updatedTeam] = await db
+      .update(teams)
+      .set({ ...teamData, updatedAt: new Date().toISOString() })
+      .where(eq(teams.id, id))
+      .returning();
+    return updatedTeam;
+  }
+
+  async deleteTeam(id: number): Promise<boolean> {
+    try {
+      await db.update(teams).set({ isActive: false }).where(eq(teams.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error in deleteTeam:", error);
+      return false;
+    }
+  }
+
+  async listTeamsBySite(siteId: number): Promise<Team[]> {
+    const teamList = await db
+      .select()
+      .from(teams)
+      .where(and(
+        eq(teams.siteId, siteId),
+        eq(teams.isActive, true)
+      ))
+      .orderBy(teams.name);
+    return teamList;
+  }
+
+  async listTeamsByTenant(tenantId: number): Promise<Team[]> {
+    const teamList = await db
+      .select()
+      .from(teams)
+      .where(and(
+        eq(teams.tenantId, tenantId),
+        eq(teams.isActive, true)
+      ))
+      .orderBy(teams.name);
+    return teamList;
+  }
+
+  async getTeamMembers(teamId: number): Promise<any[]> {
+    // Get all personnel assigned to this team
+    const personnelRecords = await db
+      .select()
+      .from(sitePersonnel)
+      .where(and(
+        eq(sitePersonnel.teamId, teamId),
+        eq(sitePersonnel.isActive, true)
+      ));
+    
+    if (personnelRecords.length === 0) {
+      return [];
+    }
+    
+    // Get user details for all team members
+    const personnel = await Promise.all(
+      personnelRecords.map(async (record) => {
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, record.userId));
+        
+        return {
+          ...record,
+          userName: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
+          userEmail: user ? user.email : '',
+          userRole: user ? user.role : null
+        };
+      })
+    );
+    
+    return personnel;
+  }
+
   // Training content operations
   async getTrainingContent(id: number): Promise<TrainingContent | undefined> {
     const [content] = await db.select().from(trainingContent).where(eq(trainingContent.id, id));
