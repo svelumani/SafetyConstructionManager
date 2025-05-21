@@ -70,14 +70,14 @@ const siteFormSchema = z.object({
   state: z.string().min(2, "State/province is required"),
   zipCode: z.string().min(3, "Postal/ZIP code is required"),
   country: z.string().min(2, "Country is required"),
-  gpsCoordinates: z.string().optional(),
-  contactName: z.string().optional(),
-  contactPhone: z.string().optional(),
+  gpsCoordinates: z.string().optional().or(z.literal('')),
+  contactName: z.string().optional().or(z.literal('')),
+  contactPhone: z.string().optional().or(z.literal('')),
   contactEmail: z.string().email("Please enter a valid email").optional().or(z.literal('')),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
+  startDate: z.string().optional().or(z.literal('')),
+  endDate: z.string().optional().or(z.literal('')),
   status: z.enum(["planned", "active", "completed", "on_hold"]),
-  description: z.string().max(500, "Description must be 500 characters or less").optional(),
+  description: z.string().max(500, "Description must be 500 characters or less").optional().or(z.literal('')),
 });
 
 type SiteFormValues = z.infer<typeof siteFormSchema>;
