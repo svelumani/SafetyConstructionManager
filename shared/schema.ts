@@ -452,6 +452,54 @@ export const trainingRecordsRelations = relations(trainingRecords, ({ one }) => 
   }),
 }));
 
+// Teams
+export const teams = pgTable('teams', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  siteId: integer('site_id').references(() => sites.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  leaderId: integer('leader_id').references(() => users.id),
+  color: text('color'),
+  specialties: jsonb('specialties'),
+  createdById: integer('created_by_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
+  isActive: boolean('is_active').notNull().default(true),
+});
+
+// Insert schemas for teams
+export const insertTeamSchema = createInsertSchema(teams).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true, 
+  isActive: true
+});
+
+// Types for teams
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  tenant: one(tenants, {
+    fields: [teams.tenantId],
+    references: [tenants.id],
+  }),
+  site: one(sites, {
+    fields: [teams.siteId],
+    references: [sites.id],
+  }),
+  leader: one(users, {
+    fields: [teams.leaderId],
+    references: [users.id],
+  }),
+  createdBy: one(users, {
+    fields: [teams.createdById],
+    references: [users.id],
+  }),
+  members: many(sitePersonnel),
+}));
+
 // Site Personnel
 export const sitePersonnel = pgTable('site_personnel', {
   id: serial('id').primaryKey(),
@@ -463,7 +511,7 @@ export const sitePersonnel = pgTable('site_personnel', {
   startDate: date('start_date', { mode: 'string' }),
   endDate: date('end_date', { mode: 'string' }),
   permissions: jsonb('permissions'),
-  teamId: text('team_id'),
+  teamId: integer('team_id').references(() => teams.id),
   notes: text('notes'),
   createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
@@ -478,6 +526,10 @@ export const sitePersonnelRelations = relations(sitePersonnel, ({ one }) => ({
   user: one(users, {
     fields: [sitePersonnel.userId],
     references: [users.id],
+  }),
+  team: one(teams, {
+    fields: [sitePersonnel.teamId],
+    references: [teams.id],
   }),
   tenant: one(tenants, {
     fields: [sitePersonnel.tenantId],
