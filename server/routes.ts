@@ -774,6 +774,199 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Team Management
+  app.get("/api/teams", requireAuth, async (req, res) => {
+    try {
+      const teams = await storage.listTeamsByTenant(req.user.tenantId);
+      res.json(teams);
+    } catch (err) {
+      console.error("Error fetching teams:", err);
+      res.status(500).json({ message: "Failed to fetch teams" });
+    }
+  });
+  
+  app.get("/api/sites/:siteId/teams", requireAuth, async (req, res) => {
+    try {
+      const siteId = parseInt(req.params.siteId);
+      if (isNaN(siteId)) {
+        return res.status(400).json({ message: "Invalid site ID" });
+      }
+      
+      const site = await storage.getSite(siteId);
+      if (!site) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+      
+      if (site.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to access this site" });
+      }
+      
+      const teams = await storage.listTeamsBySite(siteId);
+      res.json(teams);
+    } catch (err) {
+      console.error("Error fetching teams for site:", err);
+      res.status(500).json({ message: "Failed to fetch teams for this site" });
+    }
+  });
+  
+  app.get("/api/teams/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid team ID" });
+      }
+      
+      const team = await storage.getTeam(id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (team.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to access this team" });
+      }
+      
+      res.json(team);
+    } catch (err) {
+      console.error("Error fetching team:", err);
+      res.status(500).json({ message: "Failed to fetch team details" });
+    }
+  });
+  
+  app.post("/api/teams", requireAuth, async (req, res) => {
+    try {
+      const data = insertTeamSchema.parse({
+        ...req.body,
+        tenantId: req.user.tenantId,
+        createdById: req.user.id
+      });
+      
+      const team = await storage.createTeam(data);
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "team_created",
+        entityType: "team",
+        entityId: team.id.toString(),
+        details: { name: team.name, siteId: team.siteId },
+      });
+      
+      res.status(201).json(team);
+    } catch (err) {
+      console.error("Error creating team:", err);
+      res.status(500).json({ message: "Failed to create team" });
+    }
+  });
+  
+  app.patch("/api/teams/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid team ID" });
+      }
+      
+      // Check if team exists and belongs to user's tenant
+      const existingTeam = await storage.getTeam(id);
+      if (!existingTeam) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (existingTeam.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to update this team" });
+      }
+      
+      // Parse and validate the update data
+      const updateData = insertTeamSchema.partial().parse(req.body);
+      
+      // Remove tenantId from update if present (cannot change tenant)
+      delete (updateData as any).tenantId;
+      delete (updateData as any).createdById;
+      
+      const updatedTeam = await storage.updateTeam(id, updateData);
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "team_updated",
+        entityType: "team",
+        entityId: id.toString(),
+        details: { 
+          name: updatedTeam.name,
+          siteId: updatedTeam.siteId,
+          leaderId: updatedTeam.leaderId
+        },
+      });
+      
+      res.json(updatedTeam);
+    } catch (err) {
+      console.error("Error updating team:", err);
+      res.status(500).json({ message: "Failed to update team" });
+    }
+  });
+  
+  app.delete("/api/teams/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid team ID" });
+      }
+      
+      // Check if team exists and belongs to user's tenant
+      const existingTeam = await storage.getTeam(id);
+      if (!existingTeam) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (existingTeam.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to delete this team" });
+      }
+      
+      // Soft delete the team
+      await storage.deleteTeam(id);
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "team_deleted",
+        entityType: "team",
+        entityId: id.toString(),
+        details: { 
+          name: existingTeam.name,
+          siteId: existingTeam.siteId
+        },
+      });
+      
+      res.status(204).send();
+    } catch (err) {
+      console.error("Error deleting team:", err);
+      res.status(500).json({ message: "Failed to delete team" });
+    }
+  });
+  
+  app.get("/api/teams/:id/members", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid team ID" });
+      }
+      
+      const team = await storage.getTeam(id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      if (team.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to access this team" });
+      }
+      
+      const members = await storage.getTeamMembers(id);
+      res.json(members);
+    } catch (err) {
+      console.error("Error fetching team members:", err);
+      res.status(500).json({ message: "Failed to fetch team members" });
+    }
+  });
+
   // Site Personnel Management
   app.get("/api/sites/:siteId/personnel", requireAuth, async (req, res) => {
     try {
