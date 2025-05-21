@@ -1192,14 +1192,17 @@ export class DatabaseStorage implements IStorage {
 
   async listTeamsByTenant(tenantId: number): Promise<Team[]> {
     try {
-      // Use raw SQL query with proper parameter binding
-      const result = await db.query(`
-        SELECT * FROM teams 
-        WHERE tenant_id = $1 AND is_active = true 
-        ORDER BY name
-      `, [tenantId]);
+      // Use Drizzle ORM to query teams
+      const teamList = await db
+        .select()
+        .from(teams)
+        .where(and(
+          eq(teams.tenantId, tenantId),
+          eq(teams.isActive, true)
+        ))
+        .orderBy(teams.name);
       
-      return result.rows as Team[];
+      return teamList;
     } catch (error) {
       console.error("Error fetching teams:", error);
       return [];
@@ -1208,14 +1211,17 @@ export class DatabaseStorage implements IStorage {
   
   async listTeamsBySite(siteId: number): Promise<Team[]> {
     try {
-      // Use raw SQL query with proper parameter binding
-      const result = await db.query(`
-        SELECT * FROM teams 
-        WHERE site_id = $1 AND is_active = true 
-        ORDER BY name
-      `, [siteId]);
+      // Use Drizzle ORM to query teams by site
+      const teamList = await db
+        .select()
+        .from(teams)
+        .where(and(
+          eq(teams.siteId, siteId),
+          eq(teams.isActive, true)
+        ))
+        .orderBy(teams.name);
       
-      return result.rows as Team[];
+      return teamList;
     } catch (error) {
       console.error("Error fetching teams for site:", error);
       return [];
