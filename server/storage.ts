@@ -1262,6 +1262,54 @@ export class DatabaseStorage implements IStorage {
     return personnel;
   }
 
+  async assignPersonnelToTeam(personnelId: number, teamId: number): Promise<any> {
+    try {
+      // First, get the personnel record to ensure it exists
+      const [personnel] = await db
+        .select()
+        .from(sitePersonnel)
+        .where(eq(sitePersonnel.id, personnelId));
+      
+      if (!personnel) {
+        throw new Error("Personnel not found");
+      }
+      
+      // Then update the record with the team ID
+      const [updatedPersonnel] = await db
+        .update(sitePersonnel)
+        .set({ 
+          teamId: teamId,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(sitePersonnel.id, personnelId))
+        .returning();
+      
+      return updatedPersonnel;
+    } catch (error) {
+      console.error("Error assigning personnel to team:", error);
+      throw error;
+    }
+  }
+  
+  async removePersonnelFromTeam(personnelId: number): Promise<any> {
+    try {
+      // Update the personnel record to set teamId to null
+      const [updatedPersonnel] = await db
+        .update(sitePersonnel)
+        .set({ 
+          teamId: null,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(sitePersonnel.id, personnelId))
+        .returning();
+      
+      return updatedPersonnel;
+    } catch (error) {
+      console.error("Error removing personnel from team:", error);
+      throw error;
+    }
+  }
+
   // Training content operations
   async getTrainingContent(id: number): Promise<TrainingContent | undefined> {
     const [content] = await db.select().from(trainingContent).where(eq(trainingContent.id, id));
