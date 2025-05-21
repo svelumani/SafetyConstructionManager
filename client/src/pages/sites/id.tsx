@@ -125,28 +125,44 @@ export default function SiteDetailPage() {
   const form = useForm<SiteFormValues>({
     resolver: zodResolver(siteFormSchema),
     defaultValues: {
-      name: site?.name || "",
-      address: site?.address || "",
-      city: site?.city || "",
-      state: site?.state || "",
-      zipCode: site?.zipCode || "",
-      country: site?.country || "",
-      gpsCoordinates: site?.gpsCoordinates || "",
-      contactName: site?.contactName || "",
-      contactPhone: site?.contactPhone || "",
-      contactEmail: site?.contactEmail || "",
-      startDate: site?.startDate || "",
-      endDate: site?.endDate || "",
-      status: (site?.status as any) || "active",
-      description: site?.description || "",
+      name: "",
+      address: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      country: "",
+      gpsCoordinates: "",
+      contactName: "",
+      contactPhone: "",
+      contactEmail: "",
+      startDate: "",
+      endDate: "",
+      status: "active",
+      description: "",
     },
-    values: site as any,
   });
 
   // Update form values when site data changes
   React.useEffect(() => {
     if (site) {
-      form.reset(site as any);
+      // Make sure null/undefined values are converted to empty strings
+      const formValues = {
+        name: site.name || "",
+        address: site.address || "",
+        city: site.city || "",
+        state: site.state || "",
+        zipCode: site.zipCode || "",
+        country: site.country || "",
+        gpsCoordinates: site.gpsCoordinates || "",
+        contactName: site.contactName || "",
+        contactPhone: site.contactPhone || "",
+        contactEmail: site.contactEmail || "",
+        startDate: site.startDate || "",
+        endDate: site.endDate || "",
+        status: site.status || "active",
+        description: site.description || "",
+      };
+      form.reset(formValues);
     }
   }, [site, form]);
 
