@@ -37,7 +37,13 @@ function Router() {
       {/* Protected routes */}
       <ProtectedRoute path="/" component={Dashboard} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
+      
+      {/* Hazard management routes */}
       <ProtectedRoute path="/hazards" component={Hazards} />
+      <ProtectedRoute path="/hazards/new" component={() => import("@/pages/hazards/new").then(module => module.default)} />
+      <ProtectedRoute path="/hazards/:id/assign" component={() => import("@/pages/hazards/[id]/assign").then(module => module.default)} />
+      <ProtectedRoute path="/hazards/:id" component={() => import("@/pages/hazards/[id]").then(module => module.default)} />
+      
       <ProtectedRoute path="/inspections" component={Inspections} />
       <ProtectedRoute path="/permits" component={Permits} />
       <ProtectedRoute path="/incidents" component={Incidents} />

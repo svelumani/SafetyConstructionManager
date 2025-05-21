@@ -1513,6 +1513,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       delete (data as any).tenantId;
       delete (data as any).reportedById;
       
+      // Track if status is changing for notification purposes
+      const isStatusChange = data.status && data.status !== hazard.status;
+      const previousStatus = hazard.status;
+      
+      // Special handling for resolved status
+      if (data.status === 'resolved' && !data.resolvedAt) {
+        data.resolvedAt = new Date().toISOString();
+      }
+      
       const updatedHazard = await storage.updateHazardReport(id, data);
       
       await storage.createSystemLog({
@@ -1521,8 +1530,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         action: "hazard_updated",
         entityType: "hazard",
         entityId: id.toString(),
-        details: { status: updatedHazard?.status },
+        details: { 
+          status: updatedHazard?.status,
+          previousStatus: isStatusChange ? previousStatus : undefined
+        },
       });
+      
+      // Send email notification if status changed
+      if (isStatusChange && updatedHazard) {
+        try {
+          // Get the user who updated the hazard
+          const updatedBy = await storage.getUser(req.user.id);
+          
+          // Collect notification recipients
+          
+          // 1. Include the reporter
+          const reporter = hazard.reportedById !== req.user.id ? 
+            await storage.getUser(hazard.reportedById) : null;
+            
+          // 2. Include assigned users
+          const assignments = await storage.listHazardAssignments(id);
+          const assignedUserIds = assignments
+            .filter(a => a.assignedToUserId && a.assignedToUserId !== req.user.id)
+            .map(a => a.assignedToUserId);
+          
+          const assignedUsers = await Promise.all(
+            assignedUserIds.map(id => id ? storage.getUser(id) : null)
+          );
+          
+          // 3. Include safety officers for critical/high severity hazards
+          let safetyOfficers = [];
+          if (hazard.severity === 'critical' || hazard.severity === 'high') {
+            safetyOfficers = await storage.getUsersByRole(hazard.tenantId, 'safety_officer');
+          }
+          
+          // Combine all recipients, filter out nulls and duplicates
+          const recipients = [
+            reporter, 
+            ...assignedUsers,
+            ...safetyOfficers
+          ].filter((user, index, self) => 
+            user && 
+            user.id !== req.user.id && // Don't notify the user who made the change
+            self.findIndex(u => u && u.id === user.id) === index
+          );
+          
+          if (updatedBy && recipients.length > 0) {
+            // Import notification service
+            const { sendHazardStatusUpdateNotification } = await import('./notifications/hazard-notifications');
+            
+            // Send notification (don't await, let it process in background)
+            sendHazardStatusUpdateNotification(
+              updatedHazard,
+              previousStatus,
+              updatedBy,
+              recipients
+            ).catch(error => {
+              console.error('Error sending hazard status update notification:', error);
+            });
+          }
+        } catch (notificationError) {
+          // Log but don't fail the request if notification fails
+          console.error("Error sending hazard status update notification:", notificationError);
+        }
+      }
       
       res.json(updatedHazard);
     } catch (err) {
