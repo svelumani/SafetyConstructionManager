@@ -117,8 +117,14 @@ export default function AddTeamMember() {
         title: "Success",
         description: "Personnel successfully added to team",
       });
+      
+      // Invalidate the queries first
       queryClient.invalidateQueries({ queryKey: ['/api/teams', teamId, 'members'] });
-      setLocation(`/teams/${teamId}`);
+      
+      // Use a timeout to ensure we don't navigate while React is still updating state
+      setTimeout(() => {
+        setLocation(`/teams/${teamId}`);
+      }, 100);
     },
     onError: (error: Error) => {
       console.error("Team member addition error:", error);

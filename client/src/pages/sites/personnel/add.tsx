@@ -109,15 +109,35 @@ export default function AddSitePersonnel() {
         assignedById: sitePersonnelQuery.data?.personnel?.[0]?.assignedById || 4, // Use current user ID
       };
       
-      return apiRequest('POST', `/api/sites/${siteId}/personnel`, formattedData);
+      // Use regular fetch instead of apiRequest to simplify
+      const response = await fetch(`/api/sites/${siteId}/personnel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formattedData),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to add personnel');
+      }
+      
+      return await response.json();
     },
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Personnel successfully added to site",
       });
+      
+      // Invalidate queries first
       queryClient.invalidateQueries({ queryKey: ['/api/sites', siteId, 'personnel'] });
-      setLocation(`/sites/${siteId}`);
+      
+      // Use a timeout to ensure we don't navigate while React is still updating state
+      setTimeout(() => {
+        setLocation(`/sites/${siteId}`);
+      }, 100);
     },
     onError: (error: Error) => {
       toast({
