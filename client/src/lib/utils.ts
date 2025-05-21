@@ -1,83 +1,85 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
-import { format, parseISO } from "date-fns"
- 
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
-// Status color utility function
-export function getStatusColor(status: string): string {
-  switch (status.toLowerCase()) {
-    case 'active':
-    case 'approved':
-    case 'completed':
-    case 'resolved':
-      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-    case 'pending':
-    case 'in progress':
-    case 'in review':
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-    case 'inactive':
-    case 'expired':
-    case 'cancelled':
-    case 'rejected':
-      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-    case 'awaiting approval':
-    case 'suspended':
-    case 'on hold':
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-    default:
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-  }
-}
-
-// Format UTC date to local date string
-export function formatUTCToLocal(utcDateString: string | null, formatString: string = 'PPP'): string {
-  if (!utcDateString) return 'N/A';
-  try {
-    const date = parseISO(utcDateString);
-    return format(date, formatString);
-  } catch (error) {
-    console.error("Error formatting date:", error);
-    return 'Invalid date';
-  }
-}
-
-// Format date for display
-export function formatDate(date: Date | string | null, formatString: string = 'PPP'): string {
-  if (!date) return 'N/A';
-  try {
-    const dateObj = typeof date === 'string' ? parseISO(date) : date;
-    return format(dateObj, formatString);
-  } catch (error) {
-    console.error("Error formatting date:", error);
-    return 'Invalid date';
-  }
-}
-
-// Format role name for display
-export function formatRoleName(role: string): string {
-  if (!role) return 'N/A';
+export function formatDate(date: string | Date) {
+  if (!date) return "";
   
-  // Split by underscores or hyphens and capitalize each word
-  return role
-    .split(/[_-]/)
+  try {
+    const d = new Date(date);
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }).format(d);
+  } catch (error) {
+    console.error("Error formatting UTC date:", error);
+    return "";
+  }
+}
+
+export function formatUTCToLocal(utcDateString: string) {
+  if (!utcDateString) return "";
+  
+  try {
+    const date = new Date(utcDateString);
+    return new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true,
+    }).format(date);
+  } catch (error) {
+    console.error("Error formatting UTC date:", error);
+    return "";
+  }
+}
+
+export function formatRoleName(role: string): string {
+  if (!role) return "";
+  
+  // First, handle camelCase or snake_case by splitting on capital letters or underscores
+  const words = role.replace(/([A-Z])/g, ' $1')  // Insert a space before capital letters
+                  .replace(/_/g, ' ')           // Replace underscores with spaces
+                  .trim();
+  
+  // Capitalize the first letter of each word
+  return words.split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(' ');
 }
 
-// Get initials from name
-export function getInitials(name: string): string {
-  if (!name) return '';
+export function getInitials(name?: string): string {
+  if (!name) return "?";
   
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) {
-    return name.slice(0, 2).toUpperCase();
+  const nameParts = name.trim().split(/\s+/);
+  
+  if (nameParts.length === 1) {
+    return nameParts[0].substring(0, 2).toUpperCase();
   }
   
-  return parts
-    .slice(0, 2)
-    .map(part => part.charAt(0).toUpperCase())
-    .join('');
+  return (
+    nameParts[0].charAt(0).toUpperCase() +
+    nameParts[nameParts.length - 1].charAt(0).toUpperCase()
+  );
+}
+
+export function getStatusColor(status: string): string {
+  const statusMap: Record<string, string> = {
+    active: "#10b981", // green
+    inactive: "#6b7280", // gray
+    pending: "#f59e0b", // amber
+    completed: "#3b82f6", // blue
+    approved: "#10b981", // green
+    rejected: "#ef4444", // red
+    open: "#10b981", // green
+    closed: "#6b7280", // gray
+  };
+  
+  return statusMap[status.toLowerCase()] || "#6b7280"; // default to gray
 }

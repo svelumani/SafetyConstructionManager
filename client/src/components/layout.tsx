@@ -1,217 +1,384 @@
-import React from 'react';
-import { Link, useLocation } from 'wouter';
-import { Home, Users, MapPin, AlertTriangle, Clipboard, FileText, User, BarChart3, Settings, Menu, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/use-auth';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ReactNode } from "react";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Separator } from '@/components/ui/separator';
-import { useSidebar } from '@/hooks/use-sidebar';
+} from "@/components/ui/dropdown-menu";
+import {
+  ClipboardList,
+  AlertTriangle,
+  FileCheck,
+  FileWarning,
+  BarChart3,
+  Users,
+  Building2,
+  Settings,
+  LogOut,
+  Menu,
+  Bell,
+  User,
+  Home,
+  Award,
+} from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-interface NavLinkProps {
+type NavItem = {
+  title: string;
   href: string;
-  icon: React.ElementType;
-  children: React.ReactNode;
-  matchSubpaths?: boolean;
-}
+  icon: ReactNode;
+};
 
-const NavLink = ({ href, icon: Icon, children, matchSubpaths = false }: NavLinkProps) => {
+export default function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  const isActive = matchSubpaths
-    ? location === href || location.startsWith(`${href}/`)
-    : location === href;
-
-  return (
-    <Link href={href}>
-      <div
-        className={cn(
-          'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent',
-          isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-        )}
-      >
-        <Icon className="h-5 w-5" />
-        <span>{children}</span>
-      </div>
-    </Link>
-  );
-};
-
-const MobileNav = () => {
-  const { isCollapsed, toggleSidebar } = useSidebar();
-  
-  return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="md:hidden">
-          <Menu className="h-5 w-5" />
-          <span className="sr-only">Toggle Menu</span>
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
-        <div className="flex h-full flex-col">
-          <div className="flex items-center justify-between px-6 py-4">
-            <h2 className="text-lg font-semibold">MySafety</h2>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <X className="h-5 w-5" />
-                <span className="sr-only">Close Menu</span>
-              </Button>
-            </SheetTrigger>
-          </div>
-          <Separator />
-          <div className="flex-1 overflow-auto py-4">
-            <nav className="grid gap-1 px-4">
-              <NavLink href="/dashboard" icon={Home}>Dashboard</NavLink>
-              <NavLink href="/sites" icon={MapPin} matchSubpaths>Sites</NavLink>
-              <NavLink href="/hazards" icon={AlertTriangle}>Hazards</NavLink>
-              <NavLink href="/inspections" icon={Clipboard}>Inspections</NavLink>
-              <NavLink href="/permits" icon={FileText}>Permits</NavLink>
-              <NavLink href="/incidents" icon={AlertTriangle}>Incidents</NavLink>
-              <NavLink href="/teams" icon={Users} matchSubpaths>Teams</NavLink>
-              <NavLink href="/training" icon={User}>Training</NavLink>
-              <NavLink href="/safety-scores" icon={BarChart3}>Safety Scores</NavLink>
-              <NavLink href="/users" icon={Users} matchSubpaths>Users</NavLink>
-              <NavLink href="/settings" icon={Settings}>Settings</NavLink>
-            </nav>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-};
-
-const UserNav = () => {
   const { user, logoutMutation } = useAuth();
-  const [, navigate] = useLocation();
+
+  const navItems: NavItem[] = [
+    {
+      title: "Dashboard",
+      href: "/dashboard",
+      icon: <Home className="h-5 w-5" />,
+    },
+    {
+      title: "Hazards",
+      href: "/hazards",
+      icon: <AlertTriangle className="h-5 w-5" />,
+    },
+    {
+      title: "Inspections",
+      href: "/inspections",
+      icon: <ClipboardList className="h-5 w-5" />,
+    },
+    {
+      title: "Permits",
+      href: "/permits",
+      icon: <FileCheck className="h-5 w-5" />,
+    },
+    {
+      title: "Incidents",
+      href: "/incidents",
+      icon: <FileWarning className="h-5 w-5" />,
+    },
+    {
+      title: "Training",
+      href: "/training",
+      icon: <Award className="h-5 w-5" />,
+    },
+    {
+      title: "Safety Scores",
+      href: "/safety-scores",
+      icon: <BarChart3 className="h-5 w-5" />,
+    },
+    {
+      title: "Users",
+      href: "/users",
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: "Sites",
+      href: "/sites",
+      icon: <Building2 className="h-5 w-5" />,
+    },
+    {
+      title: "Teams",
+      href: "/teams",
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: "Settings",
+      href: "/settings",
+      icon: <Settings className="h-5 w-5" />,
+    },
+  ];
 
   const handleLogout = () => {
-    logoutMutation.mutate(undefined, {
-      onSuccess: () => navigate('/auth')
-    });
+    logoutMutation.mutate();
   };
 
-  if (!user) return null;
+  const isActive = (href: string) => {
+    if (href === "/dashboard" && location === "/") {
+      return true;
+    }
+    return location === href;
+  };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-9 w-9">
-            <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <div className="flex items-center justify-start gap-2 p-2">
-          <div className="flex flex-col space-y-1 leading-none">
-            <p className="font-medium">{user.username}</p>
-            <p className="text-xs text-muted-foreground">{user.email}</p>
+    <div className="flex min-h-screen bg-background">
+      {/* Sidebar - hidden on mobile */}
+      <div className="hidden md:flex md:w-64 md:flex-col border-r">
+        <div className="flex flex-col flex-grow pt-5 overflow-y-auto">
+          <div className="px-4 mb-6">
+            <h1 className="text-2xl font-bold">MySafety</h1>
+          </div>
+          <nav className="flex-1 px-2 pb-4 space-y-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  isActive(item.href)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-muted"
+                }`}
+              >
+                <div
+                  className={`mr-3 flex-shrink-0 ${
+                    isActive(item.href) ? "text-primary-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {item.icon}
+                </div>
+                {item.title}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Top navigation */}
+        <div className="flex items-center justify-between px-4 py-2 border-b h-16">
+          <div className="flex items-center md:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64 p-0 pt-4">
+                <div className="px-4 mb-6">
+                  <h1 className="text-2xl font-bold">MySafety</h1>
+                </div>
+                <nav className="flex-1 px-2 pb-4 space-y-1">
+                  {navItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                        isActive(item.href)
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <div
+                        className={`mr-3 flex-shrink-0 ${
+                          isActive(item.href) ? "text-primary-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        {item.icon}
+                      </div>
+                      {item.title}
+                    </Link>
+                  ))}
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
+
+          <div className="flex items-center md:hidden">
+            <h1 className="text-lg font-bold">MySafety</h1>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon">
+              <Bell className="h-5 w-5" />
+              <span className="sr-only">Notifications</span>
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium">
+                      {user?.firstName} {user?.lastName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/settings">
-            <a className="w-full cursor-pointer">Settings</a>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className="cursor-pointer text-red-600 focus:text-red-600"
-          onClick={handleLogout}
-          disabled={logoutMutation.isPending}
-        >
-          {logoutMutation.isPending ? 'Logging out...' : 'Log out'}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-};
 
-interface LayoutProps {
-  children: React.ReactNode;
+        {/* Main content area */}
+        <main className="flex-1 overflow-auto bg-background">{children}</main>
+      </div>
+    </div>
+  );
 }
 
-export default function Layout({ children }: LayoutProps) {
-  const { isCollapsed, toggleSidebar } = useSidebar();
+export function AdminLayout({ children }: { children: ReactNode }) {
+  const [location] = useLocation();
+  const { logoutMutation } = useAuth();
+
+  const navItems: NavItem[] = [
+    {
+      title: "Dashboard",
+      href: "/super-admin",
+      icon: <Home className="h-5 w-5" />,
+    },
+    {
+      title: "Tenants",
+      href: "/super-admin/tenants",
+      icon: <Building2 className="h-5 w-5" />,
+    },
+    {
+      title: "Templates",
+      href: "/super-admin/templates",
+      icon: <ClipboardList className="h-5 w-5" />,
+    },
+    {
+      title: "Logs",
+      href: "/super-admin/logs",
+      icon: <FileWarning className="h-5 w-5" />,
+    },
+  ];
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
+
+  const isActive = (href: string) => {
+    if (href === "/super-admin" && location === "/super-admin") {
+      return true;
+    }
+    return location === href;
+  };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
-        <MobileNav />
-        <div className="flex-1"></div>
-        <UserNav />
-      </header>
-      <div className="flex flex-1">
-        <aside
-          className={cn(
-            "fixed inset-y-0 z-20 hidden w-64 flex-col border-r bg-background pt-16 md:flex transition-all duration-300",
-            isCollapsed && "w-16"
-          )}
-        >
-          <div className="flex-1 overflow-auto py-4">
-            <nav className="grid gap-1 px-4">
-              <NavLink href="/dashboard" icon={Home}>
-                {!isCollapsed && "Dashboard"}
-              </NavLink>
-              <NavLink href="/sites" icon={MapPin} matchSubpaths>
-                {!isCollapsed && "Sites"}
-              </NavLink>
-              <NavLink href="/hazards" icon={AlertTriangle}>
-                {!isCollapsed && "Hazards"}
-              </NavLink>
-              <NavLink href="/inspections" icon={Clipboard}>
-                {!isCollapsed && "Inspections"}
-              </NavLink>
-              <NavLink href="/permits" icon={FileText}>
-                {!isCollapsed && "Permits"}
-              </NavLink>
-              <NavLink href="/incidents" icon={AlertTriangle}>
-                {!isCollapsed && "Incidents"}
-              </NavLink>
-              <NavLink href="/teams" icon={Users} matchSubpaths>
-                {!isCollapsed && "Teams"}
-              </NavLink>
-              <NavLink href="/training" icon={User}>
-                {!isCollapsed && "Training"}
-              </NavLink>
-              <NavLink href="/safety-scores" icon={BarChart3}>
-                {!isCollapsed && "Safety Scores"}
-              </NavLink>
-              <NavLink href="/users" icon={Users} matchSubpaths>
-                {!isCollapsed && "Users"}
-              </NavLink>
-              <NavLink href="/settings" icon={Settings}>
-                {!isCollapsed && "Settings"}
-              </NavLink>
-            </nav>
+    <div className="flex min-h-screen bg-background">
+      {/* Sidebar - hidden on mobile */}
+      <div className="hidden md:flex md:w-64 md:flex-col border-r">
+        <div className="flex flex-col flex-grow pt-5 overflow-y-auto">
+          <div className="px-4 mb-6">
+            <h1 className="text-2xl font-bold">MySafety Admin</h1>
           </div>
-          <div className="border-t p-4">
-            <Button
-              variant="outline"
-              size="icon"
-              className="w-full justify-start"
-              onClick={toggleSidebar}
-            >
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle Sidebar</span>
+          <nav className="flex-1 px-2 pb-4 space-y-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  isActive(item.href)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-muted"
+                }`}
+              >
+                <div
+                  className={`mr-3 flex-shrink-0 ${
+                    isActive(item.href) ? "text-primary-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {item.icon}
+                </div>
+                {item.title}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Top navigation */}
+        <div className="flex items-center justify-between px-4 py-2 border-b h-16">
+          <div className="flex items-center md:hidden">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64 p-0 pt-4">
+                <div className="px-4 mb-6">
+                  <h1 className="text-2xl font-bold">MySafety Admin</h1>
+                </div>
+                <nav className="flex-1 px-2 pb-4 space-y-1">
+                  {navItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                        isActive(item.href)
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      <div
+                        className={`mr-3 flex-shrink-0 ${
+                          isActive(item.href) ? "text-primary-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        {item.icon}
+                      </div>
+                      {item.title}
+                    </Link>
+                  ))}
+                </nav>
+              </SheetContent>
+            </Sheet>
+          </div>
+
+          <div className="flex items-center md:hidden">
+            <h1 className="text-lg font-bold">MySafety Admin</h1>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon">
+              <Bell className="h-5 w-5" />
+              <span className="sr-only">Notifications</span>
             </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium">Super Admin</p>
+                    <p className="text-xs text-muted-foreground">admin@mysafety.com</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </aside>
-        <main
-          className={cn(
-            "flex-1 transition-all duration-300 md:pl-64",
-            isCollapsed && "md:pl-16"
-          )}
-        >
-          {children}
-        </main>
+        </div>
+
+        {/* Main content area */}
+        <main className="flex-1 overflow-auto bg-background">{children}</main>
       </div>
     </div>
   );

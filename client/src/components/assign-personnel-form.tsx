@@ -1,11 +1,11 @@
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useToast } from "@/hooks/use-toast"
-import { useLocation } from "wouter"
-import { apiRequest } from "@/lib/queryClient"
-
+import React, { useState, useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -13,119 +13,177 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useEffect, useState } from "react"
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Loader2 } from "lucide-react";
+import { format, parseISO } from "date-fns";
 
-const formSchema = z.object({
-  userId: z.number().positive(),
-  siteRole: z.enum([
-    "site_manager",
-    "safety_coordinator",
-    "foreman",
-    "worker",
-    "subcontractor",
-    "visitor",
-  ]),
-  startDate: z.string().optional().nullable(),
-  endDate: z.string().optional().nullable(),
-  teamId: z.number().positive().optional().nullable(),
-  notes: z.string().optional().nullable(),
-})
+// Create a schema for the form that matches our SitePersonnel type
+const assignPersonnelSchema = z.object({
+  userId: z.string().min(1, { message: "Please select a user" }),
+  siteRole: z.string().min(1, { message: "Please select a role" }),
+  startDate: z.date().optional(),
+  endDate: z.date().optional(),
+  notes: z.string().optional(),
+});
 
-export type FormValues = z.infer<typeof formSchema>
+type AssignPersonnelValues = z.infer<typeof assignPersonnelSchema>;
 
 interface AssignPersonnelFormProps {
-  siteId: number
-  userId: number
-  defaultValues?: Partial<FormValues>
-  teams?: { id: number; name: string }[]
-  onSuccess?: () => void
+  siteId: number;
+  onSuccess?: () => void;
 }
 
-function AssignPersonnelForm({
-  siteId,
-  userId,
-  defaultValues = {},
-  teams = [],
-  onSuccess,
-}: AssignPersonnelFormProps) {
-  const { toast } = useToast()
-  const [, setLocation] = useLocation()
-  const queryClient = useQueryClient()
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+export function AssignPersonnelForm({ siteId, onSuccess }: AssignPersonnelFormProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  // Query to get all users for dropdown
+  const { data: users, isLoading: isLoadingUsers } = useQuery({
+    queryKey: ['/api/users'],
+    select: (data) => data.users,
+  });
+  
+  // Form definition
+  const form = useForm<AssignPersonnelValues>({
+    resolver: zodResolver(assignPersonnelSchema),
     defaultValues: {
-      userId,
+      userId: "",
       siteRole: "worker",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: null,
-      teamId: null,
-      notes: null,
-      ...defaultValues,
+      notes: "",
     },
-  })
-
+  });
+  
+  // Get the current user for assignedById
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/user'],
+  });
+  
+  // Handle form submission
   const assignMutation = useMutation({
-    mutationFn: async (values: FormValues) => {
-      const response = await apiRequest("POST", `/api/sites/${siteId}/personnel`, values)
-      if (!response.ok) {
-        const error = await response.text()
-        throw new Error(error || "Failed to assign personnel")
+    mutationFn: async (values: AssignPersonnelValues) => {
+      if (!currentUser) {
+        throw new Error("User must be logged in to assign personnel");
       }
-      return await response.json()
+      
+      const response = await apiRequest("POST", `/api/sites/${siteId}/personnel`, {
+        userId: parseInt(values.userId),
+        siteRole: values.siteRole,
+        startDate: values.startDate ? format(values.startDate, "yyyy-MM-dd") : undefined,
+        endDate: values.endDate ? format(values.endDate, "yyyy-MM-dd") : undefined,
+        notes: values.notes,
+        tenantId: currentUser.tenantId,
+        assignedById: currentUser.id,
+      });
+      return await response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Personnel assigned",
-        description: "Personnel has been successfully assigned to this site.",
-      })
+        title: "Personnel Assigned",
+        description: "The user has been successfully assigned to this site.",
+      });
       
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: [`/api/sites/${siteId}/personnel`] })
-      queryClient.invalidateQueries({ queryKey: [`/api/sites/${siteId}`] })
+      // Invalidate site personnel queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: [`/api/sites/${siteId}/personnel`] });
       
+      // Reset the form
+      form.reset({
+        userId: "",
+        siteRole: "worker",
+        startDate: undefined,
+        endDate: undefined,
+        notes: "",
+      });
+      
+      // Call the onSuccess callback if provided
       if (onSuccess) {
-        onSuccess()
-      } else {
-        setLocation(`/sites/${siteId}`)
+        onSuccess();
       }
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to assign personnel",
+        description: error.message || "Failed to assign personnel to site.",
         variant: "destructive",
-      })
+      });
     },
-  })
-
-  function onSubmit(values: FormValues) {
-    assignMutation.mutate(values)
+  });
+  
+  function onSubmit(values: AssignPersonnelValues) {
+    assignMutation.mutate(values);
   }
-
+  
+  // Handle validation of date ranges
+  useEffect(() => {
+    const startDate = form.watch("startDate");
+    const endDate = form.watch("endDate");
+    
+    if (startDate && endDate && startDate > endDate) {
+      form.setError("endDate", {
+        type: "manual",
+        message: "End date cannot be before start date",
+      });
+    } else {
+      form.clearErrors("endDate");
+    }
+  }, [form.watch("startDate"), form.watch("endDate")]);
+  
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="userId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>User</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                disabled={isLoadingUsers || assignMutation.isPending}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a user" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {isLoadingUsers ? (
+                    <div className="flex items-center justify-center p-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    </div>
+                  ) : (
+                    users?.map((user) => (
+                      <SelectItem key={user.id} value={user.id.toString()}>
+                        {user.firstName} {user.lastName} ({user.email})
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
         <FormField
           control={form.control}
           name="siteRole"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Role</FormLabel>
+              <FormLabel>Site Role</FormLabel>
               <Select
                 onValueChange={field.onChange}
                 defaultValue={field.value}
+                disabled={assignMutation.isPending}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -145,110 +203,68 @@ function AssignPersonnelForm({
             </FormItem>
           )}
         />
-
-        <FormField
-          control={form.control}
-          name="startDate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Start Date</FormLabel>
-              <FormControl>
-                <Input
-                  type="date"
-                  {...field}
-                  value={field.value || ""}
-                  onChange={(e) => field.onChange(e.target.value)}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="endDate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>End Date (Optional)</FormLabel>
-              <FormControl>
-                <Input
-                  type="date"
-                  {...field}
-                  value={field.value || ""}
-                  onChange={(e) => field.onChange(e.target.value)}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {teams.length > 0 && (
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="teamId"
+            name="startDate"
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Assign to Team (Optional)</FormLabel>
-                <Select
-                  onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
-                  defaultValue={field.value?.toString() || ""}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a team" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="">No team</SelectItem>
-                    {teams.map((team) => (
-                      <SelectItem key={team.id} value={team.id.toString()}>
-                        {team.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <FormItem className="flex flex-col">
+                <FormLabel>Start Date</FormLabel>
+                <DatePicker
+                  date={field.value}
+                  onSelect={field.onChange}
+                  disabled={assignMutation.isPending}
+                />
                 <FormMessage />
               </FormItem>
             )}
           />
-        )}
-
+          
+          <FormField
+            control={form.control}
+            name="endDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>End Date</FormLabel>
+                <DatePicker
+                  date={field.value}
+                  onSelect={field.onChange}
+                  disabled={assignMutation.isPending}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
         <FormField
           control={form.control}
           name="notes"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notes (Optional)</FormLabel>
+              <FormLabel>Notes</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Enter any additional notes about this assignment"
+                <Textarea 
+                  placeholder="Add any additional information here..."
                   {...field}
-                  value={field.value || ""}
+                  disabled={assignMutation.isPending}
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        <div className="flex justify-end gap-4">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => setLocation(`/sites/${siteId}`)}
-          >
-            Cancel
-          </Button>
+        
+        <div className="flex justify-end">
           <Button type="submit" disabled={assignMutation.isPending}>
-            {assignMutation.isPending ? "Assigning..." : "Assign Personnel"}
+            {assignMutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            Assign to Site
           </Button>
         </div>
       </form>
     </Form>
-  )
+  );
 }
-
-export default AssignPersonnelForm
-export { AssignPersonnelForm }

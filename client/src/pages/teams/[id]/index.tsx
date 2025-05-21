@@ -205,7 +205,7 @@ export default function TeamDetailPage() {
                       />
                     </div>
                     <div className="mt-2 text-sm">
-                      <span className="font-medium">Created:</span> {team?.createdAt ? formatDate(team.createdAt) : "N/A"}
+                      <span className="font-medium">Created:</span> {formatDate(team?.createdAt || "")}
                     </div>
                     <div className="mt-1 text-sm">
                       <span className="font-medium">Members:</span> {members?.length || 0}
@@ -271,7 +271,7 @@ export default function TeamDetailPage() {
                               </div>
                             </TableCell>
                             <TableCell>{member.userEmail}</TableCell>
-                            <TableCell>{member.startDate ? formatDate(member.startDate) : "N/A"}</TableCell>
+                            <TableCell>{formatDate(member.startDate) || "N/A"}</TableCell>
                             <TableCell>
                               <Button
                                 variant="ghost"
