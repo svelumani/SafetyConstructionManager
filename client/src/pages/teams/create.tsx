@@ -110,7 +110,13 @@ export default function CreateTeamPage() {
   });
   
   const onSubmit = (values: TeamFormValues) => {
-    createTeamMutation.mutate(values);
+    // Map the form values to match the server's expected structure
+    const serverValues = {
+      ...values,
+      // Add siteId field - this is what the server expects
+      siteId: values.primarySiteId
+    };
+    createTeamMutation.mutate(serverValues);
   };
 
   return (
