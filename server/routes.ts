@@ -286,6 +286,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
+  
+  // Get single user profile
+  app.get("/api/users/:id", requireAuth, requirePermission("users", "read"), async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (user.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to view this user" });
+      }
+      
+      // Remove sensitive data
+      const { password, ...userData } = user;
+      
+      res.json(userData);
+    } catch (err) {
+      console.error("Error fetching user profile:", err);
+      res.status(500).json({ message: "Failed to fetch user profile" });
+    }
+  });
 
   app.post("/api/users", requireAuth, requirePermission("users", "create"), async (req, res) => {
     try {
