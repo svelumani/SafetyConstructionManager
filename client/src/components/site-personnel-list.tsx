@@ -51,7 +51,7 @@ export function SitePersonnelList({ siteId, onEdit }: SitePersonnelListProps) {
     userName: string;
     userEmail: string;
     siteId: number;
-    role: string;
+    siteRole: string; // Changed from 'role' to 'siteRole' to match database schema
     startDate: string | null;
     endDate: string | null;
     notes: string | null;
@@ -182,7 +182,7 @@ export function SitePersonnelList({ siteId, onEdit }: SitePersonnelListProps) {
             <TableRow key={person.id}>
               <TableCell className="font-medium">{person.userName}</TableCell>
               <TableCell>{person.userEmail}</TableCell>
-              <TableCell>{getRoleBadge(person.role)}</TableCell>
+              <TableCell>{getRoleBadge(person.siteRole)}</TableCell>
               <TableCell>{formatDate(person.startDate)}</TableCell>
               <TableCell>{formatDate(person.endDate)}</TableCell>
               <TableCell className="text-right">
