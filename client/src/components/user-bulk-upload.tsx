@@ -166,6 +166,21 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
         department: userData.department?.trim() || ''
       };
       
+      // First check if user with this email already exists
+      const checkResponse = await apiRequest("GET", "/api/users");
+      const usersData = await checkResponse.json();
+      
+      // Check for duplicate email
+      if (usersData.users && Array.isArray(usersData.users)) {
+        const existingUser = usersData.users.find(
+          (user: any) => user.email.toLowerCase() === formattedUserData.email.toLowerCase()
+        );
+        
+        if (existingUser) {
+          throw new Error(`User with email ${formattedUserData.email} already exists`);
+        }
+      }
+      
       console.log("Sending user data to API:", formattedUserData);
       
       const response = await apiRequest("POST", "/api/users", formattedUserData);
