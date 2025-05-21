@@ -1160,15 +1160,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listTeamsByTenant(tenantId: number): Promise<Team[]> {
-    const teamList = await db
-      .select()
-      .from(teams)
-      .where(and(
-        eq(teams.tenantId, tenantId),
-        eq(teams.isActive, true)
-      ))
-      .orderBy(teams.name);
-    return teamList;
+    try {
+      return await db
+        .select()
+        .from(teams)
+        .where(and(
+          eq(teams.tenantId, tenantId),
+          eq(teams.isActive, true)
+        ))
+        .orderBy(teams.name);
+    } catch (error) {
+      console.error("Error fetching teams:", error);
+      return [];
+    }
   }
 
   async getTeamMembers(teamId: number): Promise<any[]> {
