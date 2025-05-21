@@ -67,6 +67,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { SitePersonnelList } from "@/components/site-personnel-list";
 import { AssignPersonnelForm } from "@/components/assign-personnel-form";
+import { EditPersonnelForm } from "@/components/edit-personnel-form";
 
 // Form schema for site update
 const siteFormSchema = z.object({
@@ -115,6 +116,7 @@ export default function SiteDetailPage() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editPersonnelId, setEditPersonnelId] = useState<number | null>(null);
   
   const siteId = parseInt(params.id);
 
@@ -777,10 +779,32 @@ export default function SiteDetailPage() {
               
               <Card>
                 <CardContent className="pt-6">
-                  <SitePersonnelList siteId={siteId} />
+                  <SitePersonnelList 
+                    siteId={siteId} 
+                    onEdit={(personnelId) => setEditPersonnelId(personnelId)} 
+                  />
                 </CardContent>
               </Card>
             </div>
+
+            {/* Edit Personnel Dialog */}
+            <Dialog open={editPersonnelId !== null} onOpenChange={(open) => !open && setEditPersonnelId(null)}>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Edit Personnel Assignment</DialogTitle>
+                  <DialogDescription>
+                    Update the role and assignment details for this personnel.
+                  </DialogDescription>
+                </DialogHeader>
+                {editPersonnelId && (
+                  <EditPersonnelForm 
+                    siteId={siteId} 
+                    personnelId={editPersonnelId} 
+                    onSuccess={() => setEditPersonnelId(null)} 
+                  />
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
           
           <TabsContent value="teams">
