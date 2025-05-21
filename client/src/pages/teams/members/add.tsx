@@ -64,15 +64,24 @@ export default function AddTeamMember() {
   const [availablePersonnel, setAvailablePersonnel] = useState<any[]>([]);
 
   useEffect(() => {
+    console.log("Personnel data:", personnelQuery.data);
+    console.log("Team members data:", teamMembersQuery.data);
+    
     if (personnelQuery.data?.personnel && teamMembersQuery.data) {
       const personnel = personnelQuery.data.personnel || [];
       const teamMembers = teamMembersQuery.data || [];
       
+      console.log("Personnel before filtering:", personnel);
+      console.log("Team members:", teamMembers);
+      
       // Get IDs of current team members
       const teamMemberIds = teamMembers.map((member: any) => member.id);
+      console.log("Team member IDs:", teamMemberIds);
       
       // Filter out personnel who are already on the team
       const available = personnel.filter((person: any) => !teamMemberIds.includes(person.id));
+      console.log("Available personnel after filtering:", available);
+      
       setAvailablePersonnel(available);
     }
   }, [personnelQuery.data, teamMembersQuery.data]);
