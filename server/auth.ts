@@ -102,21 +102,23 @@ export function setupAuth(app: Express) {
         try {
           console.log("Creating tenant with name:", tenant.name);
           
-          // Create the new tenant with all the required fields
-          const [newTenant] = await db.insert(tenants).values({
+          // Create the tenant using the storage interface
+          const tenantData = {
             name: tenant.name,
             email: tenant.email || email,
             phone: tenant.phone,
             address: tenant.address,
-            // Using the enum value for subscription plan
-            subscriptionPlan: "basic" as const, 
+            subscriptionPlan: "basic",
             subscriptionStatus: 'active',
             isActive: true,
             maxUsers: 25,
             maxSites: 10,
             activeUsers: 1,
             activeSites: 0
-          }).returning();
+          };
+          
+          console.log("Tenant data being passed to createTenant:", JSON.stringify(tenantData, null, 2));
+          const newTenant = await storage.createTenant(tenantData);
           
           tenantId = newTenant.id;
           
@@ -130,9 +132,11 @@ export function setupAuth(app: Express) {
             entityId: tenantId.toString(),
             details: { name: tenant.name }
           });
-        } catch (err) {
-          console.error("Error creating tenant:", err);
-          console.error(err.stack);
+        } catch (err: any) {
+          console.error("Error creating tenant:", err.message);
+          if (err.stack) {
+            console.error(err.stack);
+          }
           // Continue with user creation even if tenant creation fails
         }
       } else {
