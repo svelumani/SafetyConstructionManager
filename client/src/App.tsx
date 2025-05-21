@@ -19,6 +19,10 @@ import Sites from "@/pages/sites";
 import TenantRegistration from "@/pages/tenant-registration";
 import NewSitePage from "@/pages/sites/new";
 import SiteDetailPage from "@/pages/sites/id";
+import Teams from "@/pages/teams";
+import CreateTeamPage from "@/pages/teams/create";
+import TeamDetailPage from "@/pages/teams/[id]";
+import EditTeamPage from "@/pages/teams/[id]/edit";
 import { ProtectedRoute, SuperAdminRoute } from "@/components/protected-route";
 
 function Router() {
@@ -42,6 +46,12 @@ function Router() {
       <ProtectedRoute path="/sites" component={Sites} />
       <ProtectedRoute path="/sites/new" component={NewSitePage} />
       <ProtectedRoute path="/sites/:id" component={SiteDetailPage} />
+      
+      {/* Team management routes */}
+      <ProtectedRoute path="/teams" component={Teams} />
+      <ProtectedRoute path="/teams/create" component={CreateTeamPage} />
+      <ProtectedRoute path="/teams/:id/edit" component={EditTeamPage} />
+      <ProtectedRoute path="/teams/:id" component={TeamDetailPage} />
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />
