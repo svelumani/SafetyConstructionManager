@@ -223,14 +223,20 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
         return;
       }
       
-      // Setup the status tracking
-      setStatus({
+      // Setup the status tracking with correct initial values
+      const initialStatus = {
         total: users.length,
         processed: 0,
         success: 0,
         failed: 0,
         errors: []
-      });
+      };
+      
+      setStatus(initialStatus);
+      
+      let successCount = 0;
+      let failedCount = 0;
+      let errorMessages: string[] = [];
       
       // Process users in small batches to prevent database connection errors
       const BATCH_SIZE = 3;
@@ -244,7 +250,6 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
           try {
             console.log("Processing user:", user);
             await createUser(user);
-            
             return { success: true, error: null };
           } catch (error: any) {
             console.error("Error creating user:", error);
@@ -255,22 +260,23 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
         // Wait for all users in this batch to be processed
         const results = await Promise.all(promises);
         
-        // Update status based on results
+        // Update our local counters
         results.forEach(result => {
           if (result.success) {
-            setStatus(prev => ({
-              ...prev,
-              processed: prev.processed + 1,
-              success: prev.success + 1
-            }));
+            successCount++;
           } else {
-            setStatus(prev => ({
-              ...prev,
-              processed: prev.processed + 1,
-              failed: prev.failed + 1,
-              errors: [...prev.errors, result.error]
-            }));
+            failedCount++;
+            if (result.error) errorMessages.push(result.error);
           }
+        });
+        
+        // Update status for UI
+        setStatus({
+          total: users.length,
+          processed: successCount + failedCount,
+          success: successCount,
+          failed: failedCount,
+          errors: errorMessages
         });
         
         // Add a small delay between batches to prevent database overload
@@ -282,11 +288,11 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
       // Refresh the users list
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       
-      // Show toast with final results
+      // Show toast with final results using our tracked counts
       toast({
         title: "Bulk upload completed",
-        description: `Successfully added ${status.success} of ${status.total} users.`,
-        variant: status.failed > 0 ? "destructive" : "default",
+        description: `Successfully added ${successCount} of ${users.length} users.`,
+        variant: failedCount > 0 ? "destructive" : "default",
       });
       
     } catch (error) {
