@@ -86,7 +86,22 @@ export default function AddTeamMember() {
 
   const addTeamMemberMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      return apiRequest('POST', `/api/teams/${teamId}/members/${data.personnelId}`, {});
+      // Ensure we're sending with credentials included
+      const response = await fetch(`/api/teams/${teamId}/members/${data.personnelId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({})
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || response.statusText);
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -97,6 +112,7 @@ export default function AddTeamMember() {
       setLocation(`/teams/${teamId}`);
     },
     onError: (error: Error) => {
+      console.error("Team member addition error:", error);
       toast({
         title: "Error",
         description: `Failed to add personnel to team: ${error.message}`,
