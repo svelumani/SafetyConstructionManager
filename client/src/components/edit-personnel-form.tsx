@@ -46,6 +46,15 @@ export function EditPersonnelForm({ siteId, personnelId, onSuccess }: EditPerson
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Form definition - define this first so we can use it in the useEffect
+  const form = useForm<EditPersonnelValues>({
+    resolver: zodResolver(editPersonnelSchema),
+    defaultValues: {
+      siteRole: "",
+      notes: "",
+    },
+  });
+  
   // Get pre-filled data from the personnel list directly
   const { data: personnelListData, isLoading: isLoadingPersonnel } = useQuery({
     queryKey: [`/api/sites/${siteId}/personnel`],
@@ -67,15 +76,6 @@ export function EditPersonnelForm({ siteId, personnelId, onSuccess }: EditPerson
       }
     }
   }, [personnelListData, personnelId, form]);
-  
-  // Form definition
-  const form = useForm<EditPersonnelValues>({
-    resolver: zodResolver(editPersonnelSchema),
-    defaultValues: {
-      siteRole: "",
-      notes: "",
-    },
-  });
   
   // Handle form submission
   const updateMutation = useMutation({
