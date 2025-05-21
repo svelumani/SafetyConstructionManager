@@ -626,6 +626,78 @@ export class DatabaseStorage implements IStorage {
       .where(eq(subcontractors.tenantId, tenantId));
     return result?.count || 0;
   }
+  
+  // Site Personnel operations
+  async getSitePersonnel(id: number): Promise<SitePersonnel | undefined> {
+    const [personnel] = await db.select().from(sitePersonnel).where(eq(sitePersonnel.id, id));
+    return personnel;
+  }
+  
+  async assignUserToSite(data: InsertSitePersonnel): Promise<SitePersonnel> {
+    // Add created timestamp
+    const dataWithTimestamp = {
+      ...data,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    const [newAssignment] = await db.insert(sitePersonnel).values(dataWithTimestamp).returning();
+    return newAssignment;
+  }
+  
+  async updateSitePersonnel(id: number, data: Partial<InsertSitePersonnel>): Promise<SitePersonnel | undefined> {
+    const [updatedAssignment] = await db
+      .update(sitePersonnel)
+      .set({ ...data, updatedAt: new Date().toISOString() })
+      .where(eq(sitePersonnel.id, id))
+      .returning();
+    return updatedAssignment;
+  }
+  
+  async removeSitePersonnel(id: number): Promise<boolean> {
+    await db.delete(sitePersonnel).where(eq(sitePersonnel.id, id));
+    return true;
+  }
+  
+  async listSitePersonnelBySite(siteId: number, options?: { limit?: number; offset?: number; }): Promise<SitePersonnel[]> {
+    // Query site personnel with user information joined
+    const query = db.select({
+      id: sitePersonnel.id,
+      siteId: sitePersonnel.siteId,
+      userId: sitePersonnel.userId,
+      role: sitePersonnel.role,
+      startDate: sitePersonnel.startDate,
+      endDate: sitePersonnel.endDate,
+      notes: sitePersonnel.notes,
+      createdAt: sitePersonnel.createdAt,
+      updatedAt: sitePersonnel.updatedAt,
+      userName: sql<string>`CONCAT(${users.firstName}, ' ', ${users.lastName})`,
+      userRole: users.role,
+      userEmail: users.email,
+    })
+    .from(sitePersonnel)
+    .leftJoin(users, eq(sitePersonnel.userId, users.id))
+    .where(eq(sitePersonnel.siteId, siteId))
+    .orderBy(asc(users.firstName), asc(users.lastName));
+    
+    if (options?.limit) {
+      query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async countSitePersonnel(siteId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(sitePersonnel)
+      .where(eq(sitePersonnel.siteId, siteId));
+    return result?.count || 0;
+  }
 
   // Hazard operations
   async getHazardReport(id: number): Promise<HazardReport | undefined> {

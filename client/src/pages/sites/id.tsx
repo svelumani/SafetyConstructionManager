@@ -20,6 +20,7 @@ import {
   X,
   Check,
   UserPlus,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,7 +65,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import SitePersonnelList from "@/components/site-personnel-list";
+import { SitePersonnelList } from "@/components/site-personnel-list";
+import { AssignPersonnelForm } from "@/components/assign-personnel-form";
 
 // Form schema for site update
 const siteFormSchema = z.object({
@@ -594,6 +596,7 @@ export default function SiteDetailPage() {
         <Tabs defaultValue="details" className="w-full">
           <TabsList className="mb-4">
             <TabsTrigger value="details">Site Details</TabsTrigger>
+            <TabsTrigger value="personnel">Personnel</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
             <TabsTrigger value="teams">Teams</TabsTrigger>
           </TabsList>

@@ -24,7 +24,8 @@ export function DatePicker({ date, onSelect, disabled }: DatePickerProps) {
           variant={"outline"}
           className={cn(
             "w-full justify-start text-left font-normal",
-            !date && "text-muted-foreground"
+            !date && "text-muted-foreground",
+            disabled && "opacity-50 cursor-not-allowed"
           )}
           disabled={disabled}
         >
