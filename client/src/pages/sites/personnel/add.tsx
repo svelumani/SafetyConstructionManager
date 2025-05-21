@@ -32,8 +32,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export default function AddSitePersonnel() {
-  const [location] = useLocation();
-  const navigate = useNavigate();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
   const siteId = location.split("/")[2]; // Get siteId from URL /sites/1/personnel/add
@@ -83,8 +82,6 @@ export default function AddSitePersonnel() {
     },
   });
 
-  const [, setLocation] = useLocation();
-  
   const addPersonnelMutation = useMutation({
     mutationFn: async (data: FormData) => {
       // Format dates if provided
@@ -271,7 +268,7 @@ export default function AddSitePersonnel() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => navigate(`/sites/${siteId}`)}
+                    onClick={() => setLocation(`/sites/${siteId}`)}
                     disabled={isLoading}
                   >
                     Cancel
