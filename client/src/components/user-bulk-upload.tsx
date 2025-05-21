@@ -104,7 +104,11 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
 
   // Parse CSV data
   const parseCSV = (data: string) => {
-    const lines = data.split('\\n');
+    // Handle different line break formats
+    const normalizedData = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = normalizedData.split('\n');
+    
+    // Get headers from the first line
     const headers = lines[0].split(',').map(h => h.trim());
     
     const result = [];
@@ -112,45 +116,69 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
       if (!lines[i].trim()) continue; // Skip empty lines
       
       const values = lines[i].split(',').map(v => v.trim());
+      
+      // Skip lines with wrong number of columns
+      if (values.length < headers.length) {
+        console.log(`Skipping invalid line ${i+1}: not enough columns`);
+        continue;
+      }
+      
       const entry: Record<string, string> = {};
       
       headers.forEach((header, index) => {
         entry[header] = values[index] || '';
       });
       
+      // Make sure required fields exist
+      if (!entry.firstName || !entry.lastName || !entry.email) {
+        console.log(`Skipping invalid line ${i+1}: missing required fields`);
+        continue;
+      }
+      
       result.push(entry);
     }
     
+    console.log('Parsed CSV data:', result);
     return result;
   };
 
   // Create individual user
   const createUser = async (userData: any) => {
     try {
+      // Validate required fields
+      if (!userData.email || !userData.firstName || !userData.lastName) {
+        throw new Error(`Missing required fields for user: ${JSON.stringify(userData)}`);
+      }
+      
       // Generate username from email (before @ symbol)
       const username = userData.email.split('@')[0];
       
-      // Prepare user data
+      // Prepare user data with proper defaults
       const formattedUserData = {
         username,
         password: DEFAULT_PASSWORD,
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        role: userData.role || 'employee',
-        phone: userData.phone || '',
-        jobTitle: userData.jobTitle || '',
-        department: userData.department || ''
+        email: userData.email.trim(),
+        firstName: userData.firstName.trim(),
+        lastName: userData.lastName.trim(),
+        role: userData.role?.trim() || 'employee',
+        phone: userData.phone?.trim() || '',
+        jobTitle: userData.jobTitle?.trim() || '',
+        department: userData.department?.trim() || ''
       };
       
+      console.log("Sending user data to API:", formattedUserData);
+      
       const response = await apiRequest("POST", "/api/users", formattedUserData);
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create user");
+        throw new Error(responseData.message || "Failed to create user");
       }
-      return await response.json();
+      
+      return responseData;
     } catch (error: any) {
-      throw new Error(`Error creating user ${userData.email}: ${error.message}`);
+      console.error("User creation error details:", error);
+      throw new Error(`Error creating user ${userData.email || 'unknown'}: ${error.message}`);
     }
   };
 
@@ -170,6 +198,16 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
     try {
       const users = parseCSV(csvData);
       
+      if (users.length === 0) {
+        toast({
+          title: "No valid users found",
+          description: "Please check your CSV format and make sure it contains valid user data.",
+          variant: "destructive",
+        });
+        setIsProcessing(false);
+        return;
+      }
+      
       // Setup the status tracking
       setStatus({
         total: users.length,
@@ -182,13 +220,17 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
       // Process each user sequentially
       for (const user of users) {
         try {
+          console.log("Processing user:", user);
           await createUser(user);
+          
           setStatus(prev => ({
             ...prev,
             processed: prev.processed + 1,
             success: prev.success + 1
           }));
         } catch (error: any) {
+          console.error("Error creating user:", error);
+          
           setStatus(prev => ({
             ...prev,
             processed: prev.processed + 1,
@@ -201,13 +243,22 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
       // Refresh the users list
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       
-      toast({
-        title: "Bulk upload completed",
-        description: `Successfully added ${status.success} of ${status.total} users.`,
-        variant: status.failed > 0 ? "destructive" : "default",
-      });
+      if (status.success > 0) {
+        toast({
+          title: "Bulk upload completed",
+          description: `Successfully added ${status.success} of ${status.total} users.`,
+          variant: status.failed > 0 ? "destructive" : "default",
+        });
+      } else {
+        toast({
+          title: "Bulk upload failed",
+          description: "No users were created. Please check the error messages.",
+          variant: "destructive",
+        });
+      }
       
     } catch (error) {
+      console.error("Error processing CSV:", error);
       toast({
         title: "Error processing CSV",
         description: "Failed to parse the CSV data. Please check the format.",
