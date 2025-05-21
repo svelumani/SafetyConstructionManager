@@ -1,7 +1,7 @@
 import { 
   users, tenants, sites, hazardReports, hazardAssignments, hazardComments,
   inspections, permitRequests, incidentReports, trainingContent, trainingCourses,
-  trainingRecords, systemLogs, emailTemplates, rolePermissions, subcontractors,
+  trainingRecords, systemLogs, emailTemplates, rolePermissions, subcontractors, sitePersonnel,
   type User, type InsertUser, type Tenant, type InsertTenant, type Site, type InsertSite,
   type HazardReport, type InsertHazardReport, type HazardAssignment, type InsertHazardAssignment,
   type HazardComment, type InsertHazardComment, type Inspection, type InsertInspection,
@@ -9,7 +9,7 @@ import {
   type TrainingContent, type InsertTrainingContent, type TrainingCourse, type InsertTrainingCourse,
   type TrainingRecord, type InsertTrainingRecord, type SystemLog, type EmailTemplate,
   type InsertEmailTemplate, type RolePermission, type InsertRolePermission, type Subcontractor,
-  type InsertSubcontractor, type RegisterTenant
+  type InsertSubcontractor, type RegisterTenant, type SitePersonnel, type InsertSitePersonnel
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull, desc, asc, or, sql, like, not } from "drizzle-orm";
@@ -198,6 +198,15 @@ export interface IStorage {
     offset?: number;
   }): Promise<SystemLog[]>;
   countSystemLogs(options?: { tenantId?: number; userId?: number; action?: string; }): Promise<number>;
+
+  // Site Personnel operations
+  assignUserToSite(assignment: InsertSitePersonnel): Promise<SitePersonnel>;
+  removeSitePersonnel(id: number): Promise<boolean>;
+  updateSitePersonnel(id: number, data: Partial<InsertSitePersonnel>): Promise<SitePersonnel | undefined>;
+  getSitePersonnel(id: number): Promise<SitePersonnel | undefined>;
+  listSitePersonnelBySite(siteId: number, options?: { limit?: number; offset?: number; }): Promise<SitePersonnel[]>;
+  listSitePersonnelByUser(userId: number, options?: { limit?: number; offset?: number; }): Promise<SitePersonnel[]>;
+  countSitePersonnel(siteId: number): Promise<number>;
 
   // Dashboard statistics
   getHazardStats(tenantId: number): Promise<{
