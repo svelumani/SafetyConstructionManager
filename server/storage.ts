@@ -397,6 +397,13 @@ export class DatabaseStorage implements IStorage {
   private async setupDefaultPermissions(tx: any, tenantId: number): Promise<void> {
     // Safety Officer permissions (full access)
     const safetyOfficerPermissions = [
+      // User management
+      { tenantId, role: 'safety_officer', resource: 'users', action: 'create' },
+      { tenantId, role: 'safety_officer', resource: 'users', action: 'read' },
+      { tenantId, role: 'safety_officer', resource: 'users', action: 'update' },
+      { tenantId, role: 'safety_officer', resource: 'users', action: 'delete' },
+      
+      // Hazard management
       { tenantId, role: 'safety_officer', resource: 'hazards', action: 'create' },
       { tenantId, role: 'safety_officer', resource: 'hazards', action: 'read' },
       { tenantId, role: 'safety_officer', resource: 'hazards', action: 'update' },
