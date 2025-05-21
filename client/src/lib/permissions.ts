@@ -51,7 +51,7 @@ export function requirePermission(resource: Resource, action: Action, throwError
   if (user?.role === "subcontractor") {
     // Subcontractors can read certain resources
     if (action === "read" && 
-        (resource === "hazards" || resource === "permits")) {
+        (resource === "hazards" || resource === "permits" || resource === "teams")) {
       return true;
     }
     
@@ -59,6 +59,11 @@ export function requirePermission(resource: Resource, action: Action, throwError
     if (action === "create" && resource === "hazards") {
       return true;
     }
+  }
+  
+  // All authenticated users can read teams
+  if (action === "read" && resource === "teams") {
+    return true;
   }
   
   // If we get here, user doesn't have permission
