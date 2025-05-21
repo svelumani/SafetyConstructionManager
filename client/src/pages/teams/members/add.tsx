@@ -23,8 +23,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export default function AddTeamMember() {
-  const [location] = useLocation();
-  const navigate = useNavigate();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
   const teamId = location.split("/")[2]; // Get teamId from URL /teams/1/members/add
@@ -85,8 +84,6 @@ export default function AddTeamMember() {
     },
   });
 
-  const [, setLocation] = useLocation();
-  
   const addTeamMemberMutation = useMutation({
     mutationFn: async (data: FormData) => {
       return apiRequest('POST', `/api/teams/${teamId}/members/${data.personnelId}`, {});
@@ -175,7 +172,7 @@ export default function AddTeamMember() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => navigate(`/teams/${teamId}`)}
+                    onClick={() => setLocation(`/teams/${teamId}`)}
                     disabled={isLoading}
                   >
                     Cancel

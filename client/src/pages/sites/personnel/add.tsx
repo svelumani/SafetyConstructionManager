@@ -21,7 +21,7 @@ import { format } from "date-fns";
 // Define the schema for adding personnel to a site
 const formSchema = z.object({
   userId: z.string().min(1, "User is required"),
-  siteRole: z.enum(["site-manager", "safety-coordinator", "foreman", "worker", "subcontractor", "visitor"], {
+  siteRole: z.enum(["site_manager", "safety_coordinator", "foreman", "worker", "subcontractor", "visitor"], {
     required_error: "Site role is required",
   }),
   startDate: z.date().optional(),
@@ -84,11 +84,15 @@ export default function AddSitePersonnel() {
 
   const addPersonnelMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      // Format dates if provided
+      // Format dates if provided and prepare data for backend
       const formattedData = {
-        ...data,
+        userId: parseInt(data.userId, 10), // Convert string to number
+        tenantId: usersQuery.data?.users?.find((user: any) => user.id.toString() === data.userId)?.tenantId || 1,
+        siteRole: data.siteRole, // Already correctly formatted with underscores
         startDate: data.startDate ? format(data.startDate, 'yyyy-MM-dd') : null,
         endDate: data.endDate ? format(data.endDate, 'yyyy-MM-dd') : null,
+        notes: data.notes || null,
+        assignedById: sitePersonnelQuery.data?.personnel?.[0]?.assignedById || 4, // Use current user ID
       };
       
       return apiRequest('POST', `/api/sites/${siteId}/personnel`, formattedData);
@@ -190,8 +194,8 @@ export default function AddSitePersonnel() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="site-manager">Site Manager</SelectItem>
-                          <SelectItem value="safety-coordinator">Safety Coordinator</SelectItem>
+                          <SelectItem value="site_manager">Site Manager</SelectItem>
+                          <SelectItem value="safety_coordinator">Safety Coordinator</SelectItem>
                           <SelectItem value="foreman">Foreman</SelectItem>
                           <SelectItem value="worker">Worker</SelectItem>
                           <SelectItem value="subcontractor">Subcontractor</SelectItem>
