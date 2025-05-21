@@ -32,6 +32,7 @@ import { Link } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 import { RoleManagementDialog } from "@/components/role-management-dialog";
+import { AddUserForm } from "@/components/add-user-form";
 
 interface User {
   id: number;
@@ -54,6 +55,7 @@ export default function Users() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [showAddUserDialog, setShowAddUserDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   
   // Get the current user for comparison
@@ -186,10 +188,8 @@ export default function Users() {
           <h1 className="text-2xl font-bold">Users & Teams</h1>
           <p className="text-muted-foreground">Manage users, roles, and permissions across your organization</p>
         </div>
-        <Button asChild>
-          <Link href="/users/new">
-            <Plus className="mr-2 h-4 w-4" /> Add User
-          </Link>
+        <Button onClick={() => setShowAddUserDialog(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Add User
         </Button>
       </div>
       
@@ -224,7 +224,7 @@ export default function Users() {
                 <UsersIcon className="mx-auto h-10 w-10 text-muted-foreground/60 mb-2" />
                 <p className="text-muted-foreground">No users found</p>
                 <Button variant="outline" className="mt-4" asChild>
-                  <Link href="/users/new">Add user</Link>
+                  <div onClick={() => setShowAddUserDialog(true)}>Add user</div>
                 </Button>
               </div>
             }
@@ -237,6 +237,12 @@ export default function Users() {
         open={showRoleDialog} 
         onOpenChange={setShowRoleDialog} 
         user={selectedUser} 
+      />
+      
+      {/* Add User Dialog */}
+      <AddUserForm
+        open={showAddUserDialog}
+        onOpenChange={setShowAddUserDialog}
       />
     </Layout>
   );
