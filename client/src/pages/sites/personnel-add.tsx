@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, useLocation } from 'wouter';
 import Layout from '@/components/layout';
-import PageHeader from '@/components/page-header';
+import { PageHeader } from '@/components/page-header';
 import { useQuery } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
