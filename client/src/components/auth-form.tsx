@@ -15,13 +15,20 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
+  // User information
   username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   phone: z.string().optional(),
-  jobTitle: z.string().optional(),
+  jobTitle: z.string().min(1, "Job title is required"),
+  
+  // Company information
+  companyName: z.string().min(2, "Company name must be at least 2 characters"),
+  companyEmail: z.string().email("Please enter a valid company email"),
+  companyPhone: z.string().min(10, "Please enter a valid company phone").optional(),
+  companyAddress: z.string().min(5, "Company address is required").optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -49,6 +56,10 @@ export default function AuthForm() {
       lastName: "",
       phone: "",
       jobTitle: "",
+      companyName: "",
+      companyEmail: "",
+      companyPhone: "",
+      companyAddress: ""
     },
   });
 
@@ -57,7 +68,18 @@ export default function AuthForm() {
   };
 
   const onRegisterSubmit = (data: RegisterFormValues) => {
-    registerMutation.mutate(data);
+    // Transform the data to include tenant creation info
+    const registrationData = {
+      ...data,
+      tenant: {
+        name: data.companyName,
+        email: data.companyEmail,
+        phone: data.companyPhone,
+        address: data.companyAddress
+      }
+    };
+    
+    registerMutation.mutate(registrationData);
   };
 
   return (
@@ -114,7 +136,12 @@ export default function AuthForm() {
           </TabsContent>
 
           <TabsContent value="register" className="space-y-4">
-            <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+            <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
+              <div className="pb-2 border-b border-gray-200">
+                <h3 className="text-lg font-medium">Your Information</h3>
+                <p className="text-sm text-muted-foreground">Please provide your personal details</p>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="register-firstName">First Name</Label>
@@ -148,7 +175,7 @@ export default function AuthForm() {
                 <Input
                   id="register-username"
                   type="text"
-                  placeholder="Choose a username"
+                  placeholder="johndoe"
                   {...registerForm.register("username")}
                 />
                 {registerForm.formState.errors.username && (
@@ -161,7 +188,7 @@ export default function AuthForm() {
                 <Input
                   id="register-email"
                   type="email"
-                  placeholder="email@example.com"
+                  placeholder="john.doe@example.com"
                   {...registerForm.register("email")}
                 />
                 {registerForm.formState.errors.email && (
@@ -182,24 +209,91 @@ export default function AuthForm() {
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="register-phone">Phone (optional)</Label>
-                <Input
-                  id="register-phone"
-                  type="tel"
-                  placeholder="(123) 456-7890"
-                  {...registerForm.register("phone")}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="register-phone">Phone (Optional)</Label>
+                  <Input
+                    id="register-phone"
+                    type="tel"
+                    placeholder="(123) 456-7890"
+                    {...registerForm.register("phone")}
+                  />
+                  {registerForm.formState.errors.phone && (
+                    <p className="text-sm text-red-500">{registerForm.formState.errors.phone.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="register-jobTitle">Job Title</Label>
+                  <Input
+                    id="register-jobTitle"
+                    type="text"
+                    placeholder="Safety Officer"
+                    {...registerForm.register("jobTitle")}
+                  />
+                  {registerForm.formState.errors.jobTitle && (
+                    <p className="text-sm text-red-500">{registerForm.formState.errors.jobTitle.message}</p>
+                  )}
+                </div>
               </div>
 
+              <div className="pt-2 pb-2 border-b border-gray-200">
+                <h3 className="text-lg font-medium">Company Information</h3>
+                <p className="text-sm text-muted-foreground">We'll create your company in the system</p>
+              </div>
+              
               <div className="space-y-2">
-                <Label htmlFor="register-jobTitle">Job Title (optional)</Label>
+                <Label htmlFor="register-companyName">Company Name</Label>
                 <Input
-                  id="register-jobTitle"
+                  id="register-companyName"
                   type="text"
-                  placeholder="Safety Officer"
-                  {...registerForm.register("jobTitle")}
+                  placeholder="ABC Construction"
+                  {...registerForm.register("companyName")}
                 />
+                {registerForm.formState.errors.companyName && (
+                  <p className="text-sm text-red-500">{registerForm.formState.errors.companyName.message}</p>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="register-companyEmail">Company Email</Label>
+                  <Input
+                    id="register-companyEmail"
+                    type="email"
+                    placeholder="info@abcconstruction.com"
+                    {...registerForm.register("companyEmail")}
+                  />
+                  {registerForm.formState.errors.companyEmail && (
+                    <p className="text-sm text-red-500">{registerForm.formState.errors.companyEmail.message}</p>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="register-companyPhone">Company Phone (Optional)</Label>
+                  <Input
+                    id="register-companyPhone"
+                    type="tel"
+                    placeholder="(123) 456-7890"
+                    {...registerForm.register("companyPhone")}
+                  />
+                  {registerForm.formState.errors.companyPhone && (
+                    <p className="text-sm text-red-500">{registerForm.formState.errors.companyPhone.message}</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="register-companyAddress">Company Address (Optional)</Label>
+                <Input
+                  id="register-companyAddress"
+                  type="text"
+                  placeholder="123 Main St, Anytown, ST 12345"
+                  {...registerForm.register("companyAddress")}
+                />
+                {registerForm.formState.errors.companyAddress && (
+                  <p className="text-sm text-red-500">{registerForm.formState.errors.companyAddress.message}</p>
+                )}
               </div>
 
               <Button
@@ -207,17 +301,11 @@ export default function AuthForm() {
                 className="w-full"
                 disabled={registerMutation.isPending}
               >
-                {registerMutation.isPending ? "Creating Account..." : "Create Account"}
+                {registerMutation.isPending ? "Creating account..." : "Create Account & Company"}
               </Button>
             </form>
           </TabsContent>
         </CardContent>
-
-        <CardFooter className="flex flex-col space-y-4">
-          <p className="text-xs text-center text-muted-foreground">
-            By continuing, you agree to our Terms of Service and Privacy Policy.
-          </p>
-        </CardFooter>
       </Tabs>
     </Card>
   );
