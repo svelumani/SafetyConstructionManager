@@ -15,7 +15,7 @@ interface SiteTeamsProps {
 export default function SiteTeams({ siteId }: SiteTeamsProps) {
   const { user } = useAuth();
   
-  const { data, isLoading } = useQuery<{ teams: any[] }>({
+  const { data: teams, isLoading } = useQuery({
     queryKey: ['/api/teams'],
     queryFn: ({ signal }) => 
       fetch(`/api/teams`, { signal })
@@ -26,9 +26,6 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
           return res.json();
         }),
   });
-  
-  // Extract teams from response data
-  const allTeams = data?.teams || [];
 
   if (isLoading) {
     return (
@@ -59,10 +56,8 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
   const canCreateTeam = !!user;
 
   // Filter teams for this specific site
-  const siteTeams = allTeams.filter(team => 
-    (team.site_id === siteId) || 
-    (team.siteIds && team.siteIds.includes(siteId)) || 
-    (team.primarySiteId === siteId)
+  const siteTeams = teams?.filter(team => 
+    team.siteIds?.includes(siteId) || team.primarySiteId === siteId
   ) || [];
   
   if (!siteTeams.length) {
@@ -116,19 +111,19 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-medium">{team.name}</CardTitle>
-                <Badge variant={team.is_active ? "default" : "secondary"}>
-                  {team.is_active ? "Active" : "Inactive"}
+                <Badge variant={team.isActive ? "default" : "secondary"}>
+                  {team.isActive ? "Active" : "Inactive"}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                {team.description || "General team"}
+                {team.specialty || "General"}
               </p>
             </CardHeader>
             <CardContent>
               <div className="text-sm space-y-2">
                 <div className="flex justify-between">
                   <span>Created:</span>
-                  <span className="text-muted-foreground">{formatDate(team.created_at)}</span>
+                  <span className="text-muted-foreground">{formatDate(team.createdAt)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Members:</span>
