@@ -197,7 +197,7 @@ export default function AddTeamMember() {
                             <li>All site personnel are already assigned to this team</li>
                             <li>There are no personnel assigned to this site yet</li>
                           </ul>
-                          <Link href={`/sites/${siteId}/personnel/add`} className="text-blue-600 hover:underline">
+                          <Link href={`/sites/${teamQuery.data?.siteId}/personnel/add`} className="text-blue-600 hover:underline">
                             Click here to add personnel to this site first.
                           </Link>
                         </div>
