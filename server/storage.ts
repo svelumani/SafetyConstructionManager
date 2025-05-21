@@ -1192,22 +1192,16 @@ export class DatabaseStorage implements IStorage {
 
   async listTeamsByTenant(tenantId: number): Promise<Team[]> {
     try {
-      // Use pool directly for this query to avoid any ORM issues
-      const { pool } = await import('./db');
-      
-      console.log("Fetching teams for tenant:", tenantId);
-      
-      const result = await pool.query(
+      // Use a direct SQL query since the previous approach was causing issues
+      const result = await db.execute(
         `SELECT * FROM teams 
          WHERE tenant_id = $1 AND is_active = true 
          ORDER BY name`,
         [tenantId]
       );
-      
-      console.log(`Found ${result.rows.length} teams for tenant ${tenantId}`);
       return result.rows as Team[];
     } catch (error) {
-      console.error("Error in listTeamsByTenant:", error);
+      console.error("Error fetching teams:", error);
       return [];
     }
   }
