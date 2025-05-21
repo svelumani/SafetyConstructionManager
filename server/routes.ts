@@ -348,6 +348,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update user" });
     }
   });
+  
+  // Simple role management endpoint for safety officers
+  app.put("/api/users/:id/role", requireAuth, requirePermission("users", "update"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { role } = req.body;
+      
+      if (!role || !userRoleEnum.enumValues.includes(role)) {
+        return res.status(400).json({ 
+          message: "Invalid role", 
+          validRoles: userRoleEnum.enumValues.filter(r => r !== 'super_admin') 
+        });
+      }
+      
+      // Super admin role can only be assigned by super admins
+      if (role === 'super_admin' && req.user.role !== 'super_admin') {
+        return res.status(403).json({ message: "You don't have permission to assign this role" });
+      }
+      
+      const user = await storage.getUser(id);
+      
+      if (!user || user.tenantId !== req.user.tenantId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const updatedUser = await storage.updateUser(id, { role });
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "user_role_updated",
+        entityType: "user",
+        entityId: id.toString(),
+        details: { 
+          username: updatedUser?.username, 
+          oldRole: user.role, 
+          newRole: updatedUser?.role 
+        },
+      });
+      
+      res.json({ 
+        success: true, 
+        user: { 
+          id: updatedUser?.id, 
+          name: `${updatedUser?.firstName} ${updatedUser?.lastName}`, 
+          role: updatedUser?.role 
+        } 
+      });
+    } catch (err) {
+      console.error("Error updating user role:", err);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
 
   // Sites
   app.get("/api/sites", requireAuth, requirePermission("sites", "read"), async (req, res) => {
