@@ -46,27 +46,27 @@ export function EditPersonnelForm({ siteId, personnelId, onSuccess }: EditPerson
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Fetch the personnel details
-  const { data: personnel, isLoading: isLoadingPersonnel } = useQuery({
-    queryKey: [`/api/sites/${siteId}/personnel/${personnelId}`],
-    enabled: !!personnelId,
-    onSuccess: (data) => {
-      // Set form default values when data is loaded
-      form.reset({
-        siteRole: data.siteRole,
-        startDate: data.startDate ? parseISO(data.startDate) : undefined,
-        endDate: data.endDate ? parseISO(data.endDate) : undefined,
-        notes: data.notes || "",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: `Failed to load personnel details: ${error.message}`,
-        variant: "destructive",
-      });
-    }
+  // Get pre-filled data from the personnel list directly
+  const { data: personnelListData, isLoading: isLoadingPersonnel } = useQuery({
+    queryKey: [`/api/sites/${siteId}/personnel`],
+    enabled: !!siteId,
   });
+  
+  // Manually find the selected personnel from the list data
+  React.useEffect(() => {
+    if (personnelListData && personnelId) {
+      const selectedPersonnel = personnelListData.personnel.find((p) => p.id === personnelId);
+      if (selectedPersonnel) {
+        console.log("Found personnel data:", selectedPersonnel);
+        form.reset({
+          siteRole: selectedPersonnel.siteRole,
+          startDate: selectedPersonnel.startDate ? parseISO(selectedPersonnel.startDate) : undefined,
+          endDate: selectedPersonnel.endDate ? parseISO(selectedPersonnel.endDate) : undefined,
+          notes: selectedPersonnel.notes || "",
+        });
+      }
+    }
+  }, [personnelListData, personnelId, form]);
   
   // Form definition
   const form = useForm<EditPersonnelValues>({
