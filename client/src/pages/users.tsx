@@ -252,6 +252,12 @@ export default function Users() {
         open={showAddUserDialog}
         onOpenChange={setShowAddUserDialog}
       />
+      
+      {/* Bulk Upload Dialog */}
+      <UserBulkUpload
+        open={showBulkUploadDialog}
+        onOpenChange={setShowBulkUploadDialog}
+      />
     </Layout>
   );
 }
