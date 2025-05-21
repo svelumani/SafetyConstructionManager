@@ -5,7 +5,7 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User, loginSchema } from "@shared/schema";
+import { User, loginSchema, InsertTenant } from "@shared/schema";
 
 declare global {
   namespace Express {
@@ -100,31 +100,25 @@ export function setupAuth(app: Express) {
       
       if (tenant && tenant.name) {
         try {
-          console.log("Creating tenant with name:", tenant.name);
-          
-          // Create the tenant using the storage interface
-          const tenantData = {
+          // Create the tenant using the storage interface with proper validation
+          // Use the InsertTenant type from schema
+          const tenantData: InsertTenant = {
             name: tenant.name,
             email: tenant.email || email,
-            phone: tenant.phone,
-            address: tenant.address,
+            phone: tenant.phone || null,
+            address: tenant.address || null,
             subscriptionPlan: "basic",
-            subscriptionStatus: 'active',
-            isActive: true,
-            maxUsers: 25,
-            maxSites: 10,
-            activeUsers: 1,
-            activeSites: 0
+            subscriptionStatus: 'active'
           };
           
-          console.log("Tenant data being passed to createTenant:", JSON.stringify(tenantData, null, 2));
+          // Using the storage interface as designed
           const newTenant = await storage.createTenant(tenantData);
           
           tenantId = newTenant.id;
           
-          console.log("Created tenant:", newTenant.name, "with ID:", newTenant.id);
+          console.log(`Successfully created tenant: ${newTenant.name} with ID: ${newTenant.id}`);
           
-          // Log tenant creation
+          // Log tenant creation through the system log interface
           await storage.createSystemLog({
             tenantId: tenantId,
             action: "tenant_created",
@@ -132,15 +126,10 @@ export function setupAuth(app: Express) {
             entityId: tenantId.toString(),
             details: { name: tenant.name }
           });
-        } catch (err: any) {
-          console.error("Error creating tenant:", err.message);
-          if (err.stack) {
-            console.error(err.stack);
-          }
+        } catch (error: any) {
+          console.error("Failed to create tenant:", error.message);
           // Continue with user creation even if tenant creation fails
         }
-      } else {
-        console.log("No tenant data provided or missing tenant name");
       }
 
       const hashedPassword = await hashPassword(password);
