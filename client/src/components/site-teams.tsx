@@ -94,7 +94,7 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">Site Teams ({teams.length})</h3>
+        <h3 className="text-lg font-medium">Site Teams ({siteTeams.length})</h3>
         {canCreateTeam && (
           <Button asChild>
             <Link to={`/teams/create?siteId=${siteId}`}>
