@@ -15,20 +15,21 @@ interface SiteTeamsProps {
 export default function SiteTeams({ siteId }: SiteTeamsProps) {
   const { user } = useAuth();
   
+  // Fetch teams specific to this site
   const { data, isLoading } = useQuery({
-    queryKey: ['/api/teams'],
+    queryKey: ['/api/sites', siteId, 'teams'],
     queryFn: ({ signal }) => 
-      fetch(`/api/teams`, { signal })
+      fetch(`/api/sites/${siteId}/teams`, { signal })
         .then(res => {
           if (!res.ok) {
-            throw new Error('Failed to fetch teams');
+            throw new Error('Failed to fetch site teams');
           }
           return res.json();
         }),
   });
   
-  // Extract teams from the response
-  const teams = data?.teams || [];
+  // Use the teams directly from the response
+  const teams = data || [];
 
   if (isLoading) {
     return (
@@ -58,8 +59,8 @@ export default function SiteTeams({ siteId }: SiteTeamsProps) {
   // Allow any authenticated user to create teams for now
   const canCreateTeam = !!user;
 
-  // Filter teams for this specific site
-  const siteTeams = teams.filter(team => team.siteId === siteId) || [];
+  // No need to filter since we're already getting site-specific teams
+  const siteTeams = teams;
   
   if (!siteTeams.length) {
     return (
