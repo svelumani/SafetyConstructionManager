@@ -31,7 +31,7 @@ const NavLink = ({ href, icon: Icon, children, matchSubpaths = false }: NavLinkP
 
   return (
     <Link href={href}>
-      <a
+      <div
         className={cn(
           'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all hover:bg-accent',
           isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
@@ -39,7 +39,7 @@ const NavLink = ({ href, icon: Icon, children, matchSubpaths = false }: NavLinkP
       >
         <Icon className="h-5 w-5" />
         <span>{children}</span>
-      </a>
+      </div>
     </Link>
   );
 };
