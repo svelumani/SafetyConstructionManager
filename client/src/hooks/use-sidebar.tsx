@@ -1,75 +1,33 @@
-import { createContext, ReactNode, useState, useContext, useEffect } from 'react';
+import { useState, createContext, useContext, ReactNode } from 'react';
 
-type SidebarContextType = {
-  isSidebarOpen: boolean;
+interface SidebarContextType {
+  isCollapsed: boolean;
   toggleSidebar: () => void;
-  closeSidebar: () => void;
-  openSidebar: () => void;
-};
+}
 
-const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
+const SidebarContext = createContext<SidebarContextType>({
+  isCollapsed: false,
+  toggleSidebar: () => {},
+});
 
-export function SidebarProvider({ children }: { children: ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+export const SidebarProvider = ({ children }: { children: ReactNode }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const toggleSidebar = () => {
-    setIsSidebarOpen(prev => !prev);
+    setIsCollapsed(!isCollapsed);
   };
-
-  const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
-  const openSidebar = () => {
-    setIsSidebarOpen(true);
-  };
-
-  // Close sidebar when window is resized to desktop size
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) { // md breakpoint in Tailwind
-        setIsSidebarOpen(false);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  // Close sidebar when navigating (on mobile)
-  useEffect(() => {
-    const handleNavigation = () => {
-      if (window.innerWidth < 768) {
-        setIsSidebarOpen(false);
-      }
-    };
-
-    window.addEventListener('popstate', handleNavigation);
-    return () => {
-      window.removeEventListener('popstate', handleNavigation);
-    };
-  }, []);
 
   return (
-    <SidebarContext.Provider
-      value={{
-        isSidebarOpen,
-        toggleSidebar,
-        closeSidebar,
-        openSidebar,
-      }}
-    >
+    <SidebarContext.Provider value={{ isCollapsed, toggleSidebar }}>
       {children}
     </SidebarContext.Provider>
   );
-}
+};
 
-export function useSidebar() {
+export const useSidebar = () => {
   const context = useContext(SidebarContext);
   if (context === undefined) {
     throw new Error('useSidebar must be used within a SidebarProvider');
   }
   return context;
-}
+};

@@ -19,6 +19,7 @@ import Sites from "@/pages/sites";
 import TenantRegistration from "@/pages/tenant-registration";
 import NewSitePage from "@/pages/sites/new";
 import SiteDetailPage from "@/pages/sites/id";
+import AddSitePersonnelPage from "@/pages/sites/personnel-add";
 import Teams from "@/pages/teams";
 import CreateTeamPage from "@/pages/teams/create";
 import TeamDetailPage from "@/pages/teams/[id]";
@@ -45,6 +46,7 @@ function Router() {
       <ProtectedRoute path="/users/:id" component={UserProfile} />
       <ProtectedRoute path="/sites" component={Sites} />
       <ProtectedRoute path="/sites/new" component={NewSitePage} />
+      <ProtectedRoute path="/sites/:id/personnel/add" component={AddSitePersonnelPage} />
       <ProtectedRoute path="/sites/:id" component={SiteDetailPage} />
       
       {/* Team management routes */}
