@@ -700,6 +700,75 @@ export class DatabaseStorage implements IStorage {
       .where(eq(sitePersonnel.siteId, siteId));
     return result?.count || 0;
   }
+  
+  async getSitePersonnel(id: number): Promise<any> {
+    try {
+      const [record] = await db.select().from(sitePersonnel).where(eq(sitePersonnel.id, id));
+      
+      if (!record) {
+        return undefined;
+      }
+      
+      // Get the user details to include in the response
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, record.userId));
+      
+      // Combine the data
+      return {
+        ...record,
+        userName: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
+        userEmail: user ? user.email : '',
+        userRole: user ? user.role : null
+      };
+    } catch (error) {
+      console.error("Error in getSitePersonnel:", error);
+      return undefined;
+    }
+  }
+  
+  async updateSitePersonnel(updateData: { 
+    id: number; 
+    siteRole?: string;
+    startDate?: string | null;
+    endDate?: string | null;
+    notes?: string | null;
+  }): Promise<any> {
+    try {
+      const { id, ...data } = updateData;
+      
+      const [updatedRecord] = await db
+        .update(sitePersonnel)
+        .set({ 
+          ...data, 
+          updatedAt: new Date().toISOString() 
+        })
+        .where(eq(sitePersonnel.id, id))
+        .returning();
+      
+      if (!updatedRecord) {
+        return undefined;
+      }
+      
+      // Get the user details to include in the response
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, updatedRecord.userId));
+      
+      // Combine the data
+      return {
+        ...updatedRecord,
+        userName: user ? `${user.firstName} ${user.lastName}` : 'Unknown User',
+        userEmail: user ? user.email : '',
+        userRole: user ? user.role : null
+      };
+    } catch (error) {
+      console.error("Error in updateSitePersonnel:", error);
+      throw error;
+    }
+  }
 
   // Hazard operations
   async getHazardReport(id: number): Promise<HazardReport | undefined> {

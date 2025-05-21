@@ -863,6 +863,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get specific site personnel by ID
+  app.get("/api/sites/:siteId/personnel/:personnelId", requireAuth, async (req, res) => {
+    try {
+      const siteId = parseInt(req.params.siteId);
+      const personnelId = parseInt(req.params.personnelId);
+      
+      if (isNaN(siteId) || isNaN(personnelId)) {
+        return res.status(400).json({ message: "Invalid site ID or personnel ID" });
+      }
+      
+      // Check if site exists and belongs to user's tenant
+      const site = await storage.getSite(siteId);
+      if (!site) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+      
+      if (site.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to view this site's personnel" });
+      }
+      
+      // Get the personnel assignment
+      const personnel = await storage.getSitePersonnel(personnelId);
+      
+      if (!personnel || personnel.siteId !== siteId) {
+        return res.status(404).json({ message: "Personnel assignment not found" });
+      }
+      
+      res.json(personnel);
+    } catch (err) {
+      console.error("Error getting site personnel:", err);
+      res.status(500).json({ message: "Failed to get personnel details" });
+    }
+  });
+  
+  // Update site personnel role and details
+  app.patch("/api/sites/:siteId/personnel/:personnelId", requireAuth, async (req, res) => {
+    try {
+      const siteId = parseInt(req.params.siteId);
+      const personnelId = parseInt(req.params.personnelId);
+      
+      if (isNaN(siteId) || isNaN(personnelId)) {
+        return res.status(400).json({ message: "Invalid site ID or personnel ID" });
+      }
+      
+      // Check if site exists and belongs to user's tenant
+      const site = await storage.getSite(siteId);
+      if (!site) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+      
+      if (site.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to modify this site's personnel" });
+      }
+      
+      // Get current personnel assignment
+      const existingPersonnel = await storage.getSitePersonnel(personnelId);
+      if (!existingPersonnel || existingPersonnel.siteId !== siteId) {
+        return res.status(404).json({ message: "Personnel assignment not found" });
+      }
+      
+      // Prepare update data
+      const updateData = {
+        id: personnelId,
+        siteRole: req.body.siteRole || existingPersonnel.siteRole,
+        startDate: req.body.startDate || existingPersonnel.startDate,
+        endDate: req.body.endDate || existingPersonnel.endDate,
+        notes: req.body.notes !== undefined ? req.body.notes : existingPersonnel.notes,
+      };
+      
+      // Update the personnel assignment
+      const updatedPersonnel = await storage.updateSitePersonnel(updateData);
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "personnel_updated",
+        entityType: "site_personnel",
+        entityId: updatedPersonnel.id.toString(),
+        details: {
+          siteId,
+          siteRole: updatedPersonnel.siteRole,
+          changes: Object.keys(req.body).reduce((acc, key) => {
+            if (req.body[key] !== undefined) {
+              acc[key] = {
+                from: existingPersonnel[key],
+                to: req.body[key]
+              };
+            }
+            return acc;
+          }, {})
+        },
+      });
+      
+      res.json(updatedPersonnel);
+    } catch (err) {
+      console.error("Error updating site personnel:", err);
+      if (err instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: err.errors });
+      }
+      res.status(500).json({ message: "Failed to update personnel assignment" });
+    }
+  });
+
   app.put("/api/site-personnel/:id", requireAuth, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
