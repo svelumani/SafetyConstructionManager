@@ -39,25 +39,30 @@ export default function TeamDetailPage() {
 
   // Fetch team data
   const { data: team, isLoading: isLoadingTeam } = useQuery<Team>({
-    queryKey: [`/api/teams/${teamId}`],
+    queryKey: ['/api/teams', teamId],
+    queryFn: ({ signal }) => fetch(`/api/teams/${teamId}`, { signal }).then(res => res.json()),
     enabled: !isNaN(teamId),
   });
 
   // Fetch team members
   const { data: members, isLoading: isLoadingMembers } = useQuery<any[]>({
-    queryKey: [`/api/teams/${teamId}/members`],
+    queryKey: ['/api/teams', teamId, 'members'],
+    queryFn: ({ signal }) => fetch(`/api/teams/${teamId}/members`, { signal }).then(res => res.json()),
     enabled: !isNaN(teamId),
+    refetchOnWindowFocus: true,
   });
 
   // Fetch site data
   const { data: site } = useQuery<Site>({
-    queryKey: [`/api/sites/${team?.siteId}`],
+    queryKey: ['/api/sites', team?.siteId],
+    queryFn: ({ signal }) => team?.siteId ? fetch(`/api/sites/${team.siteId}`, { signal }).then(res => res.json()) : Promise.resolve(null),
     enabled: !!team?.siteId,
   });
 
   // Fetch team leader data
   const { data: leader } = useQuery<User>({
-    queryKey: [`/api/users/${team?.leaderId}`],
+    queryKey: ['/api/users', team?.leaderId],
+    queryFn: ({ signal }) => team?.leaderId ? fetch(`/api/users/${team.leaderId}`, { signal }).then(res => res.json()) : Promise.resolve(null),
     enabled: !!team?.leaderId,
   });
 
