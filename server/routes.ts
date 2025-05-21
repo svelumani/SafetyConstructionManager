@@ -774,6 +774,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Site Personnel Management
+  app.get("/api/sites/:siteId/personnel", requireAuth, async (req, res) => {
+    try {
+      const siteId = parseInt(req.params.siteId);
+      if (isNaN(siteId)) {
+        return res.status(400).json({ message: "Invalid site ID" });
+      }
+      
+      // Check if site exists and belongs to user's tenant
+      const site = await storage.getSite(siteId);
+      if (!site) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+      
+      if (site.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to access this site" });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const personnel = await storage.listSitePersonnelBySite(siteId, { limit, offset });
+      const total = await storage.countSitePersonnel(siteId);
+      
+      res.json({ personnel, total });
+    } catch (err) {
+      console.error("Error fetching site personnel:", err);
+      res.status(500).json({ message: "Failed to fetch site personnel" });
+    }
+  });
+  
+  app.post("/api/sites/:siteId/personnel", requireAuth, async (req, res) => {
+    try {
+      const siteId = parseInt(req.params.siteId);
+      if (isNaN(siteId)) {
+        return res.status(400).json({ message: "Invalid site ID" });
+      }
+      
+      // Check if site exists and belongs to user's tenant
+      const site = await storage.getSite(siteId);
+      if (!site) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+      
+      if (site.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to modify this site" });
+      }
+      
+      // Make sure the user exists and belongs to the same tenant
+      const userId = req.body.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.tenantId !== req.user.tenantId) {
+        return res.status(400).json({ message: "Invalid user" });
+      }
+      
+      // Parse and validate the assignment data
+      const assignmentData = insertSitePersonnelSchema.parse({
+        ...req.body,
+        siteId,
+      });
+      
+      const assignment = await storage.assignUserToSite(assignmentData);
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "personnel_assigned",
+        entityType: "site_personnel",
+        entityId: assignment.id.toString(),
+        details: { 
+          siteId, 
+          userId, 
+          role: assignment.role,
+          startDate: assignment.startDate,
+          endDate: assignment.endDate
+        },
+      });
+      
+      res.status(201).json(assignment);
+    } catch (err) {
+      console.error("Error assigning personnel to site:", err);
+      if (err instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid assignment data", errors: err.errors });
+      }
+      res.status(500).json({ message: "Failed to assign personnel to site" });
+    }
+  });
+  
+  app.put("/api/site-personnel/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid assignment ID" });
+      }
+      
+      // Check if assignment exists
+      const assignment = await storage.getSitePersonnel(id);
+      if (!assignment) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
+      
+      // Check if site belongs to user's tenant
+      const site = await storage.getSite(assignment.siteId);
+      if (!site || site.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to modify this assignment" });
+      }
+      
+      // Parse and validate the update data
+      const updateData = insertSitePersonnelSchema.partial().parse(req.body);
+      
+      // Don't allow changing the site or user
+      delete (updateData as any).siteId;
+      delete (updateData as any).userId;
+      
+      const updatedAssignment = await storage.updateSitePersonnel(id, updateData);
+      
+      res.json(updatedAssignment);
+    } catch (err) {
+      console.error("Error updating personnel assignment:", err);
+      if (err instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid assignment data", errors: err.errors });
+      }
+      res.status(500).json({ message: "Failed to update personnel assignment" });
+    }
+  });
+  
+  app.delete("/api/site-personnel/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid assignment ID" });
+      }
+      
+      // Check if assignment exists
+      const assignment = await storage.getSitePersonnel(id);
+      if (!assignment) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
+      
+      // Check if site belongs to user's tenant
+      const site = await storage.getSite(assignment.siteId);
+      if (!site || site.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to modify this assignment" });
+      }
+      
+      await storage.removeSitePersonnel(id);
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "personnel_removed",
+        entityType: "site_personnel",
+        entityId: id.toString(),
+        details: { siteId: assignment.siteId, userId: assignment.userId },
+      });
+      
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Error removing personnel assignment:", err);
+      res.status(500).json({ message: "Failed to remove personnel assignment" });
+    }
+  });
+
   // Hazard Reports
   app.get("/api/hazards", requireAuth, requirePermission("hazards", "read"), async (req, res) => {
     try {
