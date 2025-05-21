@@ -232,7 +232,7 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Bulk Upload Users</DialogTitle>
           <DialogDescription>
@@ -341,7 +341,7 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
           </TabsContent>
         </Tabs>
         
-        <Alert className="mb-4">
+        <Alert className="mb-4 mt-4">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Development Mode</AlertTitle>
           <AlertDescription>
@@ -349,7 +349,7 @@ export function UserBulkUpload({ open, onOpenChange }: UserBulkUploadProps) {
           </AlertDescription>
         </Alert>
         
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 sticky bottom-0 pb-2 pt-2 bg-background border-t mt-4">
           <Button 
             type="button" 
             variant="outline" 
