@@ -127,32 +127,31 @@ const StatusBadge = ({ status }: { status: string | null | undefined }) => {
 };
 
 // Response status component
-const ResponseStatus = ({ status }: { status: string }) => {
-  switch (status) {
-    case "pass":
-      return (
-        <Badge variant="outline" className="bg-green-100 text-green-800 font-medium">
-          <CheckCircle className="mr-1 h-3 w-3" />
-          Pass
-        </Badge>
-      );
-    case "fail":
-      return (
-        <Badge variant="outline" className="bg-red-100 text-red-800 font-medium">
-          <XIcon className="mr-1 h-3 w-3" />
-          Fail
-        </Badge>
-      );
-    case "not_applicable":
-      return (
-        <Badge variant="outline" className="bg-gray-100 text-gray-800 font-medium">
-          <XCircle className="mr-1 h-3 w-3" />
-          N/A
-        </Badge>
-      );
-    default:
-      return null;
-  }
+const ResponseStatus = ({ status, isCompliant }: { status?: string, isCompliant?: boolean | null }) => {
+  // Handle the case where status might come from the 'response' field or from the 'status' field
+  if (status === "pass" || isCompliant === true) {
+    return (
+      <Badge variant="outline" className="bg-green-100 text-green-800 font-medium">
+        <CheckCircle className="mr-1 h-3 w-3" />
+        Pass
+      </Badge>
+    );
+  } else if (status === "fail" || isCompliant === false) {
+    return (
+      <Badge variant="outline" className="bg-red-100 text-red-800 font-medium">
+        <XIcon className="mr-1 h-3 w-3" />
+        Fail
+      </Badge>
+    );
+  } else if (status === "not_applicable") {
+    return (
+      <Badge variant="outline" className="bg-gray-100 text-gray-800 font-medium">
+        <XCircle className="mr-1 h-3 w-3" />
+        N/A
+      </Badge>
+    );
+  } 
+  return null;
 };
 
 export default function InspectionDetails() {
@@ -752,8 +751,11 @@ export default function InspectionDetails() {
                                     <div className="flex items-center">
                                       <span className="font-medium">{index + 1}. {item.question}</span>
                                     </div>
-                                    {response.status && (
-                                      <ResponseStatus status={response.status} />
+                                    {(response.status || response.response || response.is_compliant !== null) && (
+                                      <ResponseStatus 
+                                        status={response.status || response.response} 
+                                        isCompliant={response.is_compliant} 
+                                      />
                                     )}
                                   </div>
                                 </AccordionTrigger>
