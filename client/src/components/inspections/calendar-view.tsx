@@ -52,16 +52,25 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
   const getInspectionsByDate = () => {
     const inspectionDates: { [key: string]: Inspection[] } = {};
     
+    // Add some debug logging
+    console.log("Inspections data:", inspections);
+    
     inspections.forEach(inspection => {
       if (inspection && inspection.scheduledDate) {
-        const dateOnly = inspection.scheduledDate.split('T')[0];
-        if (!inspectionDates[dateOnly]) {
-          inspectionDates[dateOnly] = [];
+        try {
+          const dateOnly = inspection.scheduledDate.split('T')[0];
+          if (!inspectionDates[dateOnly]) {
+            inspectionDates[dateOnly] = [];
+          }
+          inspectionDates[dateOnly].push(inspection);
+          console.log(`Added inspection to date ${dateOnly}:`, inspection.title);
+        } catch (error) {
+          console.error("Error processing inspection date:", inspection, error);
         }
-        inspectionDates[dateOnly].push(inspection);
       }
     });
     
+    console.log("Grouped inspections by date:", inspectionDates);
     return inspectionDates;
   };
 
