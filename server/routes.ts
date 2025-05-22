@@ -4,28 +4,10 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { setupAuth } from "./auth";
 import { setupEmailService } from "./email";
-import { userRoleEnum, insertTeamSchema } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import * as schema from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 import { ZodError } from "zod";
-import {
-  insertTenantSchema,
-  insertUserSchema,
-  insertSiteSchema,
-  insertHazardReportSchema,
-  insertHazardAssignmentSchema,
-  insertHazardCommentSchema,
-  insertInspectionSchema,
-  insertPermitRequestSchema,
-  insertIncidentReportSchema,
-  insertTrainingContentSchema,
-  insertTrainingCourseSchema,
-  insertTrainingRecordSchema,
-  insertRolePermissionSchema,
-  insertEmailTemplateSchema,
-  insertSitePersonnelSchema,
-  registerTenantSchema,
-  loginSchema
-} from "@shared/schema";
+// All schemas are now imported via the namespace import above
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Ensure that authenticated users have a tenantId and role to proceed
@@ -2142,6 +2124,446 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Error deleting permission:", err);
       res.status(500).json({ message: "Failed to delete permission" });
+    }
+  });
+
+  // Inspection Templates API
+  app.get('/api/inspection-templates', requireAuth, async (req, res) => {
+    try {
+      const templates = await db.select().from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId))
+        .where(eq(schema.inspectionTemplates.isActive, true));
+      
+      return res.status(200).json(templates);
+    } catch (error) {
+      console.error('Error fetching inspection templates:', error);
+      return res.status(500).json({ message: 'Error fetching inspection templates' });
+    }
+  });
+
+  app.get('/api/inspection-templates/:id', requireAuth, async (req, res) => {
+    const templateId = parseInt(req.params.id);
+    
+    try {
+      const [template] = await db.select().from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId))
+        .where(eq(schema.inspectionTemplates.isActive, true));
+      
+      if (!template) {
+        return res.status(404).json({ message: 'Inspection template not found' });
+      }
+      
+      // Get checklist items
+      const checklistItems = await db.select().from(schema.inspectionChecklistItems)
+        .where(eq(schema.inspectionChecklistItems.templateId, templateId))
+        .where(eq(schema.inspectionChecklistItems.isActive, true))
+        .orderBy(schema.inspectionChecklistItems.sortOrder);
+      
+      return res.status(200).json({
+        ...template,
+        checklistItems
+      });
+    } catch (error) {
+      console.error('Error fetching inspection template:', error);
+      return res.status(500).json({ message: 'Error fetching inspection template' });
+    }
+  });
+
+  app.post('/api/inspection-templates', requireAuth, async (req, res) => {
+    const templateData = req.body;
+    
+    try {
+      // Validate template data
+      const validatedData = schema.insertInspectionTemplateSchema.parse({
+        ...templateData,
+        tenantId: req.user.tenantId,
+        createdById: req.user.id
+      });
+      
+      // Create template
+      const [newTemplate] = await db.insert(schema.inspectionTemplates)
+        .values(validatedData)
+        .returning();
+      
+      return res.status(201).json(newTemplate);
+    } catch (error) {
+      console.error('Error creating inspection template:', error);
+      
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid template data', errors: error.errors });
+      }
+      
+      return res.status(500).json({ message: 'Error creating inspection template' });
+    }
+  });
+
+  app.post('/api/inspection-templates/:id/checklist-items', requireAuth, async (req, res) => {
+    const templateId = parseInt(req.params.id);
+    const itemData = req.body;
+    
+    try {
+      // Check if template exists and belongs to user's tenant
+      const [template] = await db.select().from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId));
+      
+      if (!template) {
+        return res.status(404).json({ message: 'Inspection template not found' });
+      }
+      
+      // Validate checklist item data
+      const validatedData = schema.insertInspectionChecklistItemSchema.parse({
+        ...itemData,
+        templateId
+      });
+      
+      // Create checklist item
+      const [newItem] = await db.insert(schema.inspectionChecklistItems)
+        .values(validatedData)
+        .returning();
+      
+      return res.status(201).json(newItem);
+    } catch (error) {
+      console.error('Error creating checklist item:', error);
+      
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid checklist item data', errors: error.errors });
+      }
+      
+      return res.status(500).json({ message: 'Error creating checklist item' });
+    }
+  });
+
+  // Inspections API
+  app.get('/api/inspections', requireAuth, async (req, res) => {
+    const { siteId, status } = req.query;
+    
+    try {
+      let query = db.select({
+        inspection: schema.inspections,
+        site: schema.sites,
+        assignedTo: schema.users,
+        createdBy: schema.users,
+        template: schema.inspectionTemplates
+      })
+      .from(schema.inspections)
+      .leftJoin(schema.sites, eq(schema.inspections.siteId, schema.sites.id))
+      .leftJoin(schema.users, eq(schema.inspections.assignedToId, schema.users.id))
+      .leftJoin(schema.users, eq(schema.inspections.createdById, schema.users.id))
+      .leftJoin(schema.inspectionTemplates, eq(schema.inspections.templateId, schema.inspectionTemplates.id))
+      .where(eq(schema.inspections.tenantId, req.user.tenantId))
+      .where(eq(schema.inspections.isActive, true));
+      
+      if (siteId) {
+        query = query.where(eq(schema.inspections.siteId, parseInt(siteId as string)));
+      }
+      
+      if (status) {
+        query = query.where(eq(schema.inspections.status, status as string));
+      }
+      
+      const results = await query;
+      
+      // Format the results
+      const formattedResults = results.map(result => ({
+        ...result.inspection,
+        site: result.site,
+        assignedTo: result.assignedTo,
+        createdBy: result.createdBy,
+        template: result.template
+      }));
+      
+      return res.status(200).json(formattedResults);
+    } catch (error) {
+      console.error('Error fetching inspections:', error);
+      return res.status(500).json({ message: 'Error fetching inspections' });
+    }
+  });
+
+  app.get('/api/inspections/:id', requireAuth, async (req, res) => {
+    const inspectionId = parseInt(req.params.id);
+    
+    try {
+      // Get inspection details
+      const [inspection] = await db.select().from(schema.inspections)
+        .where(eq(schema.inspections.id, inspectionId))
+        .where(eq(schema.inspections.tenantId, req.user.tenantId));
+      
+      if (!inspection) {
+        return res.status(404).json({ message: 'Inspection not found' });
+      }
+      
+      // Get site info
+      const [site] = await db.select().from(schema.sites)
+        .where(eq(schema.sites.id, inspection.siteId));
+      
+      // Get assigned user info
+      let assignedTo = null;
+      if (inspection.assignedToId) {
+        [assignedTo] = await db.select().from(schema.users)
+          .where(eq(schema.users.id, inspection.assignedToId));
+      }
+      
+      // Get created by user info
+      const [createdBy] = await db.select().from(schema.users)
+        .where(eq(schema.users.id, inspection.createdById));
+      
+      // Get completed by user info
+      let completedBy = null;
+      if (inspection.completedById) {
+        [completedBy] = await db.select().from(schema.users)
+          .where(eq(schema.users.id, inspection.completedById));
+      }
+      
+      // Get template info
+      let template = null;
+      let checklistItems = [];
+      if (inspection.templateId) {
+        [template] = await db.select().from(schema.inspectionTemplates)
+          .where(eq(schema.inspectionTemplates.id, inspection.templateId));
+        
+        checklistItems = await db.select().from(schema.inspectionChecklistItems)
+          .where(eq(schema.inspectionChecklistItems.templateId, inspection.templateId))
+          .where(eq(schema.inspectionChecklistItems.isActive, true))
+          .orderBy(schema.inspectionChecklistItems.sortOrder);
+      }
+      
+      // Get responses
+      const responses = await db.select().from(schema.inspectionResponses)
+        .where(eq(schema.inspectionResponses.inspectionId, inspectionId));
+      
+      // Get findings
+      const findingsResults = await db.select()
+        .from(schema.inspectionFindings)
+        .where(eq(schema.inspectionFindings.inspectionId, inspectionId))
+        .where(eq(schema.inspectionFindings.isActive, true));
+      
+      // Process findings to include user info
+      const findings = await Promise.all(findingsResults.map(async finding => {
+        let assignedToUser = null;
+        if (finding.assignedToId) {
+          [assignedToUser] = await db.select().from(schema.users)
+            .where(eq(schema.users.id, finding.assignedToId));
+        }
+        
+        const [createdByUser] = await db.select().from(schema.users)
+          .where(eq(schema.users.id, finding.createdById));
+        
+        let resolvedByUser = null;
+        if (finding.resolvedById) {
+          [resolvedByUser] = await db.select().from(schema.users)
+            .where(eq(schema.users.id, finding.resolvedById));
+        }
+        
+        return {
+          ...finding,
+          assignedTo: assignedToUser,
+          createdBy: createdByUser,
+          resolvedBy: resolvedByUser
+        };
+      }));
+      
+      return res.status(200).json({
+        ...inspection,
+        site,
+        assignedTo,
+        createdBy,
+        completedBy,
+        template,
+        checklistItems,
+        responses,
+        findings
+      });
+    } catch (error) {
+      console.error('Error fetching inspection:', error);
+      return res.status(500).json({ message: 'Error fetching inspection' });
+    }
+  });
+
+  app.post('/api/inspections', requireAuth, async (req, res) => {
+    const inspectionData = req.body;
+    
+    try {
+      // Validate inspection data
+      const validatedData = schema.insertInspectionSchema.parse({
+        ...inspectionData,
+        tenantId: req.user.tenantId,
+        createdById: req.user.id
+      });
+      
+      // Create inspection
+      const [newInspection] = await db.insert(schema.inspections)
+        .values(validatedData)
+        .returning();
+      
+      return res.status(201).json(newInspection);
+    } catch (error) {
+      console.error('Error creating inspection:', error);
+      
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid inspection data', errors: error.errors });
+      }
+      
+      return res.status(500).json({ message: 'Error creating inspection' });
+    }
+  });
+
+  app.post('/api/inspections/:id/responses', requireAuth, async (req, res) => {
+    const inspectionId = parseInt(req.params.id);
+    const responsesData = req.body;
+    
+    try {
+      // Check if inspection exists and belongs to user's tenant
+      const [inspection] = await db.select().from(schema.inspections)
+        .where(eq(schema.inspections.id, inspectionId))
+        .where(eq(schema.inspections.tenantId, req.user.tenantId));
+      
+      if (!inspection) {
+        return res.status(404).json({ message: 'Inspection not found' });
+      }
+      
+      // Validate response data
+      if (!Array.isArray(responsesData)) {
+        return res.status(400).json({ message: 'Invalid responses data format. Expected an array.' });
+      }
+      
+      // Process each response
+      const createdResponses = [];
+      
+      for (const responseData of responsesData) {
+        const validatedData = schema.insertInspectionResponseSchema.parse({
+          ...responseData,
+          inspectionId
+        });
+        
+        // Check if response already exists
+        const [existingResponse] = await db.select().from(schema.inspectionResponses)
+          .where(eq(schema.inspectionResponses.inspectionId, inspectionId))
+          .where(eq(schema.inspectionResponses.checklistItemId, validatedData.checklistItemId));
+        
+        let response;
+        
+        if (existingResponse) {
+          // Update existing response
+          [response] = await db.update(schema.inspectionResponses)
+            .set({
+              response: validatedData.response,
+              notes: validatedData.notes,
+              photoUrls: validatedData.photoUrls,
+              updatedAt: new Date().toISOString()
+            })
+            .where(eq(schema.inspectionResponses.id, existingResponse.id))
+            .returning();
+        } else {
+          // Create new response
+          [response] = await db.insert(schema.inspectionResponses)
+            .values(validatedData)
+            .returning();
+        }
+        
+        createdResponses.push(response);
+      }
+      
+      return res.status(201).json(createdResponses);
+    } catch (error) {
+      console.error('Error saving inspection responses:', error);
+      
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid response data', errors: error.errors });
+      }
+      
+      return res.status(500).json({ message: 'Error saving inspection responses' });
+    }
+  });
+
+  app.post('/api/inspections/:id/findings', requireAuth, async (req, res) => {
+    const inspectionId = parseInt(req.params.id);
+    const findingData = req.body;
+    
+    try {
+      // Check if inspection exists and belongs to user's tenant
+      const [inspection] = await db.select().from(schema.inspections)
+        .where(eq(schema.inspections.id, inspectionId))
+        .where(eq(schema.inspections.tenantId, req.user.tenantId));
+      
+      if (!inspection) {
+        return res.status(404).json({ message: 'Inspection not found' });
+      }
+      
+      // Validate finding data
+      const validatedData = schema.insertInspectionFindingSchema.parse({
+        ...findingData,
+        inspectionId,
+        createdById: req.user.id
+      });
+      
+      // Create finding
+      const [newFinding] = await db.insert(schema.inspectionFindings)
+        .values(validatedData)
+        .returning();
+      
+      return res.status(201).json(newFinding);
+    } catch (error) {
+      console.error('Error creating inspection finding:', error);
+      
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid finding data', errors: error.errors });
+      }
+      
+      return res.status(500).json({ message: 'Error creating inspection finding' });
+    }
+  });
+
+  app.put('/api/inspections/:id/complete', requireAuth, async (req, res) => {
+    const inspectionId = parseInt(req.params.id);
+    const { notes } = req.body;
+    
+    try {
+      // Check if inspection exists and belongs to user's tenant
+      const [inspection] = await db.select().from(schema.inspections)
+        .where(eq(schema.inspections.id, inspectionId))
+        .where(eq(schema.inspections.tenantId, req.user.tenantId));
+      
+      if (!inspection) {
+        return res.status(404).json({ message: 'Inspection not found' });
+      }
+      
+      // Calculate score
+      const responses = await db.select().from(schema.inspectionResponses)
+        .where(eq(schema.inspectionResponses.inspectionId, inspectionId));
+      
+      const checklistItems = await db.select().from(schema.inspectionChecklistItems)
+        .where(eq(schema.inspectionChecklistItems.templateId, inspection.templateId));
+      
+      let score = 0;
+      const maxScore = checklistItems.length;
+      
+      // Simple scoring: +1 for each 'yes' response
+      for (const response of responses) {
+        if (response.response === 'yes') {
+          score += 1;
+        }
+      }
+      
+      // Update inspection
+      const [updatedInspection] = await db.update(schema.inspections)
+        .set({
+          status: 'completed',
+          completedById: req.user.id,
+          completedDate: new Date().toISOString(),
+          notes: notes || inspection.notes,
+          score,
+          maxScore,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(schema.inspections.id, inspectionId))
+        .returning();
+      
+      return res.status(200).json(updatedInspection);
+    } catch (error) {
+      console.error('Error completing inspection:', error);
+      return res.status(500).json({ message: 'Error completing inspection' });
     }
   });
 
