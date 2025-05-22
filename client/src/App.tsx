@@ -42,6 +42,9 @@ import InspectionDetail from "@/pages/inspections/[id]";
 // Import permit-specific pages
 import NewPermit from "@/pages/permits/new";
 import PermitDetail from "@/pages/permits/[id]";
+// Import incident-specific pages
+import NewIncident from "@/pages/incidents/new";
+import IncidentDetail from "@/pages/incidents/[id]";
 
 function Router() {
   return (

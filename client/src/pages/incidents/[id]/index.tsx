@@ -56,11 +56,11 @@ interface Incident {
   siteName: string;
   injuryOccurred: boolean;
   injuryDetails?: string;
-  witnesses?: string;
+  witnesses?: string[] | null;
   rootCause?: string;
   correctiveActions?: string;
   preventativeMeasures?: string;
-  photoUrls?: string[];
+  photoUrls?: string[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -156,18 +156,18 @@ export default function IncidentDetails() {
 
   // Get severity badge
   const getSeverityBadge = (severity: string) => {
-    let variant = "secondary";
+    let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+    
     if (severity === "critical" || severity === "major") {
       variant = "destructive";
     } else if (severity === "moderate") {
       variant = "default";
+    } else if (severity === "minor") {
+      variant = "secondary";
     }
     
     return (
-      <Badge
-        variant={variant as "default" | "secondary" | "destructive" | "outline"}
-        className="text-base px-3 py-1"
-      >
+      <Badge variant={variant} className="text-base px-3 py-1">
         {severity.charAt(0).toUpperCase() + severity.slice(1)}
       </Badge>
     );
@@ -175,7 +175,8 @@ export default function IncidentDetails() {
 
   // Get status badge
   const getStatusBadge = (status: string) => {
-    let variant = "outline";
+    let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
+    
     if (status === "reported") {
       variant = "destructive";
     } else if (status === "investigating") {
@@ -185,10 +186,7 @@ export default function IncidentDetails() {
     }
     
     return (
-      <Badge
-        variant={variant as "default" | "secondary" | "destructive" | "outline"}
-        className="text-base px-3 py-1"
-      >
+      <Badge variant={variant} className="text-base px-3 py-1">
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
@@ -314,11 +312,19 @@ export default function IncidentDetails() {
                   <CardTitle>Additional Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {incident.witnesses && (
+                  {incident.witnesses && incident.witnesses.length > 0 && (
                     <div>
                       <h3 className="text-lg font-medium mb-2">Witnesses</h3>
-                      <div className="bg-muted p-4 rounded-md text-base whitespace-pre-wrap">
-                        {incident.witnesses}
+                      <div className="bg-muted p-4 rounded-md text-base">
+                        <ul className="list-disc pl-5 space-y-1">
+                          {typeof incident.witnesses === 'string' ? (
+                            <li>{incident.witnesses}</li>
+                          ) : (
+                            incident.witnesses.map((witness, i) => (
+                              <li key={i}>{witness}</li>
+                            ))
+                          )}
+                        </ul>
                       </div>
                     </div>
                   )}
