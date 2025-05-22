@@ -25,6 +25,8 @@ import {
   User,
   Home,
   Award,
+  FileText,
+  Calendar,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -68,6 +70,11 @@ export default function Layout({ children }: { children: ReactNode }) {
       title: "Training",
       href: "/training",
       icon: <Award className="h-5 w-5" />,
+    },
+    {
+      title: "Daily Report",
+      href: "/daily-report",
+      icon: <FileText className="h-5 w-5" />,
     },
     {
       title: "Safety Scores",
