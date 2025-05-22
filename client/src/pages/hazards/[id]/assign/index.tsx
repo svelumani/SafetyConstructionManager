@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Popover,
   PopoverContent,
@@ -128,6 +129,7 @@ export default function AssignHazard() {
       hazardId,
       assignmentTarget: TARGET_OPTIONS.USER,
       notes: "",
+      selectedUserIds: [],
     },
   });
 
@@ -141,13 +143,20 @@ export default function AssignHazard() {
 
   const assignHazardMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const { assignmentTarget, dueDate, ...assignmentData } = data;
+      const { assignmentTarget, dueDate, selectedUserIds, teamId, ...assignmentData } = data;
       
       // Convert due date to ISO string if present
-      const payload = {
+      let payload = {
         ...assignmentData,
         ...(dueDate ? { dueDate: dueDate.toISOString() } : {}),
       };
+      
+      // Handle different assignment types
+      if (assignmentTarget === TARGET_OPTIONS.TEAM && teamId) {
+        payload = { ...payload, teamId };
+      } else if (assignmentTarget === TARGET_OPTIONS.MULTIPLE && selectedUserIds && selectedUserIds.length > 0) {
+        payload = { ...payload, selectedUserIds };
+      }
       
       const response = await apiRequest("POST", `/api/hazards/${hazardId}/assignments`, payload);
       return await response.json();
@@ -243,8 +252,10 @@ export default function AssignHazard() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value={TARGET_OPTIONS.USER}>Personnel</SelectItem>
+                          <SelectItem value={TARGET_OPTIONS.USER}>Individual</SelectItem>
+                          <SelectItem value={TARGET_OPTIONS.TEAM}>Team</SelectItem>
                           <SelectItem value={TARGET_OPTIONS.SUBCONTRACTOR}>Subcontractor</SelectItem>
+                          <SelectItem value={TARGET_OPTIONS.MULTIPLE}>Multiple People</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
@@ -291,6 +302,100 @@ export default function AssignHazard() {
                         </Select>
                         <FormDescription>
                           Select the person responsible for addressing this hazard
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                
+                {/* Team selection for TEAM assignment */}
+                {assignmentTarget === TARGET_OPTIONS.TEAM && (
+                  <FormField
+                    control={form.control}
+                    name="teamId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Team</FormLabel>
+                        <Select
+                          onValueChange={(value) => field.onChange(parseInt(value))}
+                          defaultValue={field.value?.toString()}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select team" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {!isLoadingTeams && teamsData?.teams.map((team) => (
+                              <SelectItem key={team.id} value={team.id.toString()}>
+                                {team.name}
+                              </SelectItem>
+                            ))}
+                            {isLoadingTeams && (
+                              <SelectItem value="loading" disabled>
+                                Loading teams...
+                              </SelectItem>
+                            )}
+                            {!isLoadingTeams && (!teamsData?.teams || teamsData.teams.length === 0) && (
+                              <SelectItem value="none" disabled>
+                                No teams available for this site
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Select the team responsible for addressing this hazard
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+                
+                {/* Multiple people selection for MULTIPLE assignment */}
+                {assignmentTarget === TARGET_OPTIONS.MULTIPLE && (
+                  <FormField
+                    control={form.control}
+                    name="selectedUserIds"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Select Multiple People</FormLabel>
+                        <div className="border rounded-md p-4 space-y-2">
+                          {isLoadingPersonnel ? (
+                            <div className="flex items-center justify-center p-4">
+                              <div className="animate-spin mr-2 h-4 w-4 border-b-2 border-gray-900"></div>
+                              <span>Loading personnel...</span>
+                            </div>
+                          ) : !personnelData?.personnel || personnelData.personnel.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">No personnel available</div>
+                          ) : (
+                            personnelData.personnel.map((person) => (
+                              <div key={person.id} className="flex items-center space-x-2">
+                                <Checkbox 
+                                  id={`person-${person.id}`} 
+                                  checked={field.value?.includes(person.id)} 
+                                  onCheckedChange={(checked) => {
+                                    const newValue = field.value || [];
+                                    if (checked) {
+                                      field.onChange([...newValue, person.id]);
+                                    } else {
+                                      field.onChange(newValue.filter(id => id !== person.id));
+                                    }
+                                  }}
+                                />
+                                <label
+                                  htmlFor={`person-${person.id}`}
+                                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  {person.firstName} {person.lastName}
+                                </label>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                        <FormDescription>
+                          Select multiple people to assign this hazard to
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
