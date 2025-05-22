@@ -2381,7 +2381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Incidents
   app.get("/api/incidents", requireAuth, requirePermission("incidents", "read"), async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query.limit as string) || 100; // Increased to 100 to show all incidents
       const offset = parseInt(req.query.offset as string) || 0;
       const tenantId = req.user.tenantId;
       const siteId = req.query.siteId ? parseInt(req.query.siteId as string) : undefined;
