@@ -23,6 +23,7 @@ import {
   Search,
   Award,
   BookOpen,
+  BarChart3,
   HelpCircle,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
