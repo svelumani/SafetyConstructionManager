@@ -2254,6 +2254,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create permit" });
     }
   });
+  
+  app.get("/api/permits/:id", requireAuth, requirePermission("permits", "read"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const tenantId = req.user.tenantId;
+      
+      const permit = await storage.getPermitRequest(id);
+      
+      if (!permit || permit.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Permit not found" });
+      }
+      
+      // Get requester and site details to provide full information
+      const requester = await storage.getUser(permit.requesterId);
+      const site = await storage.getSite(permit.siteId);
+      
+      // Combine data for frontend
+      const enrichedPermit = {
+        ...permit,
+        requesterName: requester ? `${requester.firstName || ''} ${requester.lastName || ''}`.trim() || requester.username : 'Unknown',
+        siteName: site ? site.name : 'Unknown Site'
+      };
+      
+      // If the permit has an approver, get their details
+      if (permit.approverId) {
+        const approver = await storage.getUser(permit.approverId);
+        if (approver) {
+          (enrichedPermit as any).approverName = `${approver.firstName || ''} ${approver.lastName || ''}`.trim() || approver.username;
+        }
+      }
+      
+      res.json(enrichedPermit);
+    } catch (err) {
+      console.error("Error fetching permit:", err);
+      res.status(500).json({ message: "Failed to fetch permit" });
+    }
+  });
+  
+  app.patch("/api/permits/:id", requireAuth, requirePermission("permits", "update"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const tenantId = req.user.tenantId;
+      
+      const permit = await storage.getPermitRequest(id);
+      
+      if (!permit || permit.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Permit not found" });
+      }
+      
+      // Only allow updating status and related fields
+      const { status } = req.body;
+      
+      if (!status || !permitStatusEnum.enumValues.includes(status)) {
+        return res.status(400).json({ 
+          message: "Invalid status", 
+          validStatuses: permitStatusEnum.enumValues
+        });
+      }
+      
+      // Track status change for notifications
+      const isStatusChange = status !== permit.status;
+      const previousStatus = permit.status;
+      
+      // For approval, set approval fields
+      const updateData: any = { status };
+      
+      if (status === 'approved' && !permit.approvalDate) {
+        updateData.approvalDate = new Date().toISOString();
+        updateData.approverId = req.user.id;
+      } else if (status === 'denied') {
+        updateData.denialReason = req.body.denialReason;
+      }
+      
+      const updatedPermit = await storage.updatePermitRequest(id, updateData);
+      
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "permit_status_updated",
+        entityType: "permit",
+        entityId: id.toString(),
+        details: { 
+          title: permit.title,
+          permitType: permit.permitType,
+          previousStatus: isStatusChange ? previousStatus : undefined,
+          newStatus: status
+        },
+      });
+      
+      // Send email notifications for status changes
+      if (isStatusChange && updatedPermit) {
+        try {
+          // Get requester for notification
+          const requester = await storage.getUser(permit.requesterId);
+          
+          if (requester && requester.email) {
+            // We would typically send an email here
+            console.log(`[EMAIL] Permit status change notification would be sent to ${requester.email}`);
+          }
+          
+          // For approved permits, notify safety team
+          if (status === 'approved') {
+            const safetyOfficers = await storage.getUsersByRole(tenantId, 'safety_officer');
+            for (const officer of safetyOfficers) {
+              if (officer.email) {
+                console.log(`[EMAIL] Permit approval notification would be sent to safety officer ${officer.email}`);
+              }
+            }
+          }
+        } catch (notificationErr) {
+          console.error("Error sending permit notification:", notificationErr);
+          // Don't fail the request if notification fails
+        }
+      }
+      
+      res.json(updatedPermit);
+    } catch (err) {
+      console.error("Error updating permit:", err);
+      res.status(500).json({ message: "Failed to update permit" });
+    }
+  });
 
   // Incidents
   app.get("/api/incidents", requireAuth, requirePermission("incidents", "read"), async (req, res) => {
