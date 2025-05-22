@@ -100,6 +100,7 @@ export default function NewInspection() {
       siteId: 0,
       templateId: templateIdParam ? parseInt(templateIdParam) : 0,
       scheduledDate: new Date(),
+      dueDate: new Date(new Date().setDate(new Date().getDate() + 7)), // Default to 7 days after scheduled date
       notes: "",
     },
   });
@@ -356,6 +357,53 @@ export default function NewInspection() {
                       </Select>
                       <FormDescription>
                         Safety officer or supervisor who will conduct this inspection
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="dueDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Due Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <Clock className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) =>
+                              date < form.getValues("scheduledDate")
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        Deadline by which this inspection must be completed
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
