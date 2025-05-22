@@ -48,6 +48,7 @@ export default function Sidebar() {
   const safetyItems = [
     { label: 'Hazard Reporting', icon: <AlertTriangle className="mr-3 text-lg" />, path: '/hazards' },
     { label: 'Inspections', icon: <ClipboardCheck className="mr-3 text-lg" />, path: '/inspections' },
+    { label: 'Inspection Templates', icon: <ScrollText className="mr-3 text-lg" />, path: '/inspections/templates' },
     { label: 'Permits & Tickets', icon: <SquareStack className="mr-3 text-lg" />, path: '/permits' },
     { label: 'Incident Reports', icon: <Cross className="mr-3 text-lg" />, path: '/incidents' },
   ];
