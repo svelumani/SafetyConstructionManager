@@ -255,7 +255,26 @@ export interface IStorage {
   getRolePermissions(tenantId: number, role: string): Promise<RolePermission[]>;
   createRolePermission(permission: InsertRolePermission): Promise<RolePermission>;
   deleteRolePermission(id: number): Promise<boolean>;
-  hasPermission(tenantId: number, role: string, resource: string, action: string): Promise<boolean>;
+
+  // Site Personnel operations
+  assignUserToSite(assignment: InsertSitePersonnel): Promise<SitePersonnel>;
+  removeSitePersonnel(id: number): Promise<boolean>;
+  updateSitePersonnel(id: number, data: Partial<InsertSitePersonnel>): Promise<SitePersonnel | undefined>;
+  getSitePersonnel(id: number): Promise<SitePersonnel | undefined>;
+  listSitePersonnelBySite(siteId: number, options?: { limit?: number; offset?: number; }): Promise<SitePersonnel[]>;
+  listSitePersonnelByUser(userId: number, options?: { limit?: number; offset?: number; }): Promise<SitePersonnel[]>;
+  countSitePersonnel(siteId: number): Promise<number>;
+  
+  // Inspection section and item operations
+  createInspectionSection(section: InsertInspectionSection): Promise<InspectionSection>;
+  updateInspectionSection(id: number, data: Partial<InsertInspectionSection>): Promise<InspectionSection | undefined>;
+  deleteInspectionSection(id: number): Promise<boolean>;
+  listInspectionSections(templateId: number): Promise<InspectionSection[]>;
+  
+  createInspectionItem(item: InsertInspectionItem): Promise<InspectionItem>;
+  updateInspectionItem(id: number, data: Partial<InsertInspectionItem>): Promise<InspectionItem | undefined>;
+  deleteInspectionItem(id: number): Promise<boolean>;
+  listInspectionItems(sectionId: number): Promise<InspectionItem[]>;
   
   // System logs operations
   createSystemLog(log: { 
@@ -276,15 +295,6 @@ export interface IStorage {
     offset?: number;
   }): Promise<SystemLog[]>;
   countSystemLogs(options?: { tenantId?: number; userId?: number; action?: string; }): Promise<number>;
-
-  // Site Personnel operations
-  assignUserToSite(assignment: InsertSitePersonnel): Promise<SitePersonnel>;
-  removeSitePersonnel(id: number): Promise<boolean>;
-  updateSitePersonnel(id: number, data: Partial<InsertSitePersonnel>): Promise<SitePersonnel | undefined>;
-  getSitePersonnel(id: number): Promise<SitePersonnel | undefined>;
-  listSitePersonnelBySite(siteId: number, options?: { limit?: number; offset?: number; }): Promise<SitePersonnel[]>;
-  listSitePersonnelByUser(userId: number, options?: { limit?: number; offset?: number; }): Promise<SitePersonnel[]>;
-  countSitePersonnel(siteId: number): Promise<number>;
 
   // Dashboard statistics
   getHazardStats(tenantId: number): Promise<{
@@ -320,6 +330,212 @@ export class DatabaseStorage implements IStorage {
       tableName: "user_sessions",
       createTableIfMissing: true
     });
+  }
+  
+  // Inspection template operations
+  async listInspectionTemplates(tenantId: number, options?: { limit?: number; offset?: number; }): Promise<InspectionTemplate[]> {
+    return db
+      .select()
+      .from(inspectionTemplates)
+      .where(eq(inspectionTemplates.tenantId, tenantId))
+      .limit(options?.limit || 100)
+      .offset(options?.offset || 0);
+  }
+
+  async countInspectionTemplates(tenantId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(inspectionTemplates)
+      .where(eq(inspectionTemplates.tenantId, tenantId));
+    
+    return result.count;
+  }
+
+  async getInspectionTemplate(id: number): Promise<InspectionTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(inspectionTemplates)
+      .where(eq(inspectionTemplates.id, id));
+    
+    return template;
+  }
+
+  async createInspectionTemplate(template: InsertInspectionTemplate): Promise<InspectionTemplate> {
+    const [newTemplate] = await db
+      .insert(inspectionTemplates)
+      .values(template)
+      .returning();
+    
+    return newTemplate;
+  }
+
+  async updateInspectionTemplate(id: number, templateData: Partial<InsertInspectionTemplate>): Promise<InspectionTemplate | undefined> {
+    const [updatedTemplate] = await db
+      .update(inspectionTemplates)
+      .set(templateData)
+      .where(eq(inspectionTemplates.id, id))
+      .returning();
+    
+    return updatedTemplate;
+  }
+
+  async deleteInspectionTemplate(id: number): Promise<boolean> {
+    const result = await db
+      .delete(inspectionTemplates)
+      .where(eq(inspectionTemplates.id, id));
+    
+    return result.rowCount > 0;
+  }
+  
+  // Inspection section operations
+  async createInspectionSection(section: InsertInspectionSection): Promise<InspectionSection> {
+    const [newSection] = await db
+      .insert(inspectionSections)
+      .values(section)
+      .returning();
+    
+    return newSection;
+  }
+  
+  async updateInspectionSection(id: number, data: Partial<InsertInspectionSection>): Promise<InspectionSection | undefined> {
+    const [updatedSection] = await db
+      .update(inspectionSections)
+      .set(data)
+      .where(eq(inspectionSections.id, id))
+      .returning();
+    
+    return updatedSection;
+  }
+  
+  async deleteInspectionSection(id: number): Promise<boolean> {
+    const result = await db
+      .delete(inspectionSections)
+      .where(eq(inspectionSections.id, id));
+    
+    return result.rowCount > 0;
+  }
+  
+  async listInspectionSections(templateId: number): Promise<InspectionSection[]> {
+    return db
+      .select()
+      .from(inspectionSections)
+      .where(eq(inspectionSections.templateId, templateId))
+      .orderBy(asc(inspectionSections.order));
+  }
+  
+  // Inspection item operations
+  async createInspectionItem(item: InsertInspectionItem): Promise<InspectionItem> {
+    const [newItem] = await db
+      .insert(inspectionItems)
+      .values(item)
+      .returning();
+    
+    return newItem;
+  }
+  
+  async updateInspectionItem(id: number, data: Partial<InsertInspectionItem>): Promise<InspectionItem | undefined> {
+    const [updatedItem] = await db
+      .update(inspectionItems)
+      .set(data)
+      .where(eq(inspectionItems.id, id))
+      .returning();
+    
+    return updatedItem;
+  }
+  
+  async deleteInspectionItem(id: number): Promise<boolean> {
+    const result = await db
+      .delete(inspectionItems)
+      .where(eq(inspectionItems.id, id));
+    
+    return result.rowCount > 0;
+  }
+  
+  async listInspectionItems(sectionId: number): Promise<InspectionItem[]> {
+    return db
+      .select()
+      .from(inspectionItems)
+      .where(eq(inspectionItems.sectionId, sectionId))
+      .orderBy(asc(inspectionItems.order));
+  }
+  
+  // System log operations
+  async createSystemLog(log: { 
+    tenantId?: number; 
+    userId?: number; 
+    action: string; 
+    entityType?: string; 
+    entityId?: string; 
+    details?: any; 
+    ipAddress?: string; 
+    userAgent?: string;
+  }): Promise<SystemLog> {
+    const [newLog] = await db
+      .insert(systemLogs)
+      .values({
+        tenantId: log.tenantId,
+        userId: log.userId,
+        action: log.action,
+        entityType: log.entityType,
+        entityId: log.entityId,
+        details: log.details ? JSON.stringify(log.details) : null,
+        ipAddress: log.ipAddress,
+        userAgent: log.userAgent,
+        createdAt: new Date().toISOString()
+      })
+      .returning();
+    
+    return newLog;
+  }
+  
+  async listSystemLogs(options?: { 
+    tenantId?: number; 
+    userId?: number; 
+    action?: string; 
+    limit?: number; 
+    offset?: number;
+  }): Promise<SystemLog[]> {
+    let query = db.select().from(systemLogs);
+    
+    if (options?.tenantId) {
+      query = query.where(eq(systemLogs.tenantId, options.tenantId));
+    }
+    
+    if (options?.userId) {
+      query = query.where(eq(systemLogs.userId, options.userId));
+    }
+    
+    if (options?.action) {
+      query = query.where(eq(systemLogs.action, options.action));
+    }
+    
+    return query
+      .orderBy(desc(systemLogs.createdAt))
+      .limit(options?.limit || 100)
+      .offset(options?.offset || 0);
+  }
+  
+  async countSystemLogs(options?: { 
+    tenantId?: number; 
+    userId?: number; 
+    action?: string; 
+  }): Promise<number> {
+    let query = db.select({ count: sql<number>`count(*)` }).from(systemLogs);
+    
+    if (options?.tenantId) {
+      query = query.where(eq(systemLogs.tenantId, options.tenantId));
+    }
+    
+    if (options?.userId) {
+      query = query.where(eq(systemLogs.userId, options.userId));
+    }
+    
+    if (options?.action) {
+      query = query.where(eq(systemLogs.action, options.action));
+    }
+    
+    const [result] = await query;
+    return result.count;
   }
 
   // Dashboard statistics implementations
