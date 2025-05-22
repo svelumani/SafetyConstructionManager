@@ -247,7 +247,7 @@ export const hazardCommentsRelations = relations(hazardComments, ({ one }) => ({
 export const inspectionTemplates = pgTable('inspection_templates', {
   id: serial('id').primaryKey(),
   tenantId: integer('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
-  title: text('title').notNull(),
+  name: text('name').notNull(),
   description: text('description'),
   category: text('category').notNull(),
   version: text('version').default('1.0'),
