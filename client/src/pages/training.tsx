@@ -511,6 +511,12 @@ export default function Training() {
                   Analytics Dashboard
                 </Button>
               </Link>
+              <Link href="/training-compliance">
+                <Button variant="outline" className="gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Compliance Reports
+                </Button>
+              </Link>
               <Link href="/training/new">
                 <Button className="gap-2">
                   <Plus className="h-4 w-4" />
