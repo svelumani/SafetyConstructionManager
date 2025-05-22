@@ -11,7 +11,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
-  ArrowDown, ArrowUp, AlertTriangle, CheckCircle, Clock, TrendingDown, TrendingUp
+  ArrowDown, ArrowUp, AlertTriangle, CheckCircle, Clock, TrendingDown, TrendingUp,
+  Award, Users, Shield
 } from "lucide-react";
 import { 
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage
@@ -65,6 +66,31 @@ const topHazardTypes = [
   { name: 'Fall Protection', count: 10 },
   { name: 'Improper PPE', count: 8 },
   { name: 'Equipment Malfunction', count: 7 },
+];
+
+// Mock performance leaderboard data
+const topReportersData = [
+  { name: 'Michael Johnson', role: 'Safety Officer', count: 27, responseTime: '24 min', site: 'Downtown Tower' },
+  { name: 'Sarah Williams', role: 'Site Manager', count: 23, responseTime: '35 min', site: 'Riverside Plaza' },
+  { name: 'Robert Chen', role: 'Foreman', count: 19, responseTime: '42 min', site: 'Oakwood Residences' },
+  { name: 'David Rodriguez', role: 'Safety Inspector', count: 18, responseTime: '28 min', site: 'Phoenix Heights' },
+  { name: 'Jessica Taylor', role: 'Construction Lead', count: 16, responseTime: '40 min', site: 'Central Station' },
+];
+
+const fastestRespondersData = [
+  { name: 'Emily Davis', role: 'Safety Officer', avgResponseTime: '18 min', resolvedCount: 24, site: 'Riverside Plaza' },
+  { name: 'James Wilson', role: 'Maintenance Supervisor', avgResponseTime: '22 min', resolvedCount: 17, site: 'Downtown Tower' },
+  { name: 'Thomas Moore', role: 'Supervisor', avgResponseTime: '25 min', resolvedCount: 19, site: 'Central Station' },
+  { name: 'Samantha Lee', role: 'Site Manager', avgResponseTime: '30 min', resolvedCount: 22, site: 'Phoenix Heights' },
+  { name: 'Brian Martinez', role: 'Safety Inspector', avgResponseTime: '31 min', resolvedCount: 16, site: 'Oakwood Residences' },
+];
+
+const topTeamsData = [
+  { name: 'Alpha Safety Team', leader: 'Emily Davis', resolvedHazards: 42, avgResolutionTime: '3.2 days', safetyScore: 94 },
+  { name: 'FastTrack Responders', leader: 'Thomas Moore', resolvedHazards: 38, avgResolutionTime: '3.8 days', safetyScore: 91 },
+  { name: 'Safety Champions', leader: 'James Wilson', resolvedHazards: 36, avgResolutionTime: '4.1 days', safetyScore: 89 },
+  { name: 'Hazard Hunters', leader: 'Michael Johnson', resolvedHazards: 34, avgResolutionTime: '4.5 days', safetyScore: 87 },
+  { name: 'Riverside Guardians', leader: 'Sarah Williams', resolvedHazards: 31, avgResolutionTime: '4.8 days', safetyScore: 85 },
 ];
 
 // Mock recent hazards
@@ -274,6 +300,7 @@ export default function HazardAnalytics() {
           <TabsTrigger value="trends">Trends</TabsTrigger>
           <TabsTrigger value="sites">Sites</TabsTrigger>
           <TabsTrigger value="types">Hazard Types</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
@@ -658,6 +685,250 @@ export default function HazardAnalytics() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="performance" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <Card className="md:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center">
+                  <Award className="h-5 w-5 mr-2 text-amber-500" />
+                  Top Hazard Reporters
+                </CardTitle>
+                <CardDescription>Personnel who reported the most hazards</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-5">
+                  {topReportersData.map((reporter, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center ${
+                          index === 0 ? 'bg-amber-100 text-amber-700' : 
+                          index === 1 ? 'bg-slate-100 text-slate-700' : 
+                          index === 2 ? 'bg-amber-50 text-amber-800' : 'bg-slate-50 text-slate-600'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{reporter.name}</p>
+                          <p className="text-xs text-gray-500">{reporter.role}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-sm">{reporter.count}</p>
+                        <p className="text-xs text-gray-500">{reporter.site}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center">
+                  <Clock className="h-5 w-5 mr-2 text-blue-500" />
+                  Fastest Responders
+                </CardTitle>
+                <CardDescription>Personnel with fastest hazard response time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-5">
+                  {fastestRespondersData.map((responder, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center ${
+                          index === 0 ? 'bg-blue-100 text-blue-700' : 
+                          index === 1 ? 'bg-blue-50 text-blue-600' : 
+                          'bg-slate-50 text-slate-600'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{responder.name}</p>
+                          <p className="text-xs text-gray-500">{responder.role}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-sm">{responder.avgResponseTime}</p>
+                        <p className="text-xs text-gray-500">{responder.resolvedCount} resolved</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center">
+                  <Users className="h-5 w-5 mr-2 text-green-500" />
+                  Top Safety Teams
+                </CardTitle>
+                <CardDescription>Teams with highest safety performance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-5">
+                  {topTeamsData.map((team, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center ${
+                          index === 0 ? 'bg-green-100 text-green-700' : 
+                          index === 1 ? 'bg-green-50 text-green-600' : 
+                          'bg-slate-50 text-slate-600'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">{team.name}</p>
+                          <p className="text-xs text-gray-500">Led by {team.leader}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-sm">{team.safetyScore}/100</p>
+                        <p className="text-xs text-gray-500">{team.resolvedHazards} resolved</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Individual Performance Metrics</CardTitle>
+              <CardDescription>Detailed performance breakdown by individuals</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-3 px-3 font-medium">Rank</th>
+                      <th className="text-left py-3 px-3 font-medium">Name</th>
+                      <th className="text-left py-3 px-3 font-medium">Position</th>
+                      <th className="text-left py-3 px-3 font-medium">Site</th>
+                      <th className="text-center py-3 px-3 font-medium">Hazards Reported</th>
+                      <th className="text-center py-3 px-3 font-medium">Hazards Resolved</th>
+                      <th className="text-center py-3 px-3 font-medium">Avg. Response Time</th>
+                      <th className="text-center py-3 px-3 font-medium">Safety Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...topReportersData, ...fastestRespondersData]
+                      .filter((person, index, self) => 
+                        index === self.findIndex(p => p.name === person.name)
+                      )
+                      .sort((a, b) => (b.count || 0) - (a.count || 0))
+                      .slice(0, 10)
+                      .map((person, index) => {
+                        const responder = fastestRespondersData.find(r => r.name === person.name);
+                        // Calculate a safety score (just for demonstration)
+                        const safetyScore = Math.round(
+                          80 + 
+                          ((person.count || 0) / 30) * 10 + 
+                          ((responder?.resolvedCount || 0) / 25) * 10
+                        );
+                        
+                        return (
+                          <tr key={index} className="border-b hover:bg-gray-50">
+                            <td className="py-3 px-3">{index + 1}</td>
+                            <td className="py-3 px-3 font-medium">{person.name}</td>
+                            <td className="py-3 px-3">{person.role}</td>
+                            <td className="py-3 px-3">{person.site}</td>
+                            <td className="py-3 px-3 text-center">{person.count || '-'}</td>
+                            <td className="py-3 px-3 text-center">{responder?.resolvedCount || '-'}</td>
+                            <td className="py-3 px-3 text-center">{responder?.avgResponseTime || person.responseTime || '-'}</td>
+                            <td className="py-3 px-3 text-center">
+                              <div className="inline-flex items-center">
+                                <span className={`px-2 py-1 rounded-full text-xs 
+                                  ${safetyScore >= 90 ? 'bg-green-100 text-green-800' : 
+                                    safetyScore >= 80 ? 'bg-blue-100 text-blue-800' : 
+                                    'bg-amber-100 text-amber-800'}`
+                                }>
+                                  {safetyScore}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recognition & Incentives</CardTitle>
+              <CardDescription>Celebrate top performers and safety champions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-amber-50 p-5 rounded-lg border border-amber-100">
+                  <div className="flex items-center mb-4">
+                    <Award className="h-6 w-6 text-amber-500 mr-2" />
+                    <h3 className="font-semibold">Safety Star of the Month</h3>
+                  </div>
+                  <div className="flex items-center mb-3">
+                    <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-700 font-semibold text-xl mr-3">
+                      EM
+                    </div>
+                    <div>
+                      <p className="font-medium">Emily Davis</p>
+                      <p className="text-sm text-gray-600">Safety Officer, Riverside Plaza</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    For exceptional dedication to workplace safety, identifying 24 hazards and achieving
+                    the fastest average response time of 18 minutes.
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
+                  <div className="flex items-center mb-4">
+                    <Shield className="h-6 w-6 text-blue-500 mr-2" />
+                    <h3 className="font-semibold">Most Improved</h3>
+                  </div>
+                  <div className="flex items-center mb-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold text-xl mr-3">
+                      RC
+                    </div>
+                    <div>
+                      <p className="font-medium">Robert Chen</p>
+                      <p className="text-sm text-gray-600">Foreman, Oakwood Residences</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    For demonstrating a 45% improvement in hazard identification and response time
+                    over the previous quarter.
+                  </p>
+                </div>
+
+                <div className="bg-green-50 p-5 rounded-lg border border-green-100">
+                  <div className="flex items-center mb-4">
+                    <Users className="h-6 w-6 text-green-500 mr-2" />
+                    <h3 className="font-semibold">Team Achievement Award</h3>
+                  </div>
+                  <div className="flex items-center mb-3">
+                    <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-700 font-semibold text-sm mr-3">
+                      TEAM
+                    </div>
+                    <div>
+                      <p className="font-medium">Alpha Safety Team</p>
+                      <p className="text-sm text-gray-600">Led by Emily Davis</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    For resolving 42 hazards with an average resolution time of 3.2 days
+                    and achieving a 94% safety score.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
