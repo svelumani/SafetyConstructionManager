@@ -33,6 +33,7 @@ import AssignHazard from "@/pages/hazards/[id]/assign";
 // Import inspection-specific pages
 import InspectionTemplates from "@/pages/inspections/templates";
 import NewInspectionTemplate from "@/pages/inspections/templates/new";
+import InspectionTemplateDetail from "@/pages/inspections/templates/[id]";
 import NewInspection from "@/pages/inspections/new";
 import InspectionDetail from "@/pages/inspections/[id]";
 
@@ -57,6 +58,7 @@ function Router() {
       <ProtectedRoute path="/inspections" component={Inspections} />
       <ProtectedRoute path="/inspections/templates" component={InspectionTemplates} />
       <ProtectedRoute path="/inspections/templates/new" component={NewInspectionTemplate} />
+      <ProtectedRoute path="/inspections/templates/:id" component={InspectionTemplateDetail} />
       <ProtectedRoute path="/inspections/new" component={NewInspection} />
       <ProtectedRoute path="/inspections/:id" component={InspectionDetail} />
       
