@@ -3991,6 +3991,300 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Training API routes
+  // Get all training courses
+  app.get('/api/training-courses', async (req, res) => {
+    try {
+      const { page = 1, pageSize = 10 } = req.query;
+      const skip = (Number(page) - 1) * Number(pageSize);
+      const limit = Number(pageSize);
+      
+      // Get total count
+      const totalResult = await db.select({ count: sql`count(*)` })
+        .from(schema.trainingCourses)
+        .where(req.isAuthenticated() ? eq(schema.trainingCourses.tenantId, req.user.tenantId) : undefined);
+      
+      const total = Number(totalResult[0]?.count || 0);
+      
+      // Get courses
+      const courses = await db.select()
+        .from(schema.trainingCourses)
+        .where(req.isAuthenticated() ? eq(schema.trainingCourses.tenantId, req.user.tenantId) : undefined)
+        .limit(limit)
+        .offset(skip)
+        .orderBy(desc(schema.trainingCourses.createdAt));
+      
+      res.json({ courses, total: total.toString() });
+    } catch (error) {
+      console.error('Error fetching training courses:', error);
+      res.status(500).json({ message: 'Failed to retrieve training courses' });
+    }
+  });
+
+  // Get a specific training course
+  app.get('/api/training-courses/:id', requireAuth, async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const [course] = await db.select()
+        .from(schema.trainingCourses)
+        .where(and(
+          eq(schema.trainingCourses.id, courseId),
+          eq(schema.trainingCourses.tenantId, req.user.tenantId)
+        ));
+      
+      if (!course) {
+        return res.status(404).json({ message: 'Training course not found' });
+      }
+      
+      res.json(course);
+    } catch (error) {
+      console.error('Error fetching training course:', error);
+      res.status(500).json({ message: 'Failed to retrieve training course' });
+    }
+  });
+
+  // Get content for a specific training course
+  app.get('/api/training-courses/:id/content', requireAuth, async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      
+      // First get the course to verify it exists and belongs to user's tenant
+      const [course] = await db.select()
+        .from(schema.trainingCourses)
+        .where(and(
+          eq(schema.trainingCourses.id, courseId),
+          eq(schema.trainingCourses.tenantId, req.user.tenantId)
+        ));
+      
+      if (!course) {
+        return res.status(404).json({ message: 'Training course not found' });
+      }
+      
+      // Now get the content IDs from the course
+      if (!course.contentIds || !Array.isArray(course.contentIds)) {
+        return res.json([]);
+      }
+      
+      // Fetch the content items
+      const contentItems = await db.select()
+        .from(schema.trainingContent)
+        .where(and(
+          sql`${schema.trainingContent.id} = ANY(${course.contentIds})`,
+          eq(schema.trainingContent.tenantId, req.user.tenantId)
+        ))
+        .orderBy(schema.trainingContent.id);
+      
+      res.json(contentItems);
+    } catch (error) {
+      console.error('Error fetching training content:', error);
+      res.status(500).json({ message: 'Failed to retrieve training content' });
+    }
+  });
+
+  // Get user's training records
+  app.get('/api/training-records/user', requireAuth, async (req, res) => {
+    try {
+      const records = await db.select()
+        .from(schema.trainingRecords)
+        .where(and(
+          eq(schema.trainingRecords.userId, req.user.id),
+          eq(schema.trainingRecords.tenantId, req.user.tenantId)
+        ))
+        .orderBy(desc(schema.trainingRecords.startDate));
+      
+      res.json(records);
+    } catch (error) {
+      console.error('Error fetching training records:', error);
+      res.status(500).json({ message: 'Failed to retrieve training records' });
+    }
+  });
+
+  // Get user's progress for a specific course
+  app.get('/api/training-records/user/course/:id', requireAuth, async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      
+      const [record] = await db.select()
+        .from(schema.trainingRecords)
+        .where(and(
+          eq(schema.trainingRecords.courseId, courseId),
+          eq(schema.trainingRecords.userId, req.user.id),
+          eq(schema.trainingRecords.tenantId, req.user.tenantId)
+        ));
+      
+      if (!record) {
+        // Create a new training record if one doesn't exist
+        const [newRecord] = await db.insert(schema.trainingRecords)
+          .values({
+            tenantId: req.user.tenantId,
+            userId: req.user.id,
+            courseId: courseId,
+            startDate: new Date().toISOString(),
+          })
+          .returning();
+        
+        return res.json(newRecord);
+      }
+      
+      res.json(record);
+    } catch (error) {
+      console.error('Error fetching training record:', error);
+      res.status(500).json({ message: 'Failed to retrieve training record' });
+    }
+  });
+
+  // Mark a content item as watched
+  app.post('/api/training-records/watch', requireAuth, async (req, res) => {
+    try {
+      const { courseId, contentId } = req.body;
+      if (!courseId || !contentId) {
+        return res.status(400).json({ message: 'Course ID and content ID are required' });
+      }
+      
+      // Get current record
+      const [record] = await db.select()
+        .from(schema.trainingRecords)
+        .where(and(
+          eq(schema.trainingRecords.courseId, courseId),
+          eq(schema.trainingRecords.userId, req.user.id),
+          eq(schema.trainingRecords.tenantId, req.user.tenantId)
+        ));
+      
+      if (!record) {
+        return res.status(404).json({ message: 'Training record not found' });
+      }
+      
+      // Update the record with the last watched content
+      const [updatedRecord] = await db.update(schema.trainingRecords)
+        .set({
+          lastContentId: contentId,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(schema.trainingRecords.id, record.id))
+        .returning();
+      
+      res.json(updatedRecord);
+    } catch (error) {
+      console.error('Error updating training record:', error);
+      res.status(500).json({ message: 'Failed to update training record' });
+    }
+  });
+
+  // Mark a course as completed
+  app.post('/api/training-records/complete', requireAuth, async (req, res) => {
+    try {
+      const { courseId } = req.body;
+      if (!courseId) {
+        return res.status(400).json({ message: 'Course ID is required' });
+      }
+      
+      // Get current record
+      const [record] = await db.select()
+        .from(schema.trainingRecords)
+        .where(and(
+          eq(schema.trainingRecords.courseId, courseId),
+          eq(schema.trainingRecords.userId, req.user.id),
+          eq(schema.trainingRecords.tenantId, req.user.tenantId)
+        ));
+      
+      if (!record) {
+        return res.status(404).json({ message: 'Training record not found' });
+      }
+      
+      // Get the course to check passing score
+      const [course] = await db.select()
+        .from(schema.trainingCourses)
+        .where(eq(schema.trainingCourses.id, courseId));
+      
+      if (!course) {
+        return res.status(404).json({ message: 'Course not found' });
+      }
+      
+      // In a simplified version, we auto-pass users without quizzes
+      const score = 100;
+      const passed = true;
+      
+      // Update the record with completion details
+      const [updatedRecord] = await db.update(schema.trainingRecords)
+        .set({
+          completionDate: new Date().toISOString(),
+          score,
+          passed,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(schema.trainingRecords.id, record.id))
+        .returning();
+      
+      res.json(updatedRecord);
+    } catch (error) {
+      console.error('Error completing training course:', error);
+      res.status(500).json({ message: 'Failed to complete training course' });
+    }
+  });
+
+  // Create a new training course (safety officer only)
+  app.post('/api/training-courses', requireAuth, async (req, res) => {
+    try {
+      if (req.user.role !== 'safety_officer' && req.user.role !== 'super_admin') {
+        return res.status(403).json({ message: 'Not authorized to create training courses' });
+      }
+      
+      const validationResult = schema.insertTrainingCourseSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ errors: validationResult.error.errors });
+      }
+      
+      const courseData = {
+        ...validationResult.data,
+        tenantId: req.user.tenantId,
+        createdById: req.user.id,
+      };
+      
+      const [newCourse] = await db.insert(schema.trainingCourses)
+        .values(courseData)
+        .returning();
+      
+      res.status(201).json(newCourse);
+    } catch (error) {
+      console.error('Error creating training course:', error);
+      res.status(500).json({ message: 'Failed to create training course' });
+    }
+  });
+
+  // Upload training content (video, document)
+  app.post('/api/training-content', requireAuth, multer({ dest: 'uploads/' }).single('file'), async (req, res) => {
+    try {
+      if (req.user.role !== 'safety_officer' && req.user.role !== 'super_admin') {
+        return res.status(403).json({ message: 'Not authorized to upload training content' });
+      }
+      
+      const { title, description, contentType, duration, language } = req.body;
+      
+      // For our simplified version, we're just handling video IDs directly
+      // In a real app, we'd process the uploaded file here
+      
+      const contentData = {
+        tenantId: req.user.tenantId,
+        title,
+        description,
+        contentType,
+        videoId: req.body.videoId, // YouTube video ID
+        duration: parseInt(duration) || 0,
+        language: language || 'en',
+        createdById: req.user.id,
+      };
+      
+      const [newContent] = await db.insert(schema.trainingContent)
+        .values(contentData)
+        .returning();
+      
+      res.status(201).json(newContent);
+    } catch (error) {
+      console.error('Error uploading training content:', error);
+      res.status(500).json({ message: 'Failed to upload training content' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
