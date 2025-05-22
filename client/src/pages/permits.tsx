@@ -1,10 +1,8 @@
 import { useState } from "react";
 import Layout from "@/components/layout";
-import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { 
   Plus, 
-  Filter,
   Clock,
   AlertCircle,
   CheckCircle2
@@ -20,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
 import { formatUTCToLocal } from "@/lib/utils";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Permit {
   id: number;
@@ -44,15 +43,15 @@ export default function Permits() {
     queryKey: ["/api/permits"],
   });
 
-  const filteredPermits = statusFilter
-    ? data?.permits.filter((permit) => permit.status === statusFilter)
+  const filteredPermits = statusFilter && data?.permits
+    ? data.permits.filter((permit) => permit.status === statusFilter)
     : data?.permits;
 
-  const activePermitsCount = data?.permits.filter(
+  const activePermitsCount = data?.permits?.filter(
     (permit) => permit.status === "approved" && new Date(permit.endDate) > new Date()
-  ).length || 0;
+  )?.length || 0;
 
-  const expiringPermitsCount = data?.permits.filter(
+  const expiringPermitsCount = data?.permits?.filter(
     (permit) => {
       const endDate = new Date(permit.endDate);
       const now = new Date();
@@ -60,86 +59,29 @@ export default function Permits() {
       sevenDaysFromNow.setDate(now.getDate() + 7);
       return permit.status === "approved" && endDate <= sevenDaysFromNow && endDate > now;
     }
-  ).length || 0;
+  )?.length || 0;
 
-  const pendingPermitsCount = data?.permits.filter(
+  const pendingPermitsCount = data?.permits?.filter(
     (permit) => permit.status === "requested"
-  ).length || 0;
+  )?.length || 0;
 
-  const columns = [
-    {
-      accessorKey: "title",
-      header: "Permit",
-      cell: (info) => (
-        <div>
-          <Link href={`/permits/${info.id}`}>
-            <span className="font-medium text-primary hover:underline cursor-pointer">
-              {info.title}
-            </span>
-          </Link>
-          <div className="text-sm text-muted-foreground">{info.permitType}</div>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "siteName",
-      header: "Site",
-    },
-    {
-      accessorKey: "location",
-      header: "Location",
-    },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: (info) => {
-        const status = info.status;
-        return (
-          <Badge
-            variant={
-              status === "approved"
-                ? "success"
-                : status === "requested"
-                ? "default"
-                : status === "expired"
-                ? "destructive"
-                : status === "denied"
-                ? "destructive"
-                : "outline"
-            }
-          >
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </Badge>
-        );
-      },
-    },
-    {
-      accessorKey: "startDate",
-      header: "Start Date",
-      cell: (info) => formatUTCToLocal(info.startDate, "PP"),
-    },
-    {
-      accessorKey: "endDate",
-      header: "End Date",
-      cell: (info) => formatUTCToLocal(info.endDate, "PP"),
-    },
-    {
-      accessorKey: "requesterName",
-      header: "Requested By",
-    },
-    {
-      id: "actions",
-      cell: (info) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setLocation(`/permits/${info.id}`)}
-        >
-          View Details
-        </Button>
-      ),
-    },
-  ];
+  function getStatusBadge(status: string) {
+    return (
+      <Badge
+        variant={
+          status === "approved"
+            ? "success"
+            : status === "requested"
+            ? "default"
+            : status === "expired" || status === "denied"
+            ? "destructive"
+            : "outline"
+        }
+      >
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </Badge>
+    );
+  }
 
   return (
     <Layout title="Permits" description="Manage and track construction permits across all sites">
@@ -228,12 +170,62 @@ export default function Permits() {
             <div className="text-center py-4 text-red-500">
               Failed to load permits
             </div>
+          ) : isLoading ? (
+            <div className="text-center py-4">Loading permits...</div>
           ) : (
-            <DataTable
-              columns={columns}
-              data={filteredPermits || []}
-              isLoading={isLoading}
-            />
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Permit</TableHead>
+                    <TableHead>Site</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>End Date</TableHead>
+                    <TableHead>Requested By</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPermits && filteredPermits.length > 0 ? (
+                    filteredPermits.map((permit) => (
+                      <TableRow key={permit.id}>
+                        <TableCell>
+                          <div>
+                            <Link href={`/permits/${permit.id}`}>
+                              <span className="font-medium text-primary hover:underline cursor-pointer">
+                                {permit.title}
+                              </span>
+                            </Link>
+                            <div className="text-sm text-muted-foreground">{permit.permitType}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{permit.siteName}</TableCell>
+                        <TableCell>{permit.location}</TableCell>
+                        <TableCell>{getStatusBadge(permit.status)}</TableCell>
+                        <TableCell>{formatUTCToLocal(permit.startDate, "PP")}</TableCell>
+                        <TableCell>{formatUTCToLocal(permit.endDate, "PP")}</TableCell>
+                        <TableCell>{permit.requesterName}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setLocation(`/permits/${permit.id}`)}
+                          >
+                            View Details
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-4">No permits found</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
