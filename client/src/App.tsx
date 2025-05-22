@@ -26,6 +26,10 @@ import EditTeamPage from "@/pages/teams/[id]/edit";
 import { ProtectedRoute, SuperAdminRoute } from "@/components/protected-route";
 import AddSitePersonnel from "@/pages/sites/personnel/add";
 import AddTeamMember from "@/pages/teams/members/add";
+// Import hazard-specific pages
+import NewHazardReport from "@/pages/hazards/new";
+import HazardDetail from "@/pages/hazards/[id]";
+import AssignHazard from "@/pages/hazards/[id]/assign";
 
 function Router() {
   return (
@@ -40,9 +44,9 @@ function Router() {
       
       {/* Hazard management routes */}
       <ProtectedRoute path="/hazards" component={Hazards} />
-      <ProtectedRoute path="/hazards/new" component={() => import("@/pages/hazards/new").then(module => module.default)} />
-      <ProtectedRoute path="/hazards/:id/assign" component={() => import("@/pages/hazards/[id]/assign").then(module => module.default)} />
-      <ProtectedRoute path="/hazards/:id" component={() => import("@/pages/hazards/[id]").then(module => module.default)} />
+      <ProtectedRoute path="/hazards/new" component={NewHazardReport} />
+      <ProtectedRoute path="/hazards/:id/assign" component={AssignHazard} />
+      <ProtectedRoute path="/hazards/:id" component={HazardDetail} />
       
       <ProtectedRoute path="/inspections" component={Inspections} />
       <ProtectedRoute path="/permits" component={Permits} />

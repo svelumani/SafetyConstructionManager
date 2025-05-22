@@ -35,3 +35,6 @@ export function PageHeader({ title, description, actions, subtitle, backButton }
     </div>
   );
 }
+
+// Add default export
+export default PageHeader;
