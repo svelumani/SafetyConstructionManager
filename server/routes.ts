@@ -2328,6 +2328,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Update a checklist item
+  // New routes for inspection sections
+  app.post('/api/inspection-sections', requireAuth, requirePermission("inspections", "create"), async (req, res) => {
+    try {
+      const { templateId, name, description, order } = req.body;
+      
+      // Verify template exists and belongs to user's tenant
+      const template = await storage.getInspectionTemplate(templateId);
+      if (!template || template.tenantId !== req.user.tenantId) {
+        return res.status(404).json({ message: 'Inspection template not found' });
+      }
+      
+      const section = await storage.createInspectionSection({
+        templateId,
+        name,
+        description: description || '',
+        order,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Create system log
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "inspection_section_created",
+        entityType: "inspection_section",
+        entityId: section.id.toString(),
+        details: { templateId, name }
+      });
+      
+      return res.status(201).json(section);
+    } catch (error) {
+      console.error('Error creating inspection section:', error);
+      return res.status(500).json({ message: 'Error creating inspection section' });
+    }
+  });
+  
+  app.get('/api/inspection-templates/:id/sections', requireAuth, requirePermission("inspections", "read"), async (req, res) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      
+      // Verify template exists and belongs to user's tenant
+      const template = await storage.getInspectionTemplate(templateId);
+      if (!template || template.tenantId !== req.user.tenantId) {
+        return res.status(404).json({ message: 'Inspection template not found' });
+      }
+      
+      const sections = await storage.listInspectionSections(templateId);
+      return res.status(200).json(sections);
+    } catch (error) {
+      console.error('Error fetching inspection sections:', error);
+      return res.status(500).json({ message: 'Error fetching inspection sections' });
+    }
+  });
+  
+  // New routes for inspection items
+  app.post('/api/inspection-items', requireAuth, requirePermission("inspections", "create"), async (req, res) => {
+    try {
+      const { sectionId, question, description, required, category, order } = req.body;
+      
+      // We need to verify that the section belongs to a template that belongs to the user's tenant
+      // First get the section
+      const sections = await db
+        .select()
+        .from(schema.inspectionSections)
+        .where(eq(schema.inspectionSections.id, sectionId));
+      
+      if (sections.length === 0) {
+        return res.status(404).json({ message: 'Inspection section not found' });
+      }
+      
+      const section = sections[0];
+      
+      // Then get the template to check tenant access
+      const template = await storage.getInspectionTemplate(section.templateId);
+      if (!template || template.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: 'You do not have permission to access this template' });
+      }
+      
+      const item = await storage.createInspectionItem({
+        sectionId,
+        question, 
+        description: description || '',
+        required: required ?? true,
+        category: category || null,
+        order,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      
+      // Create system log
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "inspection_item_created",
+        entityType: "inspection_item",
+        entityId: item.id.toString(),
+        details: { sectionId, question }
+      });
+      
+      return res.status(201).json(item);
+    } catch (error) {
+      console.error('Error creating inspection item:', error);
+      return res.status(500).json({ message: 'Error creating inspection item' });
+    }
+  });
+  
+  app.get('/api/inspection-sections/:id/items', requireAuth, requirePermission("inspections", "read"), async (req, res) => {
+    try {
+      const sectionId = parseInt(req.params.id);
+      
+      // We need to verify the section belongs to the user's tenant
+      const sections = await db
+        .select()
+        .from(schema.inspectionSections)
+        .where(eq(schema.inspectionSections.id, sectionId));
+      
+      if (sections.length === 0) {
+        return res.status(404).json({ message: 'Inspection section not found' });
+      }
+      
+      const section = sections[0];
+      
+      // Then get the template to check tenant access
+      const template = await storage.getInspectionTemplate(section.templateId);
+      if (!template || template.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: 'You do not have permission to access this section' });
+      }
+      
+      const items = await storage.listInspectionItems(sectionId);
+      return res.status(200).json(items);
+    } catch (error) {
+      console.error('Error fetching inspection items:', error);
+      return res.status(500).json({ message: 'Error fetching inspection items' });
+    }
+  });
+  
   app.put('/api/inspection-templates/:templateId/checklist-items/:itemId', requireAuth, async (req, res) => {
     const templateId = parseInt(req.params.templateId);
     const itemId = parseInt(req.params.itemId);
