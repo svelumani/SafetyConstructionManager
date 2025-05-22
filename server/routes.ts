@@ -3133,11 +3133,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `);
       
       if (existingResponseResult.rows.length > 0) {
-        // If it exists, return a 409 Conflict with the existing response
-        return res.status(409).json({
-          message: 'Response already exists for this checklist item',
-          existingResponse: existingResponseResult.rows[0]
+        // If the response exists, let's handle it as an update instead
+        // Get the existing response
+        const existingResponse = existingResponseResult.rows[0];
+        
+        console.log('Updating existing response:', {
+          id: existingResponse.id,
+          existing: {
+            response: existingResponse.response,
+            is_compliant: existingResponse.is_compliant
+          },
+          new: {
+            response: response,
+            is_compliant: isCompliant
+          }
         });
+        
+        // Update the existing response
+        const updateResult = await db.execute(`
+          UPDATE inspection_responses
+          SET 
+            response = '${response.replace(/'/g, "''")}',
+            notes = ${notes ? `'${notes.replace(/'/g, "''")}'` : 'NULL'},
+            is_compliant = ${isCompliant !== null ? isCompliant : 'NULL'},
+            photo_urls = '${photoUrls}'::jsonb,
+            updated_at = NOW()
+          WHERE id = ${existingResponse.id}
+          RETURNING *
+        `);
+        
+        return res.status(200).json(updateResult.rows[0]);
       }
       
       // Properly escape string values to prevent SQL injection
