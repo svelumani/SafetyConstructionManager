@@ -3142,10 +3142,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdById: req.user.id
       });
       
-      // Create the response
-      const [newResponse] = await db.insert(schema.inspectionResponses)
-        .values(validatedData)
-        .returning();
+      // Use raw SQL to avoid schema mismatches with column names
+      const insertResult = await db.execute(`
+        INSERT INTO inspection_responses (
+          inspection_id, 
+          checklist_item_id, 
+          response, 
+          notes, 
+          is_compliant, 
+          photo_urls,
+          created_by_id
+        ) VALUES (
+          ${inspectionId},
+          ${responseData.checklistItemId || 'NULL'},
+          '${responseData.response || ''}',
+          ${responseData.notes ? `'${responseData.notes}'` : 'NULL'},
+          ${responseData.isCompliant !== undefined ? responseData.isCompliant : 'NULL'},
+          ${responseData.photoUrls ? `'${JSON.stringify(responseData.photoUrls)}'` : '[]'}::jsonb,
+          ${req.user.id}
+        )
+        RETURNING *
+      `);
+      
+      const newResponse = insertResult.rows[0];
       
       return res.status(201).json(newResponse);
     } catch (error) {
