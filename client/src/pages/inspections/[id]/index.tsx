@@ -661,12 +661,10 @@ export default function InspectionDetails() {
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">Scheduled Date</h3>
                     <p className="text-base">
-                      {inspection.scheduled_date ? formatUTCToLocal(inspection.scheduled_date, "PPP") : "Not scheduled"}
-                      {inspection.scheduled_date && (
-                        <span className="text-sm text-muted-foreground ml-2">
-                          ({formatDistanceToNow(new Date(inspection.scheduled_date), { addSuffix: true })})
-                        </span>
-                      )}
+                      {formatUTCToLocal(inspection.scheduledDate, "PPP")}
+                      <span className="text-sm text-muted-foreground ml-2">
+                        ({formatDistanceToNow(new Date(inspection.scheduledDate), { addSuffix: true })})
+                      </span>
                     </p>
                   </div>
                   
@@ -695,15 +693,15 @@ export default function InspectionDetails() {
                   </p>
                 </div>
 
-                {inspection.completed_date && (
+                {inspection.completedAt && (
                   <>
                     <Separator />
                     <div>
                       <h3 className="text-sm font-medium text-muted-foreground mb-1">Completed Date</h3>
                       <p className="text-base">
-                        {formatUTCToLocal(inspection.completed_date, "PPP p")}
+                        {formatUTCToLocal(inspection.completedAt, "PPP p")}
                         <span className="text-sm text-muted-foreground ml-2">
-                          ({formatDistanceToNow(new Date(inspection.completed_date), { addSuffix: true })})
+                          ({formatDistanceToNow(new Date(inspection.completedAt), { addSuffix: true })})
                         </span>
                       </p>
                     </div>
