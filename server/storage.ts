@@ -2,7 +2,7 @@ import {
   users, tenants, sites, hazardReports, hazardAssignments, hazardComments,
   inspections, permitRequests, incidentReports, trainingContent, trainingCourses,
   trainingRecords, systemLogs, emailTemplates, rolePermissions, subcontractors, sitePersonnel,
-  teams,
+  teams, inspectionTemplates, inspectionSections, inspectionItems,
   type User, type InsertUser, type Tenant, type InsertTenant, type Site, type InsertSite,
   type HazardReport, type InsertHazardReport, type HazardAssignment, type InsertHazardAssignment,
   type HazardComment, type InsertHazardComment, type Inspection, type InsertInspection,
@@ -11,7 +11,9 @@ import {
   type TrainingRecord, type InsertTrainingRecord, type SystemLog, type EmailTemplate,
   type InsertEmailTemplate, type RolePermission, type InsertRolePermission, type Subcontractor,
   type InsertSubcontractor, type RegisterTenant, type SitePersonnel, type InsertSitePersonnel,
-  type Team, type InsertTeam
+  type Team, type InsertTeam, type InspectionTemplate, type InsertInspectionTemplate,
+  type InspectionSection, type InsertInspectionSection, type InspectionItem, type InsertInspectionItem,
+  type InspectionResponse, type InsertInspectionResponse
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull, desc, asc, or, sql, like, not } from "drizzle-orm";
@@ -52,11 +54,16 @@ export interface IStorage {
   countSites(tenantId: number): Promise<number>;
   
   // Hazard operations
+  getHazardReport(id: number): Promise<HazardReport | undefined>;
+  createHazardReport(report: InsertHazardReport): Promise<HazardReport>;
+  updateHazardReport(id: number, reportData: Partial<InsertHazardReport>): Promise<HazardReport | undefined>;
+  deleteHazardReport(id: number): Promise<boolean>;
   listHazardReports(tenantId: number, options?: { 
     siteId?: number;
     status?: string;
     assignedTo?: number;
     reportedBy?: number;
+    severity?: string;
     limit?: number; 
     offset?: number;
   }): Promise<HazardReport[]>;
@@ -65,28 +72,15 @@ export interface IStorage {
     status?: string;
     assignedTo?: number;
     reportedBy?: number;
+    severity?: string;
   }): Promise<number>;
-  getHazardReport(id: number): Promise<HazardReport | undefined>;
-  createHazardReport(report: InsertHazardReport): Promise<HazardReport>;
-  updateHazardReport(id: number, reportData: Partial<InsertHazardReport>): Promise<HazardReport | undefined>;
-  addHazardComment(comment: InsertHazardComment): Promise<HazardComment>;
-  getHazardStats(tenantId: number): Promise<{
-    total: number;
-    open: number;
-    assigned: number;
-    inProgress: number;
-    resolved: number;
-    closed: number;
-    bySite: Array<{ siteId: number; siteName: string; count: number }>;
-    byRisk: Array<{ riskLevel: string; count: number }>;
-  }>;
   
-  // Inspection operations
+  // Inspection template operations
   listInspectionTemplates(tenantId: number, options?: { limit?: number; offset?: number; }): Promise<InspectionTemplate[]>;
   countInspectionTemplates(tenantId: number): Promise<number>;
   getInspectionTemplate(id: number): Promise<InspectionTemplate | undefined>;
   createInspectionTemplate(template: InsertInspectionTemplate): Promise<InspectionTemplate>;
-  updateInspectionTemplate(id: number, templateData: Partial<InspectionTemplate>): Promise<InspectionTemplate | undefined>;
+  updateInspectionTemplate(id: number, templateData: Partial<InsertInspectionTemplate>): Promise<InspectionTemplate | undefined>;
   deleteInspectionTemplate(id: number): Promise<boolean>;
   listInspections(tenantId: number, options?: { 
     siteId?: number;
@@ -155,19 +149,7 @@ export interface IStorage {
   listSubcontractors(tenantId: number, options?: { limit?: number; offset?: number; }): Promise<Subcontractor[]>;
   countSubcontractors(tenantId: number): Promise<number>;
 
-  // Hazard operations
-  getHazardReport(id: number): Promise<HazardReport | undefined>;
-  createHazardReport(hazard: InsertHazardReport): Promise<HazardReport>;
-  updateHazardReport(id: number, hazard: Partial<InsertHazardReport>): Promise<HazardReport | undefined>;
-  deleteHazardReport(id: number): Promise<boolean>;
-  listHazardReports(tenantId: number, options?: { 
-    limit?: number; 
-    offset?: number; 
-    siteId?: number; 
-    status?: string; 
-    severity?: string;
-  }): Promise<HazardReport[]>;
-  countHazardReports(tenantId: number, options?: { siteId?: number; status?: string; severity?: string; }): Promise<number>;
+
 
   // Hazard assignment operations
   createHazardAssignment(assignment: InsertHazardAssignment): Promise<HazardAssignment>;
