@@ -3142,7 +3142,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Inspections API
   app.get('/api/inspections', requireAuth, async (req, res) => {
-    const { siteId, status } = req.query;
+    const { siteId, status, limit, offset, include_all } = req.query;
     
     try {
       // Simplified query to avoid join issues
@@ -3159,23 +3159,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         query = query.where(eq(schema.inspections.status, status as string));
       }
       
-      const inspections = await query;
+      // Get related site and inspector data with raw SQL since the joins have issues
+      const inspectionsRaw = await query;
+      
+      // Get site and user data for proper display
+      const inspections = await Promise.all(inspectionsRaw.map(async (inspection) => {
+        // Get site name
+        let siteName = "Unknown Site";
+        if (inspection.siteId) {
+          const site = await db.query.sites.findFirst({
+            where: eq(schema.sites.id, inspection.siteId)
+          });
+          if (site) siteName = site.name;
+        }
+        
+        // Get inspector name
+        let inspectorName = "Unknown Inspector";
+        if (inspection.inspectorId) {
+          const inspector = await db.query.users.findFirst({
+            where: eq(schema.users.id, inspection.inspectorId)
+          });
+          if (inspector) {
+            inspectorName = `${inspector.firstName || ''} ${inspector.lastName || ''}`.trim() || inspector.username;
+          }
+        }
+        
+        return {
+          ...inspection,
+          site_name: siteName,
+          inspector_name: inspectorName
+        };
+      }));
       
       return res.status(200).json({
         inspections,
         total: inspections.length
       });
-      
-      // Format the results
-      const formattedResults = results.map(result => ({
-        ...result.inspection,
-        site: result.site,
-        assignedTo: result.assignedTo,
-        createdBy: result.createdBy,
-        template: result.template
-      }));
-      
-      return res.status(200).json(formattedResults);
     } catch (error) {
       console.error('Error fetching inspections:', error);
       return res.status(500).json({ message: 'Error fetching inspections' });
