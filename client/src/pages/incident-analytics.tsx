@@ -126,8 +126,10 @@ export default function IncidentAnalytics() {
     enabled: false, // Disable this query as we're using mock data
   });
   
-  const { data: incidents = [], isLoading: isIncidentsLoading } = useQuery({
+  // Use mock incident data instead of fetching from API
+  const { data: incidents = mockIncidents, isLoading: isIncidentsLoading } = useQuery({
     queryKey: ["/api/incidents"],
+    enabled: false, // Disable API call and use mock data
   });
 
   return (
@@ -281,13 +283,13 @@ export default function IncidentAnalytics() {
                   <span>Critical</span>
                   <span className="font-medium">{severityPercentages.critical}%</span>
                 </div>
-                <Progress value={severityPercentages.critical} className="h-2 bg-red-100" indicatorClassName="bg-red-500" />
+                <Progress value={severityPercentages.critical} className="h-2 bg-red-100" indicatorStyle="bg-red-500" />
                 
                 <div className="flex justify-between text-sm">
                   <span>Major</span>
                   <span className="font-medium">{severityPercentages.major}%</span>
                 </div>
-                <Progress value={severityPercentages.major} className="h-2 bg-orange-100" indicatorClassName="bg-orange-500" />
+                <Progress value={severityPercentages.major} className="h-2 bg-orange-100" indicatorStyle="bg-orange-500" />
               </div>
             </CardContent>
           </Card>
@@ -597,7 +599,7 @@ export default function IncidentAnalytics() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {Array.isArray(incidents) ? incidents.slice(0, 5).map((incident) => (
+                {Array.isArray(mockIncidents) && mockIncidents.length > 0 ? mockIncidents.slice(0, 5).map((incident) => (
                   <div key={incident.id} className="flex flex-col md:flex-row justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex-1">
                       <Link href={`/incidents/${incident.id}`}>
