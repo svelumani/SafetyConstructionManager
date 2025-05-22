@@ -395,8 +395,11 @@ export default function InspectionDetails() {
       
       const data = await response.json();
       
-      // Update the findings state
-      setFindings(prev => [...prev, data]);
+      // Make sure the active tab is set to findings
+      setActiveTab("findings");
+      
+      // Close the dialog first
+      setFindingDialogOpen(false);
       
       // Reset the new finding form
       setNewFinding({
@@ -408,11 +411,18 @@ export default function InspectionDetails() {
         status: "open",
       });
       
-      // Close the dialog
-      setFindingDialogOpen(false);
-      
       // Refresh the findings data to ensure UI is up to date
       queryClient.invalidateQueries({ queryKey: [`/api/inspections/${id}/findings`] });
+      
+      // Force update the findings state with the new item
+      setTimeout(() => {
+        queryClient.fetchQuery({ queryKey: [`/api/inspections/${id}/findings`] })
+          .then((data) => {
+            if (data) {
+              setFindings(data.findings);
+            }
+          });
+      }, 100);
       
       toast({
         title: "Finding Added",
