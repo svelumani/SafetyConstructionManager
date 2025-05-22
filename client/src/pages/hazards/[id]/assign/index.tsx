@@ -71,13 +71,17 @@ interface Subcontractor {
 // Assignment target options
 const TARGET_OPTIONS = {
   USER: "user",
+  TEAM: "team",
   SUBCONTRACTOR: "subcontractor",
+  MULTIPLE: "multiple",
 };
 
 // Extended schema with validation
 const formSchema = insertHazardAssignmentSchema.extend({
-  assignmentTarget: z.enum([TARGET_OPTIONS.USER, TARGET_OPTIONS.SUBCONTRACTOR]),
+  assignmentTarget: z.enum([TARGET_OPTIONS.USER, TARGET_OPTIONS.TEAM, TARGET_OPTIONS.SUBCONTRACTOR, TARGET_OPTIONS.MULTIPLE]),
   dueDate: z.date().optional(),
+  selectedUserIds: z.array(z.number()).optional(),
+  teamId: z.number().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -100,6 +104,14 @@ export default function AssignHazard() {
   }>({
     queryKey: ["/api/sites", hazard?.siteId, "personnel"],
     enabled: !!hazard?.siteId,
+  });
+  
+  // Fetch teams for the site
+  const { data: teamsData, isLoading: isLoadingTeams } = useQuery<{
+    teams: { id: number; name: string; leaderId: number }[];
+  }>({
+    queryKey: ["/api/sites", hazard?.siteId, "teams"],
+    enabled: !!hazard?.siteId && (assignmentTarget === TARGET_OPTIONS.TEAM),
   });
 
   // Fetch subcontractors
