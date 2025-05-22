@@ -115,39 +115,34 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
     const day = props.day;
     const dateString = day.toISOString().split('T')[0];
     
-    // Debug the current day being rendered
-    console.log(`Rendering day: ${dateString}, has inspections: ${!!inspectionDates[dateString]}`);
-    
+    // Get inspections for this date
     const hasInspections = inspectionDates[dateString]?.length > 0;
     const count = inspectionDates[dateString]?.length || 0;
     
     return (
-      <div className="relative w-full h-full flex items-center justify-center">
-        {day.getDate()}
+      <div className="relative w-full h-full p-2">
+        <div className="absolute inset-0 flex items-center justify-center">
+          {day.getDate()}
+        </div>
+        
         {hasInspections && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Badge
-                  className={cn(
-                    "absolute -bottom-1 left-1/2 transform -translate-x-1/2 text-xs px-1.5 py-0.5 rounded-full",
-                    count > 2 ? "bg-red-100 text-red-800 hover:bg-red-200" :
-                    count > 1 ? "bg-amber-100 text-amber-800 hover:bg-amber-200" :
-                    "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                  )}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openInspectionsForDate(dateString);
-                  }}
-                >
-                  {count}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent>
-                {count} inspection{count > 1 ? 's' : ''} scheduled
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div 
+            className="absolute bottom-1 left-0 right-0 flex justify-center" 
+            onClick={(e) => {
+              e.stopPropagation();
+              openInspectionsForDate(dateString);
+            }}
+          >
+            <div 
+              className={cn(
+                "h-2 w-2 rounded-full cursor-pointer",
+                count > 2 ? "bg-red-500" :
+                count > 1 ? "bg-amber-500" :
+                "bg-blue-500"
+              )}
+              aria-label={`${count} inspection${count > 1 ? 's' : ''}`}
+            />
+          </div>
         )}
       </div>
     );
