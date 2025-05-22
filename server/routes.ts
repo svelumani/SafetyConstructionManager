@@ -3359,14 +3359,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update inspection status to in_progress
-      const [updatedInspection] = await db
-        .update(schema.inspections)
-        .set({ 
-          status: 'in_progress',
-          startedAt: new Date()
-        })
-        .where(eq(schema.inspections.id, inspectionId))
-        .returning();
+      // Using direct SQL query to avoid schema mismatches
+      const result = await db.execute(`
+        UPDATE inspections 
+        SET status = 'in_progress', 
+            started_at = NOW() 
+        WHERE id = ${inspectionId} AND tenant_id = ${req.user.tenantId}
+        RETURNING *
+      `);
+      
+      const updatedInspection = result.rows[0];
       
       // Create system log
       await storage.createSystemLog({
