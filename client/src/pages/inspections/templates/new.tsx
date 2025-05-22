@@ -38,9 +38,11 @@ const formSchema = z.object({
     order: z.number(),
     items: z.array(z.object({
       question: z.string().min(5, "Question must be at least 5 characters"),
+      type: z.enum(['yes_no', 'multiple_choice', 'checkbox', 'numeric', 'text']).default('yes_no'),
       description: z.string().optional(),
       required: z.boolean().default(true),
       category: z.string().optional(),
+      options: z.array(z.string()).optional().nullable(),
       order: z.number(),
     })).min(1, "At least one item is required in each section"),
   })).min(1, "At least one section is required"),
@@ -70,8 +72,10 @@ export default function NewInspectionTemplate() {
             {
               question: "",
               description: "",
+              type: "yes_no",
               required: true,
               category: "",
+              options: null,
               order: 0,
             },
           ],
