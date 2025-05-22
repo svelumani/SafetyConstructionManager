@@ -1992,7 +1992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           '${formData.title.replace(/'/g, "''")}', 
           '${(formData.description || '').replace(/'/g, "''")}', 
           '${new Date(formData.scheduledDate).toISOString()}',
-          'scheduled',
+          'pending',
           'routine',
           true
         ) RETURNING *;
