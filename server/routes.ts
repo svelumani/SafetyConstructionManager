@@ -2413,13 +2413,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const templateId = parseInt(req.params.id);
       
-      // Verify template exists and belongs to user's tenant
-      const template = await storage.getInspectionTemplate(templateId);
-      if (!template || template.tenantId !== req.user.tenantId) {
+      // Verify template exists and belongs to user's tenant using direct query
+      const [template] = await db
+        .select()
+        .from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId));
+      
+      if (!template) {
         return res.status(404).json({ message: 'Inspection template not found' });
       }
       
-      const sections = await storage.listInspectionSections(templateId);
+      // Get sections directly from database
+      const sections = await db
+        .select()
+        .from(schema.inspectionSections)
+        .where(eq(schema.inspectionSections.templateId, templateId))
+        .orderBy(schema.inspectionSections.order);
+      
       return res.status(200).json(sections);
     } catch (error) {
       console.error('Error fetching inspection sections:', error);
@@ -2445,24 +2456,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const section = sections[0];
       
-      // Then get the template to check tenant access
-      const template = await storage.getInspectionTemplate(section.templateId);
-      if (!template || template.tenantId !== req.user.tenantId) {
+      // Then get the template to check tenant access using direct DB query
+      const [template] = await db
+        .select()
+        .from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, section.templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId));
+        
+      if (!template) {
         return res.status(403).json({ message: 'You do not have permission to access this template' });
       }
       
-      const item = await storage.createInspectionItem({
-        sectionId,
-        question, 
-        description: description || '',
-        type: type || 'yes_no',
-        required: required ?? true,
-        category: category || null,
-        options: options || null,
-        order,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
+      // Create item directly with database query
+      const [item] = await db
+        .insert(schema.inspectionItems)
+        .values({
+          sectionId,
+          question, 
+          description: description || '',
+          type: type || 'yes_no',
+          required: required ?? true,
+          category: category || null,
+          options: options || null,
+          order: order || 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .returning();
       
       // Create system log
       await storage.createSystemLog({
@@ -2497,13 +2517,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const section = sections[0];
       
-      // Then get the template to check tenant access
-      const template = await storage.getInspectionTemplate(section.templateId);
-      if (!template || template.tenantId !== req.user.tenantId) {
+      // Then get the template to check tenant access using direct DB query
+      const [template] = await db
+        .select()
+        .from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, section.templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId));
+      
+      if (!template) {
         return res.status(403).json({ message: 'You do not have permission to access this section' });
       }
       
-      const items = await storage.listInspectionItems(sectionId);
+      // Get items directly from database
+      const items = await db
+        .select()
+        .from(schema.inspectionItems)
+        .where(eq(schema.inspectionItems.sectionId, sectionId))
+        .orderBy(schema.inspectionItems.order);
+      
       return res.status(200).json(items);
     } catch (error) {
       console.error('Error fetching inspection items:', error);
