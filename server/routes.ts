@@ -29,7 +29,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   
   // Configure multer for file uploads
-  const storage = multer.diskStorage({
+  const uploadStorage = multer.diskStorage({
     destination: function (req, file, cb) {
       cb(null, uploadsDir);
     },
