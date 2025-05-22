@@ -6,7 +6,8 @@ import {
   ClipboardCheck, 
   Plus, 
   Filter,
-  Calendar
+  Calendar,
+  List
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/tabs";
 import { cn, formatUTCToLocal } from "@/lib/utils";
 import { Link } from "wouter";
+import { InspectionCalendarView } from "@/components/inspections/calendar-view";
 
 interface Inspection {
   id: number;
@@ -43,6 +45,7 @@ export default function Inspections() {
   const [activeTab, setActiveTab] = useState("all");
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   
   const { data, isLoading } = useQuery<{ inspections: Inspection[], total: number }>({
     queryKey: ['/api/inspections', { 
@@ -54,6 +57,10 @@ export default function Inspections() {
 
   const inspections = data?.inspections || [];
   const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
+  
+  const toggleViewMode = () => {
+    setViewMode(viewMode === "table" ? "calendar" : "table");
+  };
 
   const columns = [
     {
@@ -129,8 +136,19 @@ export default function Inspections() {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Calendar className="mr-2 h-4 w-4" /> Calendar View
+          <Button 
+            variant={viewMode === "calendar" ? "default" : "outline"}
+            onClick={toggleViewMode}
+          >
+            {viewMode === "calendar" ? (
+              <>
+                <List className="mr-2 h-4 w-4" /> Table View
+              </>
+            ) : (
+              <>
+                <Calendar className="mr-2 h-4 w-4" /> Calendar View
+              </>
+            )}
           </Button>
           <Button variant="outline">
             <Filter className="mr-2 h-4 w-4" /> Filter
@@ -138,43 +156,47 @@ export default function Inspections() {
         </div>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Safety Inspections</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="mb-6">
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="in_progress">In Progress</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          
-          <DataTable
-            columns={columns}
-            data={inspections}
-            isLoading={isLoading}
-            pagination={{
-              pageIndex,
-              pageSize,
-              pageCount: totalPages,
-              setPageIndex,
-              setPageSize,
-            }}
-            emptyState={
-              <div className="py-8 text-center">
-                <ClipboardCheck className="mx-auto h-10 w-10 text-muted-foreground/60 mb-2" />
-                <p className="text-muted-foreground">No inspections found</p>
-                <Button variant="outline" className="mt-4" asChild>
-                  <Link href="/inspections/new">Schedule inspection</Link>
-                </Button>
-              </div>
-            }
-          />
-        </CardContent>
-      </Card>
+      {viewMode === "table" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Safety Inspections</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="mb-6">
+              <TabsList>
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="pending">Pending</TabsTrigger>
+                <TabsTrigger value="in_progress">In Progress</TabsTrigger>
+                <TabsTrigger value="completed">Completed</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            
+            <DataTable
+              columns={columns}
+              data={inspections}
+              isLoading={isLoading}
+              pagination={{
+                pageIndex,
+                pageSize,
+                pageCount: totalPages,
+                setPageIndex,
+                setPageSize,
+              }}
+              emptyState={
+                <div className="py-8 text-center">
+                  <ClipboardCheck className="mx-auto h-10 w-10 text-muted-foreground/60 mb-2" />
+                  <p className="text-muted-foreground">No inspections found</p>
+                  <Button variant="outline" className="mt-4" asChild>
+                    <Link href="/inspections/new">Schedule inspection</Link>
+                  </Button>
+                </div>
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <InspectionCalendarView inspections={inspections} />
+      )}
     </Layout>
   );
 }
