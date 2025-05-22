@@ -2425,6 +2425,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single incident by ID
+  app.get("/api/incidents/:id", requireAuth, requirePermission("incidents", "read"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const tenantId = req.user.tenantId;
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid incident ID" });
+      }
+      
+      const incident = await storage.getIncidentReport(id);
+      
+      if (!incident) {
+        return res.status(404).json({ message: "Incident not found" });
+      }
+      
+      // Ensure user can only access incidents from their tenant
+      if (incident.tenantId !== tenantId) {
+        return res.status(403).json({ message: "You don't have permission to view this incident" });
+      }
+      
+      // Get additional information if needed (like reporter name, site name)
+      const reporter = await storage.getUser(incident.reportedById);
+      const site = await storage.getSite(incident.siteId);
+      
+      const enrichedIncident = {
+        ...incident,
+        reportedByName: reporter ? reporter.name || reporter.username : "Unknown",
+        siteName: site ? site.name : "Unknown Site"
+      };
+      
+      res.json(enrichedIncident);
+    } catch (err) {
+      console.error("Error fetching incident:", err);
+      res.status(500).json({ message: "Failed to fetch incident" });
+    }
+  });
+
+  // Update incident status
+  app.patch("/api/incidents/:id", requireAuth, requirePermission("incidents", "update"), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const tenantId = req.user.tenantId;
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid incident ID" });
+      }
+      
+      const incident = await storage.getIncidentReport(id);
+      
+      if (!incident) {
+        return res.status(404).json({ message: "Incident not found" });
+      }
+      
+      // Ensure user can only update incidents from their tenant
+      if (incident.tenantId !== tenantId) {
+        return res.status(403).json({ message: "You don't have permission to update this incident" });
+      }
+      
+      // Allow partial updates to the incident
+      const data = insertIncidentReportSchema.partial().parse(req.body);
+      delete (data as any).tenantId; // Don't allow changing tenant
+      delete (data as any).reportedById; // Don't allow changing reporter
+      
+      // Update the incident
+      const updatedIncident = await storage.updateIncidentReport(id, data);
+      
+      // Log the update action
+      await storage.createSystemLog({
+        tenantId: req.user.tenantId,
+        userId: req.user.id,
+        action: "incident_updated",
+        entityType: "incident",
+        entityId: id.toString(),
+        details: { 
+          title: incident.title, 
+          previousStatus: incident.status,
+          newStatus: data.status || incident.status 
+        },
+      });
+      
+      // Get additional information
+      const reporter = await storage.getUser(updatedIncident.reportedById);
+      const site = await storage.getSite(updatedIncident.siteId);
+      
+      const enrichedIncident = {
+        ...updatedIncident,
+        reportedByName: reporter ? reporter.name || reporter.username : "Unknown",
+        siteName: site ? site.name : "Unknown Site"
+      };
+      
+      res.json(enrichedIncident);
+    } catch (err) {
+      console.error("Error updating incident:", err);
+      res.status(500).json({ message: "Failed to update incident" });
+    }
+  });
+
   // Training Content
   app.get("/api/training-content", requireAuth, requirePermission("training", "read"), async (req, res) => {
     try {
