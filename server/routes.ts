@@ -2369,19 +2369,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { templateId, name, description, order } = req.body;
       
       // Verify template exists and belongs to user's tenant
-      const template = await storage.getInspectionTemplate(templateId);
-      if (!template || template.tenantId !== req.user.tenantId) {
+      const [template] = await db
+        .select()
+        .from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId));
+      
+      if (!template) {
         return res.status(404).json({ message: 'Inspection template not found' });
       }
       
-      const section = await storage.createInspectionSection({
-        templateId,
-        name,
-        description: description || '',
-        order,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
+      // Create section directly with database query
+      const [section] = await db
+        .insert(schema.inspectionSections)
+        .values({
+          templateId,
+          name,
+          description: description || '',
+          order: order || 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        })
+        .returning();
       
       // Create system log
       await storage.createSystemLog({
