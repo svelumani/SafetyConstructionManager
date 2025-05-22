@@ -258,7 +258,31 @@ export const inspectionTemplates = pgTable('inspection_templates', {
   isActive: boolean('is_active').notNull().default(true),
 });
 
-export const inspectionTemplatesRelations = relations(inspectionTemplates, ({ one }) => ({
+// Inspection Sections
+export const inspectionSections = pgTable('inspection_sections', {
+  id: serial('id').primaryKey(),
+  templateId: integer('template_id').references(() => inspectionTemplates.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  order: integer('order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
+});
+
+// Inspection Items
+export const inspectionItems = pgTable('inspection_items', {
+  id: serial('id').primaryKey(),
+  sectionId: integer('section_id').references(() => inspectionSections.id, { onDelete: 'cascade' }).notNull(),
+  question: text('question').notNull(),
+  type: text('type').notNull().default('yes_no'),
+  required: boolean('required').notNull().default(true),
+  options: jsonb('options'),
+  order: integer('order').notNull().default(0),
+  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
+});
+
+export const inspectionTemplatesRelations = relations(inspectionTemplates, ({ one, many }) => ({
   tenant: one(tenants, {
     fields: [inspectionTemplates.tenantId],
     references: [tenants.id],
@@ -266,6 +290,22 @@ export const inspectionTemplatesRelations = relations(inspectionTemplates, ({ on
   creator: one(users, {
     fields: [inspectionTemplates.createdById],
     references: [users.id],
+  }),
+  sections: many(inspectionSections)
+}));
+
+export const inspectionSectionsRelations = relations(inspectionSections, ({ one, many }) => ({
+  template: one(inspectionTemplates, {
+    fields: [inspectionSections.templateId],
+    references: [inspectionTemplates.id],
+  }),
+  items: many(inspectionItems)
+}));
+
+export const inspectionItemsRelations = relations(inspectionItems, ({ one }) => ({
+  section: one(inspectionSections, {
+    fields: [inspectionItems.sectionId],
+    references: [inspectionSections.id],
   })
 }));
 

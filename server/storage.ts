@@ -40,7 +40,6 @@ export interface IStorage {
   getTenantByEmail(email: string): Promise<Tenant | undefined>;
   createTenant(tenant: InsertTenant): Promise<Tenant>;
   updateTenant(id: number, tenant: Partial<InsertTenant>): Promise<Tenant | undefined>;
-  deleteTenant(id: number): Promise<boolean>;
   listTenants(options?: { limit?: number; offset?: number; }): Promise<Tenant[]>;
   countTenants(): Promise<number>;
   registerTenant(data: RegisterTenant): Promise<{ tenant: Tenant, user: User }>;
@@ -49,9 +48,96 @@ export interface IStorage {
   getSite(id: number): Promise<Site | undefined>;
   createSite(site: InsertSite): Promise<Site>;
   updateSite(id: number, site: Partial<InsertSite>): Promise<Site | undefined>;
-  deleteSite(id: number): Promise<boolean>;
   listSites(tenantId: number, options?: { limit?: number; offset?: number; }): Promise<Site[]>;
   countSites(tenantId: number): Promise<number>;
+  
+  // Hazard operations
+  listHazardReports(tenantId: number, options?: { 
+    siteId?: number;
+    status?: string;
+    assignedTo?: number;
+    reportedBy?: number;
+    limit?: number; 
+    offset?: number;
+  }): Promise<HazardReport[]>;
+  countHazardReports(tenantId: number, options?: { 
+    siteId?: number;
+    status?: string;
+    assignedTo?: number;
+    reportedBy?: number;
+  }): Promise<number>;
+  getHazardReport(id: number): Promise<HazardReport | undefined>;
+  createHazardReport(report: InsertHazardReport): Promise<HazardReport>;
+  updateHazardReport(id: number, reportData: Partial<InsertHazardReport>): Promise<HazardReport | undefined>;
+  addHazardComment(comment: InsertHazardComment): Promise<HazardComment>;
+  getHazardStats(tenantId: number): Promise<{
+    total: number;
+    open: number;
+    assigned: number;
+    inProgress: number;
+    resolved: number;
+    closed: number;
+    bySite: Array<{ siteId: number; siteName: string; count: number }>;
+    byRisk: Array<{ riskLevel: string; count: number }>;
+  }>;
+  
+  // Inspection operations
+  listInspectionTemplates(tenantId: number, options?: { limit?: number; offset?: number; }): Promise<InspectionTemplate[]>;
+  countInspectionTemplates(tenantId: number): Promise<number>;
+  getInspectionTemplate(id: number): Promise<InspectionTemplate | undefined>;
+  createInspectionTemplate(template: InsertInspectionTemplate): Promise<InspectionTemplate>;
+  updateInspectionTemplate(id: number, templateData: Partial<InspectionTemplate>): Promise<InspectionTemplate | undefined>;
+  deleteInspectionTemplate(id: number): Promise<boolean>;
+  listInspections(tenantId: number, options?: { 
+    siteId?: number;
+    status?: string;
+    conductedBy?: number;
+    limit?: number; 
+    offset?: number;
+  }): Promise<Inspection[]>;
+  countInspections(tenantId: number, options?: { 
+    siteId?: number;
+    status?: string;
+    conductedBy?: number;
+  }): Promise<number>;
+  getInspection(id: number): Promise<Inspection | undefined>;
+  createInspection(inspection: InsertInspection): Promise<Inspection>;
+  updateInspection(id: number, inspectionData: Partial<InsertInspection>): Promise<Inspection | undefined>;
+  addInspectionResponse(response: InsertInspectionResponse): Promise<InspectionResponse>;
+  updateInspectionResponse(id: number, responseData: Partial<InsertInspectionResponse>): Promise<InspectionResponse | undefined>;
+  
+  // Email templates
+  listEmailTemplates(options?: { tenantId?: number; limit?: number; offset?: number; }): Promise<EmailTemplate[]>;
+  getEmailTemplateByName(name: string, tenantId?: number): Promise<EmailTemplate | undefined>;
+  createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
+  updateEmailTemplate(id: number, templateData: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined>;
+  
+  // System logs
+  createSystemLog(log: { 
+    tenantId?: number; 
+    userId?: number; 
+    action: string; 
+    entityType?: string; 
+    entityId?: string; 
+    details?: any; 
+    ipAddress?: string; 
+    userAgent?: string;
+  }): Promise<SystemLog>;
+  listSystemLogs(options?: { 
+    tenantId?: number; 
+    userId?: number; 
+    action?: string; 
+    limit?: number; 
+    offset?: number;
+  }): Promise<SystemLog[]>;
+  countSystemLogs(options?: { 
+    tenantId?: number; 
+    userId?: number; 
+    action?: string; 
+  }): Promise<number>;
+  
+  // Permissions
+  hasPermission(tenantId: number, role: string, resource: string, action: string): Promise<boolean>;
   
   // Site personnel operations
   getSitePersonnel(id: number): Promise<SitePersonnel | undefined>;
