@@ -2416,10 +2416,11 @@ export class DatabaseStorage implements IStorage {
     return inspection;
   }
 
-  async createInspection(inspection: InsertInspection): Promise<Inspection> {
-    const [newInspection] = await db.insert(inspections).values(inspection).returning();
-    return newInspection;
-  }
+  // Commented out duplicate implementation
+  // async createInspection(inspection: InsertInspection): Promise<Inspection> {
+  //   const [newInspection] = await db.insert(inspections).values(inspection).returning();
+  //   return newInspection;
+  // }
 
   async updateInspection(id: number, inspectionData: Partial<InsertInspection>): Promise<Inspection | undefined> {
     const [updatedInspection] = await db
