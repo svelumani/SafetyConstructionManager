@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
+import React, { useState, useEffect } from "react";
+import { useLocation, useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,29 @@ export default function Incidents() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<string | null>(null);
+  
+  // Check which route we're on
+  const [matchesNew] = useRoute("/incidents/new");
+  const [matchesDetail, params] = useRoute("/incidents/:id");
+  
+  // For sub-pages
+  if (matchesNew) {
+    const NewIncident = React.lazy(() => import("./incidents/new"));
+    return (
+      <React.Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+        <NewIncident />
+      </React.Suspense>
+    );
+  }
+  
+  if (matchesDetail && params?.id) {
+    const IncidentDetail = React.lazy(() => import("./incidents/[id]"));
+    return (
+      <React.Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
+        <IncidentDetail />
+      </React.Suspense>
+    );
+  }
 
   // Fetch incidents data
   const { data, isLoading, error } = useQuery<{ incidents: Incident[] }>({
