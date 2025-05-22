@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
@@ -7,9 +7,50 @@ import { setupEmailService } from "./email";
 import * as schema from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
 import { ZodError } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 // All schemas are now imported via the namespace import above
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up file upload storage configuration
+  const uploadsDir = path.join(process.cwd(), 'public/uploads');
+  
+  // Ensure uploads directory exists
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  
+  // Configure multer for file uploads
+  const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, uploadsDir);
+    },
+    filename: function (req, file, cb) {
+      // Create unique filename with original extension
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      cb(null, uniqueSuffix + ext);
+    }
+  });
+  
+  const upload = multer({ 
+    storage: storage,
+    limits: {
+      fileSize: 5 * 1024 * 1024, // 5MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      // Accept images only
+      if (!file.mimetype.startsWith('image/')) {
+        return cb(new Error('Only image files are allowed'));
+      }
+      cb(null, true);
+    }
+  });
+
+  // Serve uploads directory statically
+  app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
+
   // Ensure that authenticated users have a tenantId and role to proceed
   const requireAuth = (req: any, res: any, next: any) => {
     if (!req.isAuthenticated()) {
