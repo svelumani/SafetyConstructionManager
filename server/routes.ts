@@ -1972,23 +1972,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the form data
       const formData = req.body;
       
-      // Create data object with field mappings that match the database structure
-      const inspectionData = {
-        tenant_id: req.user.tenantId,
-        site_id: formData.siteId,
-        inspector_id: req.user.id, // Using inspector_id instead of assignedToId or createdById
-        title: formData.title,
-        description: formData.description,
-        scheduled_date: formData.scheduledDate,
-        status: 'scheduled', // Default status for new inspections
-        inspection_type: 'routine',
-        is_active: true
-      };
+      // Create a raw SQL query that only uses the exact fields present in the database
+      // This avoids any schema mismatches between our code models and the actual database
+      const result = await db.execute(`
+        INSERT INTO inspections (
+          tenant_id, 
+          site_id, 
+          inspector_id, 
+          title, 
+          description, 
+          scheduled_date,
+          status,
+          inspection_type,
+          is_active
+        ) VALUES (
+          ${req.user.tenantId}, 
+          ${formData.siteId}, 
+          ${req.user.id}, 
+          '${formData.title.replace(/'/g, "''")}', 
+          '${(formData.description || '').replace(/'/g, "''")}', 
+          '${new Date(formData.scheduledDate).toISOString()}',
+          'scheduled',
+          'routine',
+          true
+        ) RETURNING *;
+      `);
       
-      // Insert directly using database query to avoid schema validation issues
-      const [inspection] = await db.insert(schema.inspections)
-        .values(inspectionData)
-        .returning();
+      // Get the inserted inspection from the result
+      const inspection = result.rows[0];
       
       // Log the creation
       await storage.createSystemLog({
