@@ -77,6 +77,11 @@ export default function Layout({ children }: { children: ReactNode }) {
       icon: <FileText className="h-5 w-5" />,
     },
     {
+      title: "Client Reports",
+      href: "/reports",
+      icon: <FileText className="h-5 w-5 text-blue-500" />,
+    },
+    {
       title: "Safety Scores",
       href: "/safety-scores",
       icon: <BarChart3 className="h-5 w-5" />,
