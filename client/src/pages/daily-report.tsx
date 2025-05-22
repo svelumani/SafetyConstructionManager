@@ -45,6 +45,7 @@ import { format, subDays } from "date-fns";
 import { Link } from "wouter";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import jsPDF from "jspdf";
 
 export default function DailyReport() {
   const [dateFilter, setDateFilter] = useState("today");
@@ -282,6 +283,109 @@ export default function DailyReport() {
     // In a real implementation, this would trigger an API call
     // to send the report via email to stakeholders
     alert("Email functionality would be implemented here");
+  };
+  
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    const siteName = siteFilter !== "all" 
+      ? sitesData?.sites?.find(site => site.id.toString() === siteFilter)?.name || "All Sites"
+      : "All Sites";
+    
+    // Add company header
+    doc.setFontSize(18);
+    doc.setTextColor(0, 71, 171); // Primary blue color
+    doc.text("MySafety Construction", 105, 20, { align: "center" });
+    
+    // Add report title
+    doc.setFontSize(16);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Daily Safety Report - ${format(filterDate, "MMMM d, yyyy")}`, 105, 30, { align: "center" });
+    
+    // Add site name
+    doc.setFontSize(12);
+    doc.text(`Site: ${siteName}`, 105, 40, { align: "center" });
+    
+    // Add weather information if a specific site is selected
+    if (siteFilter !== "all") {
+      const weather = getWeatherCondition(siteFilter);
+      doc.setFontSize(12);
+      doc.text("Weather Conditions", 20, 55);
+      doc.text(`Condition: ${weather.label}`, 20, 65);
+      doc.text(`Temperature: ${weather.temp}`, 20, 75);
+      doc.text(`Safety Impact: ${weather.safety}`, 20, 85);
+      
+      if (weather.safety === "Caution") {
+        const cautionText = weather.type === "rainy" 
+          ? "Consider postponing outdoor electrical work" 
+          : "Secure loose materials and limit crane operations";
+        doc.setTextColor(204, 51, 0); // Orange-red for caution
+        doc.text(`Safety Note: ${cautionText}`, 20, 95);
+        doc.setTextColor(0, 0, 0); // Reset to black
+      }
+    }
+    
+    const yStart = siteFilter !== "all" ? 110 : 55;
+    
+    // Add today's safety pulse data
+    doc.setFontSize(14);
+    doc.text("Today's Safety Pulse", 20, yStart);
+    doc.setFontSize(12);
+    doc.text(`Open Hazards: ${summary?.todaySummary.openHazards}`, 20, yStart + 10);
+    doc.text(`Inspections Due: ${summary?.todaySummary.inspectionsDue}`, 20, yStart + 20);
+    doc.text(`Expiring Permits: ${summary?.todaySummary.expiringPermits}`, 20, yStart + 30);
+    doc.text(`Training Compliance: ${summary?.todaySummary.trainingCompliance}%`, 20, yStart + 40);
+    
+    // Add 24-hour activity data
+    doc.setFontSize(14);
+    doc.text("24-Hour Activity", 20, yStart + 60);
+    doc.setFontSize(12);
+    doc.text(`New Hazards: ${summary?.activity24h.newHazards}`, 20, yStart + 70);
+    doc.text(`Completed Inspections: ${summary?.activity24h.completedInspections}`, 20, yStart + 80);
+    doc.text(`Incidents: ${summary?.activity24h.incidents}`, 20, yStart + 90);
+    doc.text(`Permits Processed: ${summary?.activity24h.permitsProcessed}`, 20, yStart + 100);
+    
+    // Add priority action items
+    doc.setFontSize(14);
+    doc.text("Priority Action Items", 20, yStart + 120);
+    
+    if (summary?.actionItems && summary.actionItems.length > 0) {
+      doc.setFontSize(10);
+      
+      // Add table headers
+      doc.text("Type", 20, yStart + 130);
+      doc.text("Description", 50, yStart + 130);
+      doc.text("Responsible", 150, yStart + 130);
+      doc.text("Due By", 190, yStart + 130);
+      
+      // Add horizontal line under header
+      doc.setLineWidth(0.5);
+      doc.line(20, yStart + 132, 210, yStart + 132);
+      
+      // Add each action item
+      summary.actionItems.forEach((item, index) => {
+        const y = yStart + 140 + (index * 10);
+        doc.text(item.type.charAt(0).toUpperCase() + item.type.slice(1), 20, y);
+        
+        // Handle long descriptions by truncating
+        const description = item.description.length > 50 
+          ? item.description.substring(0, 47) + "..." 
+          : item.description;
+        doc.text(description, 50, y);
+        
+        doc.text(item.assignedTo, 150, y);
+        doc.text(item.dueDate ? format(new Date(item.dueDate), "MMM d") : "N/A", 190, y);
+      });
+    } else {
+      doc.setFontSize(12);
+      doc.text("No priority action items for today", 20, yStart + 140);
+    }
+    
+    // Add footer with timestamp
+    doc.setFontSize(8);
+    doc.text(`Generated on ${format(new Date(), "MMM d, yyyy 'at' h:mm a")} by ${user?.name || user?.username || "Safety Officer"}`, 105, 280, { align: "center" });
+    
+    // Save the PDF
+    doc.save(`Safety_Report_${format(filterDate, "yyyy-MM-dd")}_${siteName.replace(/\s+/g, '_')}.pdf`);
   };
   
   const getStatusColor = (type: string) => {
@@ -572,7 +676,7 @@ export default function DailyReport() {
           <Button asChild variant="outline">
             <Link href="/dashboard">Back to Dashboard</Link>
           </Button>
-          <Button>
+          <Button onClick={handleDownloadPDF}>
             <Download className="h-4 w-4 mr-2" />
             Download PDF
           </Button>
