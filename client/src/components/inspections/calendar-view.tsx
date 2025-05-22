@@ -119,29 +119,35 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
     const hasInspections = inspectionDates[dateString]?.length > 0;
     const count = inspectionDates[dateString]?.length || 0;
     
+    // Debug info
+    if (hasInspections) {
+      console.log(`Day ${dateString} has ${count} inspections`);
+    }
+    
+    // Calculate today's date string for comparison
     return (
-      <div className="relative w-full h-full p-2">
-        <div className="absolute inset-0 flex items-center justify-center">
-          {day.getDate()}
-        </div>
+      <div 
+        className={cn(
+          "relative w-full h-full flex flex-col items-center justify-center",
+          hasInspections ? "bg-gray-50" : ""
+        )}
+        onClick={() => hasInspections && openInspectionsForDate(dateString)}
+      >
+        {/* Day number */}
+        <span className={hasInspections ? "font-semibold" : ""}>{day.getDate()}</span>
         
+        {/* Inspection indicator */}
         {hasInspections && (
-          <div 
-            className="absolute bottom-1 left-0 right-0 flex justify-center" 
-            onClick={(e) => {
-              e.stopPropagation();
-              openInspectionsForDate(dateString);
-            }}
-          >
+          <div className="mt-1 flex items-center space-x-0.5">
             <div 
               className={cn(
-                "h-2 w-2 rounded-full cursor-pointer",
+                "h-3 w-3 rounded-full",
                 count > 2 ? "bg-red-500" :
                 count > 1 ? "bg-amber-500" :
                 "bg-blue-500"
               )}
-              aria-label={`${count} inspection${count > 1 ? 's' : ''}`}
             />
+            <span className="text-xs text-gray-600 ml-1">{count}</span>
           </div>
         )}
       </div>
