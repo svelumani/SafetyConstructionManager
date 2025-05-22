@@ -227,13 +227,32 @@ export default function InspectionDetails() {
   });
 
   // Complete inspection mutation
+  const [missingRequiredItems, setMissingRequiredItems] = useState<any[]>([]);
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  
   const completeInspectionMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("PUT", `/api/inspections/${id}/complete`, {});
+    mutationFn: async (data: { notes?: string } = {}) => {
+      const response = await apiRequest("PUT", `/api/inspections/${id}/complete`, data);
+      
+      if (response.status === 400) {
+        const errorData = await response.json();
+        if (errorData.missingItems) {
+          setMissingRequiredItems(errorData.missingItems);
+          throw new Error(errorData.message);
+        }
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to complete inspection");
+      }
+      
       return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/inspections/${id}`] });
+      setShowCompletionDialog(false);
+      
       toast({
         title: "Inspection Completed",
         description: "The inspection has been marked as completed",
@@ -241,8 +260,8 @@ export default function InspectionDetails() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to complete inspection",
+        title: "Cannot Complete Inspection",
+        description: error.message,
         variant: "destructive",
       });
     },
