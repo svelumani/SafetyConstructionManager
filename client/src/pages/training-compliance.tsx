@@ -419,7 +419,7 @@ export default function TrainingCompliance() {
                 <SelectValue placeholder="Filter by course" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Courses</SelectItem>
+                <SelectItem key="all" value="">All Courses</SelectItem>
                 {trainings?.courses?.map(course => (
                   <SelectItem key={course.id} value={course.id.toString()}>{course.title}</SelectItem>
                 ))}
@@ -445,7 +445,7 @@ export default function TrainingCompliance() {
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Teams</SelectItem>
+                    <SelectItem key="all-teams" value="">All Teams</SelectItem>
                     {uniqueTeams.map(team => (
                       <SelectItem key={team} value={team}>{team}</SelectItem>
                     ))}
