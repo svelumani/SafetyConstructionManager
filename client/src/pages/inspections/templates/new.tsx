@@ -365,7 +365,7 @@ export default function NewInspectionTemplate() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="">None</SelectItem>
+                                <SelectItem value="none">None</SelectItem>
                                 <SelectItem value="critical">Critical</SelectItem>
                                 <SelectItem value="important">Important</SelectItem>
                                 <SelectItem value="general">General</SelectItem>
