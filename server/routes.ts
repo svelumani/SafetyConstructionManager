@@ -3157,7 +3157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         created_by_id: req.user.id
       });
       
-      // Insert the response with properly formatted SQL
+      // Insert the response using a more direct approach without parameterized queries
       const insertResult = await db.execute(`
         INSERT INTO inspection_responses (
           inspection_id, 
@@ -3170,14 +3170,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ) VALUES (
           ${inspectionId},
           ${responseData.checklistItemId || 'NULL'},
-          $1,
-          ${notes ? '$2' : 'NULL'},
+          '${response.replace(/'/g, "''")}',
+          ${notes ? `'${notes.replace(/'/g, "''")}'` : 'NULL'},
           ${isCompliant !== null ? isCompliant : 'NULL'},
-          $3::jsonb,
+          '${photoUrls}'::jsonb,
           ${req.user.id}
         )
         RETURNING *
-      `, [response, notes, photoUrls]);
+      `);
       
       const newResponse = insertResult.rows[0];
       
