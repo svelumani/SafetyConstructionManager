@@ -51,6 +51,7 @@ import IncidentAnalytics from "@/pages/incident-analytics";
 // Import training-specific pages
 import TrainingAnalytics from "@/pages/training-analytics";
 import TrainingCompliance from "@/pages/training-compliance";
+import DailyReport from "@/pages/daily-report";
 
 function Router() {
   return (
@@ -96,6 +97,7 @@ function Router() {
       <ProtectedRoute path="/training-compliance" component={TrainingCompliance} />
       <ProtectedRoute path="/training/:id" component={TrainingCourseView} />
       <ProtectedRoute path="/training" component={Training} />
+      <ProtectedRoute path="/daily-report" component={DailyReport} />
       <ProtectedRoute path="/safety-scores" component={SafetyScores} />
       <ProtectedRoute path="/users" component={Users} />
       <ProtectedRoute path="/users/:id" component={UserProfile} />
