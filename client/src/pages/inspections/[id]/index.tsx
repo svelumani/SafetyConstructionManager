@@ -384,14 +384,28 @@ export default function InspectionDetails() {
       
       console.log(`Setting isCompliant to ${isCompliant} for item ${checklistItemId}`);
       
-      await saveResponseMutation.mutateAsync({
+      // Also set the response field to match status
+      const result = await saveResponseMutation.mutateAsync({
         checklistItemId,
         data: {
           status,
+          response: status, // Add response field to match status
           notes,
-          isCompliant // Adding this field which was missing before
+          isCompliant
         }
       });
+      
+      // Update local state immediately without waiting for refetch
+      setResponses(prev => ({
+        ...prev,
+        [checklistItemId]: {
+          ...prev[checklistItemId],
+          ...result,
+          status: status,
+          response: status,
+          is_compliant: isCompliant
+        }
+      }));
       
       // Refresh the responses data after saving
       refetchResponses();
