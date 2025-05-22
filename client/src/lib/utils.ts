@@ -69,7 +69,9 @@ export function getInitials(name?: string): string {
   );
 }
 
-export function getStatusColor(status: string): string {
+export function getStatusColor(status?: string): string {
+  if (!status) return "#6b7280"; // default to gray if no status provided
+  
   const statusMap: Record<string, string> = {
     active: "#10b981", // green
     inactive: "#6b7280", // gray
@@ -79,6 +81,9 @@ export function getStatusColor(status: string): string {
     rejected: "#ef4444", // red
     open: "#10b981", // green
     closed: "#6b7280", // gray
+    in_progress: "#f59e0b", // amber for in_progress
+    assigned: "#3b82f6", // blue for assigned
+    resolved: "#10b981", // green for resolved
   };
   
   return statusMap[status.toLowerCase()] || "#6b7280"; // default to gray
