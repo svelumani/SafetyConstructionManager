@@ -9,6 +9,7 @@ export const siteRoleEnum = pgEnum('site_role', ['site_manager', 'safety_coordin
 export const hazardSeverityEnum = pgEnum('hazard_severity', ['low', 'medium', 'high', 'critical']);
 export const hazardStatusEnum = pgEnum('hazard_status', ['open', 'assigned', 'in_progress', 'resolved', 'closed']);
 export const inspectionStatusEnum = pgEnum('inspection_status', ['scheduled', 'in_progress', 'completed', 'canceled']);
+// Compliance status enum is defined below around line 295
 export const permitStatusEnum = pgEnum('permit_status', ['requested', 'approved', 'denied', 'expired']);
 export const incidentSeverityEnum = pgEnum('incident_severity', ['minor', 'moderate', 'major', 'critical']);
 export const subscriptionPlanEnum = pgEnum('subscription_plan', ['basic', 'standard', 'premium', 'enterprise']);
