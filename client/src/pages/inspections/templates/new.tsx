@@ -133,8 +133,10 @@ export default function NewInspectionTemplate() {
             sectionId: createdSection.id,
             question: item.question,
             description: item.description,
+            type: item.type || "yes_no",
             required: item.required,
             category: item.category,
+            options: item.options,
             order: itemIndex,
           });
         }

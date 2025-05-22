@@ -2421,7 +2421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // New routes for inspection items
   app.post('/api/inspection-items', requireAuth, requirePermission("inspections", "create"), async (req, res) => {
     try {
-      const { sectionId, question, description, required, category, order } = req.body;
+      const { sectionId, question, description, type, required, category, options, order } = req.body;
       
       // We need to verify that the section belongs to a template that belongs to the user's tenant
       // First get the section
@@ -2446,8 +2446,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sectionId,
         question, 
         description: description || '',
+        type: type || 'yes_no',
         required: required ?? true,
         category: category || null,
+        options: options || null,
         order,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
