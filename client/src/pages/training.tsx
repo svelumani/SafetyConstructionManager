@@ -128,7 +128,7 @@ export default function Training() {
 
   // Fetch training courses with higher limit to show all courses
   const { data: trainings, isLoading: isLoadingCourses } = useQuery({
-    queryKey: ["/api/training-courses", { limit: 50 }],
+    queryKey: [`/api/training-courses?limit=50`],
   });
 
   // Fetch user progress
