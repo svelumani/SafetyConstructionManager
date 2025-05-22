@@ -5,7 +5,7 @@ import { db } from "./db";
 import { setupAuth } from "./auth";
 import { setupEmailService } from "./email";
 import * as schema from "@shared/schema";
-import { eq, desc, and, not } from "drizzle-orm";
+import { eq, desc, and, not, sql } from "drizzle-orm";
 import { ZodError } from "zod";
 import multer from "multer";
 import path from "path";
@@ -1470,12 +1470,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const status = req.query.status as string;
       const severity = req.query.severity as string;
       
-      const hazards = await storage.listHazardReports(tenantId, { 
-        limit, offset, siteId, status, severity 
-      });
-      const total = await storage.countHazardReports(tenantId, { 
-        siteId, status, severity 
-      });
+      // Create base query for hazard reports
+      let query = db
+        .select()
+        .from(schema.hazardReports)
+        .where(eq(schema.hazardReports.tenantId, tenantId))
+        .where(eq(schema.hazardReports.isActive, true));
+      
+      // Add filters if provided
+      if (siteId) {
+        query = query.where(eq(schema.hazardReports.siteId, siteId));
+      }
+      
+      if (status) {
+        query = query.where(eq(schema.hazardReports.status, status));
+      }
+      
+      if (severity) {
+        query = query.where(eq(schema.hazardReports.severity, severity));
+      }
+      
+      // Get paginated hazard reports
+      const hazards = await query
+        .orderBy(desc(schema.hazardReports.createdAt))
+        .limit(limit)
+        .offset(offset);
+      
+      // Count total records with same filters
+      const countQuery = db
+        .select({ count: sql`count(*)` })
+        .from(schema.hazardReports)
+        .where(eq(schema.hazardReports.tenantId, tenantId))
+        .where(eq(schema.hazardReports.isActive, true));
+      
+      // Add the same filters to count query
+      if (siteId) {
+        countQuery.where(eq(schema.hazardReports.siteId, siteId));
+      }
+      
+      if (status) {
+        countQuery.where(eq(schema.hazardReports.status, status));
+      }
+      
+      if (severity) {
+        countQuery.where(eq(schema.hazardReports.severity, severity));
+      }
+      
+      const [countResult] = await countQuery;
+      const total = Number(countResult?.count || 0);
       
       res.json({ hazards, total });
     } catch (err) {
