@@ -204,6 +204,7 @@ export default function InspectionDetails() {
   const { 
     data: findingData,
     isLoading: isLoadingFindings,
+    refetch: refetchFindings
   } = useQuery({
     queryKey: [`/api/inspections/${id}/findings`],
     enabled: !!id,
@@ -223,6 +224,7 @@ export default function InspectionDetails() {
   // Set the findings data
   useEffect(() => {
     if (findingData) {
+      console.log("Setting findings from data:", findingData.findings);
       setFindings(findingData.findings);
     }
   }, [findingData]);
@@ -386,6 +388,9 @@ export default function InspectionDetails() {
     try {
       console.log('Submitting finding with date:', newFinding.dueDate);
       
+      // First make sure the active tab is set to findings
+      setActiveTab("findings");
+      
       const response = await apiRequest("POST", `/api/inspections/${id}/findings`, newFinding);
       
       if (!response.ok) {
@@ -393,12 +398,7 @@ export default function InspectionDetails() {
         throw new Error(errorData.message || "Failed to add finding");
       }
       
-      const data = await response.json();
-      
-      // Make sure the active tab is set to findings
-      setActiveTab("findings");
-      
-      // Close the dialog first
+      // Close the dialog
       setFindingDialogOpen(false);
       
       // Reset the new finding form
@@ -411,23 +411,15 @@ export default function InspectionDetails() {
         status: "open",
       });
       
-      // Refresh the findings data to ensure UI is up to date
-      queryClient.invalidateQueries({ queryKey: [`/api/inspections/${id}/findings`] });
+      // Directly refetch the findings data - this should update the UI
+      await refetchFindings();
       
-      // Force update the findings state with the new item
-      setTimeout(() => {
-        queryClient.fetchQuery({ queryKey: [`/api/inspections/${id}/findings`] })
-          .then((data) => {
-            if (data) {
-              setFindings(data.findings);
-            }
-          });
-      }, 100);
-      
+      // Show success message
       toast({
         title: "Finding Added",
         description: "Your finding has been added successfully",
       });
+      
     } catch (error) {
       console.error("Error adding finding:", error);
       toast({
