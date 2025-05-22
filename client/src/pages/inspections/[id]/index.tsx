@@ -375,11 +375,22 @@ export default function InspectionDetails() {
   // Function to handle response status change
   const handleResponseChange = async (checklistItemId: number, status: string, notes: string) => {
     try {
+      // Convert the status string to a proper isCompliant boolean value
+      let isCompliant = null;
+      if (status === 'pass') {
+        isCompliant = true;
+      } else if (status === 'fail') {
+        isCompliant = false;
+      }
+      
+      console.log(`Setting isCompliant to ${isCompliant} for item ${checklistItemId}`);
+      
       await saveResponseMutation.mutateAsync({
         checklistItemId,
         data: {
           status,
           notes,
+          isCompliant // Adding this field which was missing before
         }
       });
     } catch (error) {
