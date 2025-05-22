@@ -94,7 +94,7 @@ export async function generateReport(req: Request, res: Response) {
             between(schema.hazardReports.createdAt, startDateObj.toISOString(), endDateObj.toISOString())
           )
         )
-        .orderBy(desc(schema.hazardReports.createdAt));
+        .orderBy(schema.hazardReports.createdAt);
     }
 
     let incidentData: any[] = [];
@@ -114,7 +114,7 @@ export async function generateReport(req: Request, res: Response) {
             between(schema.incidentReports.incidentDate, startDateObj.toISOString(), endDateObj.toISOString())
           )
         )
-        .orderBy(desc(schema.incidentReports.incidentDate));
+        .orderBy(schema.incidentReports.incidentDate);
     }
 
     let inspectionData: any[] = [];
