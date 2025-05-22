@@ -126,9 +126,9 @@ export default function Training() {
   const [location, navigate] = useLocation();
   const { user } = useAuth();
 
-  // Fetch training courses
+  // Fetch training courses with higher limit to show all courses
   const { data: trainings, isLoading: isLoadingCourses } = useQuery({
-    queryKey: ["/api/training-courses"],
+    queryKey: ["/api/training-courses", { limit: 50 }],
   });
 
   // Fetch user progress
