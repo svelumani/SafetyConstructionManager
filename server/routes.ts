@@ -2234,6 +2234,173 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: 'Error creating checklist item' });
     }
   });
+  
+  // Update a template
+  app.put('/api/inspection-templates/:id', requireAuth, async (req, res) => {
+    const templateId = parseInt(req.params.id);
+    const templateData = req.body;
+    
+    try {
+      // Check if template exists and belongs to user's tenant
+      const [template] = await db.select().from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId));
+      
+      if (!template) {
+        return res.status(404).json({ message: 'Inspection template not found' });
+      }
+      
+      // Update the template
+      const [updatedTemplate] = await db.update(schema.inspectionTemplates)
+        .set({
+          title: templateData.title || template.title,
+          description: templateData.description || template.description,
+          category: templateData.category || template.category,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(schema.inspectionTemplates.id, templateId))
+        .returning();
+      
+      return res.status(200).json(updatedTemplate);
+    } catch (error) {
+      console.error('Error updating inspection template:', error);
+      
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid template data', errors: error.errors });
+      }
+      
+      return res.status(500).json({ message: 'Error updating inspection template' });
+    }
+  });
+  
+  // Update a checklist item
+  app.put('/api/inspection-templates/:templateId/checklist-items/:itemId', requireAuth, async (req, res) => {
+    const templateId = parseInt(req.params.templateId);
+    const itemId = parseInt(req.params.itemId);
+    const itemData = req.body;
+    
+    try {
+      // Check if template exists and belongs to user's tenant
+      const [template] = await db.select().from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId));
+      
+      if (!template) {
+        return res.status(404).json({ message: 'Inspection template not found' });
+      }
+      
+      // Check if the checklist item exists and belongs to this template
+      const [item] = await db.select().from(schema.inspectionChecklistItems)
+        .where(eq(schema.inspectionChecklistItems.id, itemId))
+        .where(eq(schema.inspectionChecklistItems.templateId, templateId));
+      
+      if (!item) {
+        return res.status(404).json({ message: 'Checklist item not found' });
+      }
+      
+      // Update the checklist item
+      const [updatedItem] = await db.update(schema.inspectionChecklistItems)
+        .set({
+          question: itemData.question || item.question,
+          description: itemData.description !== undefined ? itemData.description : item.description,
+          required: itemData.required !== undefined ? itemData.required : item.required,
+          category: itemData.category !== undefined ? itemData.category : item.category,
+          sortOrder: itemData.sortOrder !== undefined ? itemData.sortOrder : item.sortOrder,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(schema.inspectionChecklistItems.id, itemId))
+        .returning();
+      
+      return res.status(200).json(updatedItem);
+    } catch (error) {
+      console.error('Error updating checklist item:', error);
+      
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid checklist item data', errors: error.errors });
+      }
+      
+      return res.status(500).json({ message: 'Error updating checklist item' });
+    }
+  });
+  
+  // Delete a checklist item
+  app.delete('/api/inspection-templates/:templateId/checklist-items/:itemId', requireAuth, async (req, res) => {
+    const templateId = parseInt(req.params.templateId);
+    const itemId = parseInt(req.params.itemId);
+    
+    try {
+      // Check if template exists and belongs to user's tenant
+      const [template] = await db.select().from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId));
+      
+      if (!template) {
+        return res.status(404).json({ message: 'Inspection template not found' });
+      }
+      
+      // Check if the checklist item exists and belongs to this template
+      const [item] = await db.select().from(schema.inspectionChecklistItems)
+        .where(eq(schema.inspectionChecklistItems.id, itemId))
+        .where(eq(schema.inspectionChecklistItems.templateId, templateId));
+      
+      if (!item) {
+        return res.status(404).json({ message: 'Checklist item not found' });
+      }
+      
+      // Soft delete the checklist item by setting isActive to false
+      await db.update(schema.inspectionChecklistItems)
+        .set({
+          isActive: false,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(schema.inspectionChecklistItems.id, itemId));
+      
+      return res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting checklist item:', error);
+      return res.status(500).json({ message: 'Error deleting checklist item' });
+    }
+  });
+  
+  // Delete a template
+  app.delete('/api/inspection-templates/:id', requireAuth, async (req, res) => {
+    const templateId = parseInt(req.params.id);
+    
+    try {
+      // Check if template exists and belongs to user's tenant
+      const [template] = await db.select().from(schema.inspectionTemplates)
+        .where(eq(schema.inspectionTemplates.id, templateId))
+        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId));
+      
+      if (!template) {
+        return res.status(404).json({ message: 'Inspection template not found' });
+      }
+      
+      // Start a transaction for consistency
+      await db.transaction(async (tx) => {
+        // Soft delete all associated checklist items
+        await tx.update(schema.inspectionChecklistItems)
+          .set({
+            isActive: false,
+            updatedAt: new Date().toISOString()
+          })
+          .where(eq(schema.inspectionChecklistItems.templateId, templateId));
+        
+        // Soft delete the template
+        await tx.update(schema.inspectionTemplates)
+          .set({
+            isActive: false,
+            updatedAt: new Date().toISOString()
+          })
+          .where(eq(schema.inspectionTemplates.id, templateId));
+      });
+      
+      return res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting inspection template:', error);
+      return res.status(500).json({ message: 'Error deleting inspection template' });
+    }
+  });
 
   // Inspections API
   app.get('/api/inspections', requireAuth, async (req, res) => {
