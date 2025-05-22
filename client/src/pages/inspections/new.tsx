@@ -101,12 +101,22 @@ export default function NewInspection() {
     },
   });
 
+  // Fetch the current user
+  const { data: currentUser } = useQuery({
+    queryKey: ['/api/user'],
+  });
+
   // Mutation for creating a new inspection
   const createInspectionMutation = useMutation({
     mutationFn: async (data: FormValues) => {
+      if (!currentUser) {
+        throw new Error("You must be logged in to create an inspection");
+      }
+      
       const response = await apiRequest("POST", "/api/inspections", {
         ...data,
         status: "scheduled",
+        createdById: currentUser.id,
       });
 
       if (!response.ok) {
