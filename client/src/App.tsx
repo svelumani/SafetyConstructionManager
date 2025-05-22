@@ -58,6 +58,7 @@ function Router() {
       
       {/* Inspection management routes */}
       <ProtectedRoute path="/inspections" component={Inspections} />
+      <ProtectedRoute path="/inspections/analytics" component={() => import("@/pages/inspections/analytics").then(mod => mod.default)} />
       <ProtectedRoute path="/inspections/templates" component={InspectionTemplates} />
       <ProtectedRoute path="/inspections/templates/new" component={NewInspectionTemplate} />
       <ProtectedRoute path="/inspections/templates/:id" component={InspectionTemplateDetail} />
