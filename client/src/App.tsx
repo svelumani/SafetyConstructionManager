@@ -38,6 +38,9 @@ import NewInspectionTemplate from "@/pages/inspections/templates/new";
 import InspectionTemplateDetail from "@/pages/inspections/templates/[id]";
 import NewInspection from "@/pages/inspections/new";
 import InspectionDetail from "@/pages/inspections/[id]";
+// Import permit-specific pages
+import NewPermit from "@/pages/permits/new";
+import PermitDetail from "@/pages/permits/[id]";
 
 function Router() {
   return (
@@ -66,7 +69,11 @@ function Router() {
       <ProtectedRoute path="/inspections/new" component={NewInspection} />
       <ProtectedRoute path="/inspections/:id" component={InspectionDetail} />
       
+      {/* Permit management routes */}
       <ProtectedRoute path="/permits" component={Permits} />
+      <ProtectedRoute path="/permits/new" component={NewPermit} />
+      <ProtectedRoute path="/permits/:id" component={PermitDetail} />
+      
       <ProtectedRoute path="/incidents" component={Incidents} />
       <ProtectedRoute path="/training" component={Training} />
       <ProtectedRoute path="/safety-scores" component={SafetyScores} />
