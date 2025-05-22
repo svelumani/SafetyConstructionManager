@@ -6,17 +6,12 @@ import {
 import Layout from "@/components/layout";
 import PageHeader from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   ArrowDown, ArrowUp, AlertTriangle, CheckCircle, Clock, TrendingDown, TrendingUp,
-  Award, Users, Shield
+  Award, Users, Shield, BarChart2, Compass, Map, Activity
 } from "lucide-react";
-import { 
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
-} from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { format, subDays, subMonths } from "date-fns";
 
@@ -173,94 +168,123 @@ export default function HazardAnalytics() {
     <Layout>
       <div className="mb-6">
         <PageHeader 
-          title="Hazard Analytics Dashboard" 
-          description="Track, analyze, and improve safety compliance across all sites"
+          title="Safety Excellence Dashboard" 
+          description="Comprehensive analytics to drive safety improvement and recognize top performers"
         />
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-4 mb-6">
-        <Card className="flex-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Total Hazards</CardTitle>
-            <CardDescription>Last 30 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline justify-between">
-              <div className="text-3xl font-bold">{stats.totalHazards.value}</div>
-              <div className={`flex items-center text-sm ${stats.totalHazards.increased ? 'text-red-600' : 'text-green-600'}`}>
-                {stats.totalHazards.increased ? (
-                  <ArrowUp className="h-4 w-4 mr-1" />
-                ) : (
-                  <ArrowDown className="h-4 w-4 mr-1" />
-                )}
-                {Math.abs(stats.totalHazards.change)}%
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg mb-8 p-8 border border-blue-100 shadow-sm">
+        <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold mb-2 text-blue-900">Safety At A Glance</h2>
+            <p className="text-blue-700 mb-4">Overall safety performance across all construction sites</p>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <div className="flex items-center mb-2">
+                  <AlertTriangle className="h-5 w-5 mr-2 text-orange-500" />
+                  <h3 className="text-sm font-semibold">Total Hazards</h3>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <div className="text-3xl font-bold text-blue-900">{stats.totalHazards.value}</div>
+                  <div className={`flex items-center text-sm ${stats.totalHazards.increased ? 'text-red-600' : 'text-green-600'}`}>
+                    {stats.totalHazards.increased ? (
+                      <ArrowUp className="h-4 w-4 mr-1" />
+                    ) : (
+                      <ArrowDown className="h-4 w-4 mr-1" />
+                    )}
+                    {Math.abs(stats.totalHazards.change)}%
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Last 30 days</p>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <div className="flex items-center mb-2">
+                  <Clock className="h-5 w-5 mr-2 text-red-500" />
+                  <h3 className="text-sm font-semibold">Open Hazards</h3>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <div className="text-3xl font-bold text-blue-900">{stats.openHazards.value}</div>
+                  <div className={`flex items-center text-sm ${stats.openHazards.increased ? 'text-red-600' : 'text-green-600'}`}>
+                    {stats.openHazards.increased ? (
+                      <ArrowUp className="h-4 w-4 mr-1" />
+                    ) : (
+                      <ArrowDown className="h-4 w-4 mr-1" />
+                    )}
+                    {Math.abs(stats.openHazards.change)}%
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Requiring attention</p>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <div className="flex items-center mb-2">
+                  <Clock className="h-5 w-5 mr-2 text-blue-500" />
+                  <h3 className="text-sm font-semibold">Avg Resolution Time</h3>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <div className="text-3xl font-bold text-blue-900">{stats.averageResolveTime.value}</div>
+                  <div className={`flex items-center text-sm ${stats.averageResolveTime.increased ? 'text-red-600' : 'text-green-600'}`}>
+                    {stats.averageResolveTime.increased ? (
+                      <ArrowUp className="h-4 w-4 mr-1" />
+                    ) : (
+                      <ArrowDown className="h-4 w-4 mr-1" />
+                    )}
+                    {Math.abs(stats.averageResolveTime.change)} days
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Time to close hazards</p>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <div className="flex items-center mb-2">
+                  <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
+                  <h3 className="text-sm font-semibold">Resolved On Time</h3>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <div className="text-3xl font-bold text-blue-900">{stats.resolvedOnTime.value}</div>
+                  <div className={`flex items-center text-sm ${stats.resolvedOnTime.increased ? 'text-green-600' : 'text-red-600'}`}>
+                    {stats.resolvedOnTime.increased ? (
+                      <ArrowUp className="h-4 w-4 mr-1" />
+                    ) : (
+                      <ArrowDown className="h-4 w-4 mr-1" />
+                    )}
+                    {Math.abs(stats.resolvedOnTime.change)}%
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Target compliance</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="flex-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Open Hazards</CardTitle>
-            <CardDescription>Requiring attention</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline justify-between">
-              <div className="text-3xl font-bold">{stats.openHazards.value}</div>
-              <div className={`flex items-center text-sm ${stats.openHazards.increased ? 'text-red-600' : 'text-green-600'}`}>
-                {stats.openHazards.increased ? (
-                  <ArrowUp className="h-4 w-4 mr-1" />
-                ) : (
-                  <ArrowDown className="h-4 w-4 mr-1" />
-                )}
-                {Math.abs(stats.openHazards.change)}%
+          </div>
+          
+          <div className="flex-1 bg-white rounded-lg p-6 shadow-sm">
+            <h3 className="font-semibold mb-4 flex items-center text-blue-900">
+              <Award className="h-5 w-5 mr-2 text-amber-500" />
+              Safety Star of the Month
+            </h3>
+            <div className="flex items-start mb-4">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center text-amber-700 font-semibold text-xl mr-4">
+                EM
+              </div>
+              <div>
+                <p className="font-medium text-lg">Emily Davis</p>
+                <p className="text-sm text-gray-600">Safety Officer, Riverside Plaza</p>
+                <div className="flex mt-2">
+                  <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full mr-2">24 Hazards Identified</span>
+                  <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">18min Avg Response</span>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="flex-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Average Resolution Time</CardTitle>
-            <CardDescription>Time to close hazards</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline justify-between">
-              <div className="text-3xl font-bold">{stats.averageResolveTime.value}</div>
-              <div className={`flex items-center text-sm ${stats.averageResolveTime.increased ? 'text-red-600' : 'text-green-600'}`}>
-                {stats.averageResolveTime.increased ? (
-                  <ArrowUp className="h-4 w-4 mr-1" />
-                ) : (
-                  <ArrowDown className="h-4 w-4 mr-1" />
-                )}
-                {Math.abs(stats.averageResolveTime.change)} days
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="flex-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium">Resolved On Time</CardTitle>
-            <CardDescription>Target compliance</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline justify-between">
-              <div className="text-3xl font-bold">{stats.resolvedOnTime.value}</div>
-              <div className={`flex items-center text-sm ${stats.resolvedOnTime.increased ? 'text-green-600' : 'text-red-600'}`}>
-                {stats.resolvedOnTime.increased ? (
-                  <ArrowUp className="h-4 w-4 mr-1" />
-                ) : (
-                  <ArrowDown className="h-4 w-4 mr-1" />
-                )}
-                {Math.abs(stats.resolvedOnTime.change)}%
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <p className="text-sm text-gray-700 italic border-l-4 border-amber-200 pl-3">
+              "Emily's exceptional dedication to workplace safety has resulted in a 45% reduction in critical hazards at Riverside Plaza this quarter."
+            </p>
+          </div>
+        </div>
       </div>
-
-      <div className="flex justify-between items-center mb-4">
+      
+      <div className="flex justify-between items-center mb-6">
         <div className="flex gap-4">
           <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-[180px]">
@@ -290,20 +314,120 @@ export default function HazardAnalytics() {
         </div>
 
         <Button variant="outline">
-          Export Report
+          <span className="mr-2">Export Report</span> 📊
         </Button>
       </div>
 
-      <Tabs defaultValue="overview" className="mb-8">
-        <TabsList className="mb-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="sites">Sites</TabsTrigger>
-          <TabsTrigger value="types">Hazard Types</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-        </TabsList>
+      {/* Safety Performance Leaderboards */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-6 text-blue-900 border-b pb-2">Top Safety Performers</h2>
         
-        <TabsContent value="overview" className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-50 to-amber-100 px-4 py-3 border-b">
+              <h3 className="font-semibold flex items-center text-amber-800">
+                <Award className="h-5 w-5 mr-2 text-amber-500" />
+                Top Hazard Reporters
+              </h3>
+              <p className="text-xs text-amber-700">Personnel who reported the most hazards</p>
+            </div>
+            <div className="p-4">
+              <div className="space-y-5">
+                {topReportersData.map((reporter, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center ${
+                        index === 0 ? 'bg-amber-100 text-amber-700' : 
+                        index === 1 ? 'bg-slate-100 text-slate-700' : 
+                        index === 2 ? 'bg-amber-50 text-amber-800' : 'bg-slate-50 text-slate-600'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{reporter.name}</p>
+                        <p className="text-xs text-gray-500">{reporter.role}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-sm">{reporter.count}</p>
+                      <p className="text-xs text-gray-500">{reporter.site}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 px-4 py-3 border-b">
+              <h3 className="font-semibold flex items-center text-blue-800">
+                <Clock className="h-5 w-5 mr-2 text-blue-500" />
+                Fastest Responders
+              </h3>
+              <p className="text-xs text-blue-700">Personnel with fastest hazard response time</p>
+            </div>
+            <div className="p-4">
+              <div className="space-y-5">
+                {fastestRespondersData.map((responder, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center ${
+                        index === 0 ? 'bg-blue-100 text-blue-700' : 
+                        index === 1 ? 'bg-blue-50 text-blue-600' : 
+                        'bg-slate-50 text-slate-600'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{responder.name}</p>
+                        <p className="text-xs text-gray-500">{responder.role}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-sm">{responder.avgResponseTime}</p>
+                      <p className="text-xs text-gray-500">{responder.resolvedCount} resolved</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+            <div className="bg-gradient-to-r from-green-50 to-green-100 px-4 py-3 border-b">
+              <h3 className="font-semibold flex items-center text-green-800">
+                <Users className="h-5 w-5 mr-2 text-green-500" />
+                Top Safety Teams
+              </h3>
+              <p className="text-xs text-green-700">Teams with highest safety performance</p>
+            </div>
+            <div className="p-4">
+              <div className="space-y-5">
+                {topTeamsData.map((team, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className={`w-8 h-8 rounded-full mr-3 flex items-center justify-center ${
+                        index === 0 ? 'bg-green-100 text-green-700' : 
+                        index === 1 ? 'bg-green-50 text-green-600' : 
+                        'bg-slate-50 text-slate-600'
+                      }`}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{team.name}</p>
+                        <p className="text-xs text-gray-500">Led by {team.leader}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-sm">{team.safetyScore}/100</p>
+                      <p className="text-xs text-gray-500">{team.resolvedHazards} resolved</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
