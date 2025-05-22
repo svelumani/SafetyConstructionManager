@@ -247,7 +247,7 @@ export const hazardCommentsRelations = relations(hazardComments, ({ one }) => ({
 export const inspectionTemplates = pgTable('inspection_templates', {
   id: serial('id').primaryKey(),
   tenantId: integer('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
-  name: text('name').notNull(),
+  title: text('title').notNull(),
   description: text('description'),
   category: text('category').notNull(),
   version: text('version').default('1.0'),
@@ -785,19 +785,12 @@ export const insertHazardCommentSchema = createInsertSchema(hazardComments).omit
   updatedAt: true 
 });
 
-export const insertInspectionTemplateSchema = createInsertSchema(inspectionTemplates).omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true, 
-  isActive: true 
-});
+// Insert schemas for templates
+export const insertInspectionTemplateSchema = createInsertSchema(inspectionTemplates)
+  .omit({ id: true, createdAt: true, updatedAt: true, isActive: true });
 
-export const insertInspectionChecklistItemSchema = createInsertSchema(inspectionChecklistItems).omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true, 
-  isActive: true 
-});
+export const insertInspectionChecklistItemSchema = createInsertSchema(inspectionChecklistItems)
+  .omit({ id: true, createdAt: true, updatedAt: true, isActive: true });
 
 export const insertInspectionSchema = createInsertSchema(inspections).omit({ 
   id: true, 
