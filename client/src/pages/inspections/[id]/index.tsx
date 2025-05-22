@@ -834,7 +834,7 @@ export default function InspectionDetails() {
                                         size="sm" 
                                         variant="outline" 
                                         className="gap-2"
-                                        disabled // Photo upload not implemented yet
+                                        onClick={() => handlePhotoUpload(item.id)}
                                       >
                                         <Camera className="h-4 w-4" />
                                         Add Photo
@@ -854,6 +854,40 @@ export default function InspectionDetails() {
                                           <div>
                                             <span className="font-medium">Notes:</span>
                                             <p className="mt-1 whitespace-pre-wrap">{response.notes}</p>
+                                          </div>
+                                        )}
+                                        
+                                        {/* Show photos if they exist */}
+                                        {response.photoUrls && response.photoUrls.length > 0 && (
+                                          <div className="mt-4">
+                                            <span className="font-medium">Photos:</span>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                                              {response.photoUrls.map((url: string, index: number) => (
+                                                <div key={index} className="relative group rounded-md overflow-hidden border border-border">
+                                                  <div className="aspect-square w-full bg-muted flex items-center justify-center">
+                                                    <img
+                                                      src={url}
+                                                      alt={`Photo ${index + 1}`}
+                                                      className="w-full h-full object-cover"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                      <Button
+                                                        type="button" 
+                                                        variant="secondary"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          window.open(url, '_blank');
+                                                        }}
+                                                      >
+                                                        <Eye className="h-4 w-4" />
+                                                      </Button>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
                                           </div>
                                         )}
                                       </>
@@ -1087,6 +1121,84 @@ export default function InspectionDetails() {
             </Button>
             <Button onClick={handleAddFinding} disabled={addFindingMutation.isPending}>
               {addFindingMutation.isPending ? "Saving..." : "Save Finding"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Photo Upload Dialog */}
+      <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Upload Photos</DialogTitle>
+            <DialogDescription>
+              Upload photos to document the inspection item. You can take new photos or upload existing ones.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <FileUpload
+              value={photoFiles[currentItemId || 0] || []}
+              onChange={(files) => {
+                setPhotoFiles(prev => ({
+                  ...prev,
+                  [currentItemId || 0]: files
+                }));
+              }}
+              showCamera={true}
+              multiple={true}
+              maxFiles={5}
+              maxSize={5} // 5MB
+            />
+            
+            {/* Photo preview - if photos already exist */}
+            {responses[currentItemId || 0]?.photoUrls?.length > 0 && (
+              <div className="mt-6">
+                <h4 className="text-sm font-medium mb-2">Existing Photos</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {responses[currentItemId || 0]?.photoUrls.map((url: string, index: number) => (
+                    <div key={index} className="relative group rounded-md overflow-hidden border border-border">
+                      <div className="aspect-square w-full bg-muted flex items-center justify-center">
+                        <img
+                          src={url}
+                          alt={`Photo ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Button
+                            type="button" 
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => window.open(url, '_blank')}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setPhotoDialogOpen(false);
+              // Clear the current files
+              if (currentItemId) {
+                setPhotoFiles(prev => ({
+                  ...prev,
+                  [currentItemId]: []
+                }));
+              }
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => currentItemId && savePhotos(currentItemId, photoFiles[currentItemId] || [])}
+              disabled={!currentItemId || !(photoFiles[currentItemId || 0]?.length > 0)}
+            >
+              Upload Photos
             </Button>
           </DialogFooter>
         </DialogContent>
