@@ -168,7 +168,9 @@ export default function IncidentDetails() {
     
     return (
       <Badge variant={variant} className="text-base px-3 py-1">
-        {severity.charAt(0).toUpperCase() + severity.slice(1)}
+        {severity && typeof severity === 'string' 
+          ? severity.charAt(0).toUpperCase() + severity.slice(1)
+          : 'Unknown'}
       </Badge>
     );
   };
@@ -187,13 +189,19 @@ export default function IncidentDetails() {
     
     return (
       <Badge variant={variant} className="text-base px-3 py-1">
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status && typeof status === 'string' 
+          ? status.charAt(0).toUpperCase() + status.slice(1)
+          : 'Unknown'}
       </Badge>
     );
   };
 
   // Available status transitions based on current status
   const getAvailableStatusTransitions = (currentStatus: string) => {
+    if (!currentStatus || typeof currentStatus !== 'string') {
+      return [];
+    }
+    
     switch (currentStatus) {
       case "reported":
         return ["investigating"];
