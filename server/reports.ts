@@ -198,24 +198,17 @@ export async function generateReport(req: Request, res: Response) {
     fs.writeFileSync(reportFilePath, buffer);
 
     // Save a record of the generated report in the database
-    const insertResult = await db
-      .insert(schema.reportHistory)
-      .values({
-        siteId: site.id,
-        userId: req.user.id,
-        startDate,
-        endDate,
-
-        reportName: reportFileName,
-        reportUrl: `/api/reports/download/${reportFileName}`,
-        status: "completed",
-        includeHazards,
-        includeIncidents,
-        includeInspections,
-        includePermits,
-        includeTraining,
-      })
-      .returning();
+    try {
+      await db.execute(sql`
+        INSERT INTO report_history 
+        (tenant_id, user_id, site_id, start_date, end_date, report_name, report_url, status)
+        VALUES 
+        (${req.user.tenantId}, ${req.user.id}, ${site.id}, ${startDate}, ${endDate}, 
+         ${reportFileName}, ${`/api/reports/download/${reportFileName}`}, ${"completed"})
+      `);
+    } catch (error) {
+      console.error("Error saving report history:", error);
+    }
 
     // Return success response
     res.status(200).json({
