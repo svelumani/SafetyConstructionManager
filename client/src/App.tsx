@@ -43,8 +43,6 @@ import InspectionDetail from "@/pages/inspections/[id]";
 import NewPermit from "@/pages/permits/new";
 import PermitDetail from "@/pages/permits/[id]";
 // Import incident-specific pages
-import NewIncident from "@/pages/incidents/new";
-import IncidentDetail from "@/pages/incidents/[id]";
 
 function Router() {
   return (
@@ -79,9 +77,15 @@ function Router() {
       <ProtectedRoute path="/permits/:id" component={PermitDetail} />
       
       {/* Incident management routes */}
-      <ProtectedRoute path="/incidents" component={Incidents} />
-      <ProtectedRoute path="/incidents/new" component={Incidents} />
-      <ProtectedRoute path="/incidents/:id" component={Incidents} />
+      <Route path="/incidents/new">
+        <ProtectedRoute component={() => import("@/pages/incidents/new").then(mod => <mod.default />)} />
+      </Route>
+      <Route path="/incidents/:id">
+        <ProtectedRoute component={() => import("@/pages/incidents/[id]").then(mod => <mod.default />)} />
+      </Route>
+      <Route path="/incidents">
+        <ProtectedRoute component={Incidents} />
+      </Route>
       <ProtectedRoute path="/training" component={Training} />
       <ProtectedRoute path="/safety-scores" component={SafetyScores} />
       <ProtectedRoute path="/users" component={Users} />
