@@ -20,6 +20,8 @@ import {
   MessageCircle,
   Building,
   User,
+  Plus,
+  Image,
 } from "lucide-react";
 
 import { cn, formatUTCToLocal } from "@/lib/utils";
@@ -46,6 +48,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FileUpload } from "@/components/ui/file-upload";
+import { uploadFiles } from "@/lib/file-utils";
 import {
   Tabs,
   TabsContent,
@@ -149,6 +153,8 @@ export default function InspectionDetails() {
   const [activeTab, setActiveTab] = useState("details");
   const [responses, setResponses] = useState<Record<number, any>>({});
   const [findings, setFindings] = useState<any[]>([]);
+  const [photoFiles, setPhotoFiles] = useState<Record<number, File[]>>({});
+  const [currentItemId, setCurrentItemId] = useState<number | null>(null);
   const [newFinding, setNewFinding] = useState({
     description: "",
     recommendedAction: "",
@@ -158,6 +164,7 @@ export default function InspectionDetails() {
     status: "open",
   });
   const [findingDialogOpen, setFindingDialogOpen] = useState(false);
+  const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
 
   // Fetch inspection details
   const { 
