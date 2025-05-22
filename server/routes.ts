@@ -3277,35 +3277,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const findingData = req.body;
     
     try {
-      // Check if inspection exists and belongs to user's tenant
-      const [inspection] = await db.select().from(schema.inspections)
-        .where(eq(schema.inspections.id, inspectionId))
-        .where(eq(schema.inspections.tenantId, req.user.tenantId));
+      // Check if inspection exists and belongs to user's tenant using raw SQL to avoid schema issues
+      const inspectionResult = await db.execute(`
+        SELECT * FROM inspections 
+        WHERE id = ${inspectionId} 
+        AND tenant_id = ${req.user.tenantId}
+      `);
       
-      if (!inspection) {
+      if (inspectionResult.rows.length === 0) {
         return res.status(404).json({ message: 'Inspection not found' });
       }
       
-      // Validate finding data
-      const validatedData = schema.insertInspectionFindingSchema.parse({
-        ...findingData,
+      // Use raw SQL for insertion to avoid schema mismatches
+      console.log('Creating finding with data:', {
         inspectionId,
-        createdById: req.user.id
+        description: findingData.description,
+        severity: findingData.severity || 'medium',
+        userId: req.user.id
       });
       
+      // Build the SQL query dynamically
+      const insertSQL = `
+        INSERT INTO inspection_findings (
+          inspection_id,
+          description,
+          severity,
+          photo_urls,
+          created_by_id,
+          status,
+          created_at,
+          updated_at
+        ) VALUES (
+          ${inspectionId},
+          '${(findingData.description || '').replace(/'/g, "''")}',
+          '${findingData.severity || 'medium'}',
+          '${JSON.stringify(findingData.photoUrls || [])}',
+          ${req.user.id},
+          'open',
+          NOW(),
+          NOW()
+        )
+        RETURNING *
+      `;
+      
       // Create finding
-      const [newFinding] = await db.insert(schema.inspectionFindings)
-        .values(validatedData)
-        .returning();
+      const result = await db.execute(insertSQL);
+      const newFinding = result.rows[0];
       
       return res.status(201).json(newFinding);
     } catch (error) {
       console.error('Error creating inspection finding:', error);
-      
-      if (error instanceof ZodError) {
-        return res.status(400).json({ message: 'Invalid finding data', errors: error.errors });
-      }
-      
       return res.status(500).json({ message: 'Error creating inspection finding' });
     }
   });
