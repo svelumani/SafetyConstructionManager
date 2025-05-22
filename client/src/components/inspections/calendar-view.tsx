@@ -53,11 +53,13 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
     const inspectionDates: { [key: string]: Inspection[] } = {};
     
     inspections.forEach(inspection => {
-      const dateOnly = inspection.scheduledDate.split('T')[0];
-      if (!inspectionDates[dateOnly]) {
-        inspectionDates[dateOnly] = [];
+      if (inspection && inspection.scheduledDate) {
+        const dateOnly = inspection.scheduledDate.split('T')[0];
+        if (!inspectionDates[dateOnly]) {
+          inspectionDates[dateOnly] = [];
+        }
+        inspectionDates[dateOnly].push(inspection);
       }
-      inspectionDates[dateOnly].push(inspection);
     });
     
     return inspectionDates;
@@ -66,7 +68,13 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
   const inspectionDates = getInspectionsByDate();
 
   // Custom day renderer to show inspection indicators
-  const renderDay = (day: Date) => {
+  const renderDay = (props: { day: Date }) => {
+    // Make sure we have a valid Date object
+    if (!props.day || !(props.day instanceof Date)) {
+      return <div className="relative w-full h-full flex items-center justify-center">{props.day ? String(props.day.getDate()) : ''}</div>;
+    }
+    
+    const day = props.day;
     const dateString = day.toISOString().split('T')[0];
     const hasInspections = inspectionDates[dateString]?.length > 0;
     const count = inspectionDates[dateString]?.length || 0;
@@ -130,17 +138,23 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
   };
 
   // Function to get status badge styling
-  const getStatusBadgeStyle = (status: string) => {
+  const getStatusBadgeStyle = (status: string | undefined) => {
+    if (!status) return "bg-gray-100 text-gray-800";
+    
     return cn(
       "px-2 py-1 text-xs rounded-full font-medium",
       status === "pending" ? "bg-amber-100 text-amber-800" :
       status === "in_progress" ? "bg-blue-100 text-blue-800" :
-      "bg-green-100 text-green-800"
+      status === "scheduled" ? "bg-purple-100 text-purple-800" :
+      status === "completed" ? "bg-green-100 text-green-800" :
+      "bg-gray-100 text-gray-800"
     );
   };
 
   // Function to format status text
-  const formatStatus = (status: string) => {
+  const formatStatus = (status: string | undefined) => {
+    if (!status) return "Unknown";
+    
     return status.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
@@ -159,7 +173,7 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
           onSelect={setDate}
           className="rounded-md border"
           components={{
-            Day: ({ day }) => renderDay(day),
+            Day: renderDay,
           }}
           disabled={{ before: new Date(new Date().setDate(new Date().getDate() - 180)) }}
         />
@@ -168,9 +182,11 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
         <Dialog open={selectedInspection !== null} onOpenChange={closeInspectionDetails}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>{selectedInspection?.title}</DialogTitle>
+              <DialogTitle>{selectedInspection?.title || "Inspection Details"}</DialogTitle>
               <DialogDescription>
-                Scheduled for {selectedInspection ? formatUTCToLocal(selectedInspection.scheduledDate, "PPpp") : ""}
+                {selectedInspection && selectedInspection.scheduledDate ? 
+                  `Scheduled for ${formatUTCToLocal(selectedInspection.scheduledDate, "PPpp")}` : 
+                  "Inspection schedule details"}
               </DialogDescription>
             </DialogHeader>
             
@@ -222,7 +238,11 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
         <Dialog open={showMultipleDialog} onOpenChange={closeMultipleInspections}>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Inspections for {multipleInspections[0] ? formatUTCToLocal(multipleInspections[0].scheduledDate, "PP") : ""}</DialogTitle>
+              <DialogTitle>
+                {multipleInspections[0] && multipleInspections[0].scheduledDate 
+                  ? `Inspections for ${formatUTCToLocal(multipleInspections[0].scheduledDate, "PP")}` 
+                  : "Scheduled Inspections"}
+              </DialogTitle>
               <DialogDescription>
                 {multipleInspections.length} inspections scheduled for this date
               </DialogDescription>
