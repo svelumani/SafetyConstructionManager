@@ -3013,21 +3013,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const inspection = result.rows[0];
       
-      // Get responses using raw SQL
-      const responsesResult = await db.execute(`
-        SELECT * FROM inspection_responses 
-        WHERE inspection_id = ${inspectionId}
-      `);
-      const responses = responsesResult.rows;
-      
-      // Get findings using raw SQL
-      const findingsResult = await db.execute(`
-        SELECT * FROM inspection_findings 
-        WHERE inspection_id = ${inspectionId}
-        AND is_active = true
-      `);
-      const findings = findingsResult.rows;
-      
       // Format the response to include site details
       const site = {
         id: inspection.site_id,
@@ -3044,6 +3029,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           lastName: inspection.inspector_last_name
         };
       }
+      
+      // Findings and responses are stored as JSONB fields in the inspections table
+      const findings = inspection.findings || [];
+      const responses = []; // No responses table, may need to add this later
       
       // Create a well-formatted response object
       return res.status(200).json({
