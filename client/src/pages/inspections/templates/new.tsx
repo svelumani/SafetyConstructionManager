@@ -501,8 +501,8 @@ export default function NewInspectionTemplate() {
                               />
                               
                               {/* Show options field for multiple choice or checkbox questions */}
-                              {(watch(`sections.${sectionIndex}.items.${itemIndex}.type`) === 'multiple_choice' || 
-                                watch(`sections.${sectionIndex}.items.${itemIndex}.type`) === 'checkbox') && (
+                              {(form.watch(`sections.${sectionIndex}.items.${itemIndex}.type`) === 'multiple_choice' || 
+                                form.watch(`sections.${sectionIndex}.items.${itemIndex}.type`) === 'checkbox') && (
                                 <FormField
                                   control={form.control}
                                   name={`sections.${sectionIndex}.items.${itemIndex}.options`}
