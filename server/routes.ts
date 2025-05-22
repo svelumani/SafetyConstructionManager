@@ -1193,6 +1193,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Teams API Routes for sites
+  app.get("/api/sites/:siteId/teams", requireAuth, async (req, res) => {
+    try {
+      const siteId = parseInt(req.params.siteId);
+      if (isNaN(siteId)) {
+        return res.status(400).json({ message: "Invalid site ID" });
+      }
+      
+      // Check if site exists and belongs to user's tenant
+      const site = await storage.getSite(siteId);
+      if (!site) {
+        return res.status(404).json({ message: "Site not found" });
+      }
+      
+      if (site.tenantId !== req.user.tenantId) {
+        return res.status(403).json({ message: "You don't have permission to access this site" });
+      }
+      
+      const teams = await storage.listTeamsBySite(siteId);
+      
+      res.json({ teams });
+    } catch (err) {
+      console.error("Error fetching site teams:", err);
+      res.status(500).json({ message: "Failed to fetch site teams" });
+    }
+  });
+
   // Site Personnel Management
   app.get("/api/sites/:siteId/personnel", requireAuth, async (req, res) => {
     try {

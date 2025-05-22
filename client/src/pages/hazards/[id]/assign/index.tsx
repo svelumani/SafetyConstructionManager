@@ -105,6 +105,20 @@ export default function AssignHazard() {
   }>({
     queryKey: ["/api/sites", hazard?.siteId, "personnel"],
     enabled: !!hazard?.siteId,
+    select: (data) => {
+      // Transform the data to match the expected format if needed
+      const personnel = data?.personnel || [];
+      
+      // Extract user information and format it appropriately
+      const formattedPersonnel = personnel.map((p: any) => ({
+        id: p.userId || p.id,
+        firstName: p.firstName || p.userName?.split(' ')[0] || 'Unknown',
+        lastName: p.lastName || p.userName?.split(' ')[1] || 'User',
+        email: p.email || p.userEmail || '',
+      }));
+      
+      return { personnel: formattedPersonnel };
+    }
   });
   
   // Fetch teams for the site
@@ -113,6 +127,11 @@ export default function AssignHazard() {
   }>({
     queryKey: ["/api/sites", hazard?.siteId, "teams"],
     enabled: !!hazard?.siteId && (assignmentTarget === TARGET_OPTIONS.TEAM),
+    select: (data) => {
+      // Transform the data to match the expected format if needed
+      const teams = data?.teams || data || [];
+      return { teams };
+    }
   });
 
   // Fetch subcontractors
