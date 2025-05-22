@@ -99,10 +99,30 @@ export default function AssignHazard() {
     queryKey: ["/api/hazards", hazardId],
     refetchOnWindowFocus: false,
     retry: 1,
+    onError: (error) => {
+      console.error("Error fetching hazard details:", error);
+    },
     select: (data) => {
+      // Enhanced safety checks and better fallbacks for site information
+      if (!data) {
+        return {
+          id: hazardId,
+          title: "Loading...",
+          description: "Hazard details are loading...",
+          severity: "medium",
+          status: "open",
+          siteId: 0,
+          site: { id: 0, name: "Loading..." }
+        };
+      }
+      
       // Make sure site information is properly structured
       return {
         ...data,
+        title: data.title || "Untitled Hazard",
+        description: data.description || "No description available",
+        severity: data.severity || "medium",
+        status: data.status || "open",
         site: data.site || { id: data.siteId || 0, name: "Unknown Site" }
       };
     }
