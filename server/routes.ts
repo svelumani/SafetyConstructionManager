@@ -3133,7 +3133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `);
       
       // Properly escape string values to prevent SQL injection
-      const response = responseData.response || '';
+      const response = responseData.status || responseData.response || '';
       const notes = responseData.notes || null;
       const isCompliant = responseData.isCompliant !== undefined ? responseData.isCompliant : null;
       const photoUrls = responseData.photoUrls ? JSON.stringify(responseData.photoUrls) : '[]';
