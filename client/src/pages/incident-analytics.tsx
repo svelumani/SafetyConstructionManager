@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Award,
   BarChart3,
+  Building,
   Calendar,
   ChevronUp,
   ClipboardList,
