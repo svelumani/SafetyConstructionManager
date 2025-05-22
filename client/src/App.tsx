@@ -13,6 +13,8 @@ import Inspections from "@/pages/inspections";
 import Permits from "@/pages/permits";
 import Incidents from "@/pages/incidents";
 import Training from "@/pages/training";
+import TrainingNew from "@/pages/training/new";
+import TrainingCourseView from "@/pages/training/[id]/index";
 import SafetyScores from "@/pages/safety-scores";
 import Users from "@/pages/users";
 import UserProfile from "@/pages/user-profile";
@@ -84,6 +86,10 @@ function Router() {
       <ProtectedRoute path="/incidents/analytics" component={IncidentAnalytics} />
       <ProtectedRoute path="/incidents/:id" component={IncidentDetail} />
       <ProtectedRoute path="/incidents" component={Incidents} />
+      
+      {/* Training management routes */}
+      <ProtectedRoute path="/training/new" component={TrainingNew} />
+      <ProtectedRoute path="/training/:id" component={TrainingCourseView} />
       <ProtectedRoute path="/training" component={Training} />
       <ProtectedRoute path="/safety-scores" component={SafetyScores} />
       <ProtectedRoute path="/users" component={Users} />
