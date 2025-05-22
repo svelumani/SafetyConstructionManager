@@ -63,45 +63,47 @@ export default function Incidents() {
   )?.length || 0;
 
   function getStatusBadge(status: string) {
+    let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
+    
+    if (status === "reported") {
+      variant = "destructive";
+    } else if (status === "investigating") {
+      variant = "secondary";
+    } else if (status === "resolved") {
+      variant = "default";
+    }
+    
     return (
-      <Badge
-        variant={
-          status === "reported"
-            ? "destructive"
-            : status === "investigating"
-            ? "warning"
-            : status === "resolved"
-            ? "default"
-            : status === "closed"
-            ? "success"
-            : "outline"
-        }
-      >
+      <Badge variant={variant}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   }
 
   function getSeverityBadge(severity: string) {
+    let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
+    
+    if (severity === "critical") {
+      variant = "destructive";
+    } else if (severity === "major") {
+      variant = "destructive";
+    } else if (severity === "moderate") {
+      variant = "secondary";
+    } else if (severity === "minor") {
+      variant = "default";
+    }
+    
     return (
-      <Badge
-        variant={
-          severity === "critical"
-            ? "destructive"
-            : severity === "major"
-            ? "warning"
-            : severity === "moderate"
-            ? "secondary"
-            : "outline"
-        }
-      >
+      <Badge variant={variant}>
         {severity.charAt(0).toUpperCase() + severity.slice(1)}
       </Badge>
     );
   }
 
   return (
-    <Layout title="Incidents" description="Manage and track workplace incidents across all sites">
+    <Layout>
+      <h1 className="text-3xl font-bold mb-2">Incidents</h1>
+      <p className="text-muted-foreground mb-6">Manage and track workplace incidents across all sites</p>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
