@@ -269,13 +269,24 @@ export const inspectionSections = pgTable('inspection_sections', {
   updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
 });
 
+// Define inspection item type enum
+export const inspectionItemTypeEnum = pgEnum('inspection_item_type', [
+  'yes_no',
+  'multiple_choice',
+  'checkbox',
+  'numeric',
+  'text'
+]);
+
 // Inspection Items
 export const inspectionItems = pgTable('inspection_items', {
   id: serial('id').primaryKey(),
   sectionId: integer('section_id').references(() => inspectionSections.id, { onDelete: 'cascade' }).notNull(),
   question: text('question').notNull(),
-  type: text('type').notNull().default('yes_no'),
+  type: inspectionItemTypeEnum('type').notNull().default('yes_no'),
+  description: text('description'),
   required: boolean('required').notNull().default(true),
+  category: text('category'),
   options: jsonb('options'),
   order: integer('order').notNull().default(0),
   createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
