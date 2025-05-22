@@ -52,25 +52,37 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
   const getInspectionsByDate = () => {
     const inspectionDates: { [key: string]: Inspection[] } = {};
     
-    // Add some debug logging
-    console.log("Inspections data:", inspections);
-    
     inspections.forEach(inspection => {
       if (inspection && inspection.scheduledDate) {
         try {
-          const dateOnly = inspection.scheduledDate.split('T')[0];
+          // Ensure we're working with snake_case or camelCase consistently
+          const scheduledDate = inspection.scheduledDate || inspection.scheduled_date;
+          
+          if (!scheduledDate) {
+            console.warn("Missing scheduled date for inspection:", inspection.id);
+            return;
+          }
+          
+          // Handle date formats safely
+          let dateOnly;
+          if (scheduledDate.includes('T')) {
+            dateOnly = scheduledDate.split('T')[0];
+          } else if (scheduledDate.includes(' ')) {
+            dateOnly = scheduledDate.split(' ')[0];
+          } else {
+            dateOnly = scheduledDate;
+          }
+          
           if (!inspectionDates[dateOnly]) {
             inspectionDates[dateOnly] = [];
           }
           inspectionDates[dateOnly].push(inspection);
-          console.log(`Added inspection to date ${dateOnly}:`, inspection.title);
         } catch (error) {
           console.error("Error processing inspection date:", inspection, error);
         }
       }
     });
     
-    console.log("Grouped inspections by date:", inspectionDates);
     return inspectionDates;
   };
 
@@ -191,8 +203,8 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
         <Dialog open={selectedInspection !== null} onOpenChange={closeInspectionDetails}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>{selectedInspection?.title || "Inspection Details"}</DialogTitle>
-              <DialogDescription>
+              <DialogTitle id="dialog-title">{selectedInspection?.title || "Inspection Details"}</DialogTitle>
+              <DialogDescription id="dialog-description">
                 {selectedInspection && selectedInspection.scheduledDate ? 
                   `Scheduled for ${formatUTCToLocal(selectedInspection.scheduledDate, "PPpp")}` : 
                   "Inspection schedule details"}
@@ -247,12 +259,12 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
         <Dialog open={showMultipleDialog} onOpenChange={closeMultipleInspections}>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle id="dialog-multi-title">
                 {multipleInspections[0] && multipleInspections[0].scheduledDate 
                   ? `Inspections for ${formatUTCToLocal(multipleInspections[0].scheduledDate, "PP")}` 
                   : "Scheduled Inspections"}
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription id="dialog-multi-description">
                 {multipleInspections.length} inspections scheduled for this date
               </DialogDescription>
             </DialogHeader>
