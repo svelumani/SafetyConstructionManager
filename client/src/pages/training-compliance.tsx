@@ -78,9 +78,9 @@ type ComplianceRecord = {
 export default function TrainingCompliance() {
   const [activeTab, setActiveTab] = useState("overdue");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState<string>("");
+  const [selectedCourse, setSelectedCourse] = useState<string>("all-courses");
   const [showFilters, setShowFilters] = useState(false);
-  const [filterByTeam, setFilterByTeam] = useState<string>("");
+  const [filterByTeam, setFilterByTeam] = useState<string>("all-teams");
   const [selectedRecord, setSelectedRecord] = useState<ComplianceRecord | null>(null);
   const [escalationDialogOpen, setEscalationDialogOpen] = useState(false);
   const { user } = useAuth();
@@ -217,12 +217,12 @@ export default function TrainingCompliance() {
       }
       
       // Filter by selected course
-      if (selectedCourse && record.courseId.toString() !== selectedCourse) {
+      if (selectedCourse && selectedCourse !== "all-courses" && record.courseId.toString() !== selectedCourse) {
         return false;
       }
       
       // Filter by team
-      if (filterByTeam && record.userTeam !== filterByTeam) {
+      if (filterByTeam && filterByTeam !== "all-teams" && record.userTeam !== filterByTeam) {
         return false;
       }
       
