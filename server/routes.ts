@@ -322,8 +322,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const offset = parseInt(req.query.offset as string) || 0;
       const tenantId = req.user.tenantId;
       
-      const users = await storage.listUsers(tenantId, { limit, offset });
-      const total = await storage.countUsers(tenantId);
+      // Get users directly from database
+      const users = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.tenantId, tenantId))
+        .where(eq(schema.users.isActive, true))
+        .limit(limit)
+        .offset(offset);
+      
+      // Count total users
+      const [countResult] = await db
+        .select({ count: sql`count(*)` })
+        .from(schema.users)
+        .where(eq(schema.users.tenantId, tenantId))
+        .where(eq(schema.users.isActive, true));
+      
+      const total = Number(countResult?.count || 0);
       
       res.json({ users: users.map(user => ({ ...user, password: undefined })), total });
     } catch (err) {
@@ -637,8 +652,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const offset = parseInt(req.query.offset as string) || 0;
       const tenantId = req.user.tenantId;
       
-      const sites = await storage.listSites(tenantId, { limit, offset });
-      const total = await storage.countSites(tenantId);
+      // Get sites directly from database
+      const sites = await db
+        .select()
+        .from(schema.sites)
+        .where(eq(schema.sites.tenantId, tenantId))
+        .where(eq(schema.sites.isActive, true))
+        .limit(limit)
+        .offset(offset);
+      
+      // Count total sites
+      const [countResult] = await db
+        .select({ count: sql`count(*)` })
+        .from(schema.sites)
+        .where(eq(schema.sites.tenantId, tenantId))
+        .where(eq(schema.sites.isActive, true));
+      
+      const total = Number(countResult?.count || 0);
       
       res.json({ sites, total });
     } catch (err) {
@@ -1848,10 +1878,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const siteId = req.query.siteId ? parseInt(req.query.siteId as string) : undefined;
       const status = req.query.status as string;
       
-      const inspections = await storage.listInspections(tenantId, { 
-        limit, offset, siteId, status 
-      });
-      const total = await storage.countInspections(tenantId, { siteId, status });
+      // Create base query
+      let query = db
+        .select()
+        .from(schema.inspections)
+        .where(eq(schema.inspections.tenantId, tenantId))
+        .where(eq(schema.inspections.isActive, true));
+      
+      // Add filters if provided
+      if (siteId) {
+        query = query.where(eq(schema.inspections.siteId, siteId));
+      }
+      
+      if (status) {
+        query = query.where(eq(schema.inspections.status, status));
+      }
+      
+      // Get paginated inspections
+      const inspections = await query
+        .orderBy(desc(schema.inspections.createdAt))
+        .limit(limit)
+        .offset(offset);
+      
+      // Count total records with same filters
+      const countQuery = db
+        .select({ count: sql`count(*)` })
+        .from(schema.inspections)
+        .where(eq(schema.inspections.tenantId, tenantId))
+        .where(eq(schema.inspections.isActive, true));
+      
+      // Add the same filters to count query
+      if (siteId) {
+        countQuery.where(eq(schema.inspections.siteId, siteId));
+      }
+      
+      if (status) {
+        countQuery.where(eq(schema.inspections.status, status));
+      }
+      
+      const [countResult] = await countQuery;
+      const total = Number(countResult?.count || 0);
       
       res.json({ inspections, total });
     } catch (err) {
