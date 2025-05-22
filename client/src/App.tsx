@@ -31,6 +31,7 @@ import NewHazardReport from "@/pages/hazards/new";
 import HazardDetail from "@/pages/hazards/[id]";
 import AssignHazard from "@/pages/hazards/[id]/assign";
 import HazardAnalytics from "@/pages/hazards/analytics-redesigned";
+import InspectionAnalytics from "@/pages/inspections/analytics";
 // Import inspection-specific pages
 import InspectionTemplates from "@/pages/inspections/templates";
 import NewInspectionTemplate from "@/pages/inspections/templates/new";
@@ -58,7 +59,7 @@ function Router() {
       
       {/* Inspection management routes */}
       <ProtectedRoute path="/inspections" component={Inspections} />
-      <ProtectedRoute path="/inspections/analytics" component={() => import("@/pages/inspections/analytics").then(mod => mod.default)} />
+      <ProtectedRoute path="/inspections/analytics" component={InspectionAnalytics} />
       <ProtectedRoute path="/inspections/templates" component={InspectionTemplates} />
       <ProtectedRoute path="/inspections/templates/new" component={NewInspectionTemplate} />
       <ProtectedRoute path="/inspections/templates/:id" component={InspectionTemplateDetail} />
