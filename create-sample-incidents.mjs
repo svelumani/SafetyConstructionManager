@@ -1,30 +1,29 @@
 // Script to create sample incidents for testing the incident management module
-import { db } from './server/db.js';
-import { sql } from 'drizzle-orm';
+import { pool } from './server/db.js';
 
 async function createIncidents() {
   console.log("Creating sample incidents...");
 
   try {
     // Get a tenant ID for the sample data
-    const [tenant] = await db.execute(sql`SELECT id FROM tenants LIMIT 1`);
-    if (!tenant || !tenant.rows.length) {
+    const tenantResult = await pool.query("SELECT id FROM tenants LIMIT 1");
+    if (!tenantResult.rows.length) {
       console.error("No tenants found in the database");
       return;
     }
-    const tenantId = tenant.rows[0].id;
+    const tenantId = tenantResult.rows[0].id;
 
     // Get some site IDs
-    const siteResult = await db.execute(sql`SELECT id, name FROM sites WHERE tenant_id = ${tenantId} LIMIT 5`);
-    if (!siteResult || !siteResult.rows.length) {
+    const siteResult = await pool.query("SELECT id, name FROM sites WHERE tenant_id = $1 LIMIT 5", [tenantId]);
+    if (!siteResult.rows.length) {
       console.error("No sites found for this tenant");
       return;
     }
     const sites = siteResult.rows;
 
     // Get some user IDs for reported_by field
-    const userResult = await db.execute(sql`SELECT id, name FROM users WHERE tenant_id = ${tenantId} LIMIT 5`);
-    if (!userResult || !userResult.rows.length) {
+    const userResult = await pool.query("SELECT id, name FROM users WHERE tenant_id = $1 LIMIT 5", [tenantId]);
+    if (!userResult.rows.length) {
       console.error("No users found for this tenant");
       return;
     }
@@ -158,22 +157,24 @@ async function createIncidents() {
       const photoUrls = JSON.stringify(incident.photoUrls || []);
       
       // Insert the incident into the database
-      await db.execute(sql`
+      await pool.query(`
         INSERT INTO incident_reports (
           tenant_id, site_id, reported_by_id, title, description, incident_date, location,
           incident_type, severity, status, injury_occurred, injury_details, witnesses,
           root_cause, corrective_actions, preventative_measures, photo_urls,
           created_at, updated_at, is_active
         ) VALUES (
-          ${tenantId}, ${site.id}, ${user.id}, ${incident.title}, ${incident.description},
-          ${incidentDateStr}, ${incident.location}, ${incident.incidentType}, ${incident.severity},
-          ${incident.status}, ${incident.injuryOccurred}, 
-          ${incident.injuryDetails || null}, ${incident.witnesses || null},
-          ${incident.rootCause || null}, ${incident.correctiveActions || null},
-          ${incident.preventativeMeasures || null}, ${photoUrls},
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 
           NOW(), NOW(), true
         )
-      `);
+      `, [
+        tenantId, site.id, user.id, incident.title, incident.description,
+        incidentDateStr, incident.location, incident.incidentType, incident.severity,
+        incident.status, incident.injuryOccurred, 
+        incident.injuryDetails || null, incident.witnesses || null,
+        incident.rootCause || null, incident.correctiveActions || null,
+        incident.preventativeMeasures || null, photoUrls
+      ]);
       
       console.log(`Created incident: ${incident.title}`);
     }
