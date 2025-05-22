@@ -123,7 +123,11 @@ export default function IncidentDetails() {
   };
 
   // Get status icon based on current status
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string | undefined) => {
+    if (!status || typeof status !== 'string') {
+      return <AlertCircle className="h-6 w-6" />;
+    }
+    
     switch (status) {
       case "reported":
         return <AlertCircle className="h-6 w-6 text-red-500" />;
@@ -139,7 +143,11 @@ export default function IncidentDetails() {
   };
 
   // Get severity icon based on severity level
-  const getSeverityIcon = (severity: string) => {
+  const getSeverityIcon = (severity: string | undefined) => {
+    if (!severity || typeof severity !== 'string') {
+      return <AlertTriangle className="h-6 w-6" />;
+    }
+    
     switch (severity) {
       case "critical":
         return <AlertCircle className="h-6 w-6 text-red-500" />;
@@ -155,8 +163,12 @@ export default function IncidentDetails() {
   };
 
   // Get severity badge
-  const getSeverityBadge = (severity: string) => {
+  const getSeverityBadge = (severity: string | undefined) => {
     let variant: "default" | "secondary" | "destructive" | "outline" = "secondary";
+    
+    if (!severity || typeof severity !== 'string') {
+      return <Badge variant="secondary" className="text-base px-3 py-1">Unknown</Badge>;
+    }
     
     if (severity === "critical" || severity === "major") {
       variant = "destructive";
@@ -176,7 +188,11 @@ export default function IncidentDetails() {
   };
 
   // Get status badge
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string | undefined) => {
+    if (!status || typeof status !== 'string') {
+      return <Badge variant="outline" className="text-base px-3 py-1">Unknown</Badge>;
+    }
+    
     let variant: "default" | "secondary" | "destructive" | "outline" = "outline";
     
     if (status === "reported") {
@@ -189,9 +205,7 @@ export default function IncidentDetails() {
     
     return (
       <Badge variant={variant} className="text-base px-3 py-1">
-        {status && typeof status === 'string' 
-          ? status.charAt(0).toUpperCase() + status.slice(1)
-          : 'Unknown'}
+        {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
@@ -438,7 +452,9 @@ export default function IncidentDetails() {
               {getStatusIcon(incident.status)}
               <div>
                 <div className="font-medium text-lg">
-                  {incident.status.charAt(0).toUpperCase() + incident.status.slice(1)}
+                  {incident.status && typeof incident.status === 'string' 
+                    ? incident.status.charAt(0).toUpperCase() + incident.status.slice(1)
+                    : 'Unknown'}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   Updated {formatUTCToLocal(incident.updatedAt, "PP")}
@@ -467,7 +483,9 @@ export default function IncidentDetails() {
                       <div className="flex items-center gap-2">
                         {getStatusIcon(incident.status)}
                         <span className="font-medium">
-                          {incident.status.charAt(0).toUpperCase() + incident.status.slice(1)}
+                          {incident.status && typeof incident.status === 'string'
+                            ? incident.status.charAt(0).toUpperCase() + incident.status.slice(1)
+                            : 'Unknown'}
                         </span>
                       </div>
                     </div>
@@ -486,7 +504,9 @@ export default function IncidentDetails() {
                         >
                           {getStatusIcon(status)}
                           <span className="ml-2">
-                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                            {status && typeof status === 'string'
+                              ? status.charAt(0).toUpperCase() + status.slice(1)
+                              : 'Unknown'}
                           </span>
                         </Button>
                       ))}
