@@ -1,3 +1,4 @@
+
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -76,8 +77,8 @@ function Router() {
       
       {/* Incident management routes */}
       <ProtectedRoute path="/incidents" component={Incidents} />
-      <ProtectedRoute path="/incidents/new" component={import("@/pages/incidents/new").then((mod) => mod.default)} />
-      <ProtectedRoute path="/incidents/:id" component={import("@/pages/incidents/[id]").then((mod) => mod.default)} />
+      <ProtectedRoute path="/incidents/new" component={Incidents} />
+      <ProtectedRoute path="/incidents/:id" component={Incidents} />
       <ProtectedRoute path="/training" component={Training} />
       <ProtectedRoute path="/safety-scores" component={SafetyScores} />
       <ProtectedRoute path="/users" component={Users} />
