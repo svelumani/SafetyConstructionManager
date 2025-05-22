@@ -76,13 +76,24 @@ import {
 } from "@/components/ui/accordion";
 
 // Status badge component
-const StatusBadge = ({ status }: { status: string }) => {
+const StatusBadge = ({ status }: { status: string | null | undefined }) => {
+  // Handle null or undefined status
+  if (!status) {
+    return (
+      <Badge variant="outline" className="bg-gray-100 text-gray-800 font-medium">
+        <AlertCircle className="mr-1 h-3 w-3" />
+        Pending
+      </Badge>
+    );
+  }
+  
   switch (status) {
     case "scheduled":
+    case "pending":
       return (
         <Badge variant="outline" className="bg-blue-100 text-blue-800 font-medium">
           <Calendar className="mr-1 h-3 w-3" />
-          Scheduled
+          {status === "scheduled" ? "Scheduled" : "Pending"}
         </Badge>
       );
     case "in_progress":
