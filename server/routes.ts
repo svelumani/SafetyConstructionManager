@@ -99,6 +99,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Set up email service
   setupEmailService();
+  
+  // File upload endpoint
+  app.post('/api/uploads', requireAuth, upload.single('file'), (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+      
+      // Return the URL to the uploaded file
+      const fileUrl = `/uploads/${req.file.filename}`;
+      return res.status(201).json({ url: fileUrl });
+    } catch (error) {
+      console.error('File upload error:', error);
+      return res.status(500).json({ message: 'File upload failed' });
+    }
+  });
 
   // Error handling middleware
   const handleZodError = (err: any, req: any, res: any, next: any) => {
