@@ -553,7 +553,9 @@ export default function IncidentDetails() {
                 <div className="flex items-center gap-2">
                   {getSeverityIcon(incident.severity)}
                   <span className="font-medium">
-                    {incident.severity.charAt(0).toUpperCase() + incident.severity.slice(1)}
+                    {incident.severity && typeof incident.severity === 'string'
+                      ? incident.severity.charAt(0).toUpperCase() + incident.severity.slice(1)
+                      : 'Unknown'}
                   </span>
                 </div>
               </div>
