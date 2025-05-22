@@ -301,8 +301,12 @@ export default function HazardDetail() {
               description={<span className="flex items-center mt-1">
                 <MapPin className="h-4 w-4 mr-1 text-muted-foreground" />
                 <span className="text-muted-foreground">{hazard.location}</span>
-                <span className="mx-2">•</span>
-                <span className="text-muted-foreground">{hazard.site.name}</span>
+                {hazard.site && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span className="text-muted-foreground">{hazard.site.name}</span>
+                  </>
+                )}
               </span>}
             />
           </div>
@@ -385,7 +389,7 @@ export default function HazardDetail() {
                   <div className="flex items-center text-sm text-muted-foreground space-x-4">
                     <div className="flex items-center">
                       <User className="h-4 w-4 mr-1" />
-                      <span>Reported by {hazard.reportedBy.firstName} {hazard.reportedBy.lastName}</span>
+                      <span>Reported by {hazard.reportedBy ? `${hazard.reportedBy.firstName || ''} ${hazard.reportedBy.lastName || ''}`.trim() : 'Unknown User'}</span>
                     </div>
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
