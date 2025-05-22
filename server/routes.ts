@@ -2240,20 +2240,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { siteId, status } = req.query;
     
     try {
-      let query = db.select({
-        inspection: schema.inspections,
-        site: schema.sites,
-        assignedTo: schema.users,
-        createdBy: schema.users,
-        template: schema.inspectionTemplates
-      })
-      .from(schema.inspections)
-      .leftJoin(schema.sites, eq(schema.inspections.siteId, schema.sites.id))
-      .leftJoin(schema.users, eq(schema.inspections.assignedToId, schema.users.id))
-      .leftJoin(schema.users, eq(schema.inspections.createdById, schema.users.id))
-      .leftJoin(schema.inspectionTemplates, eq(schema.inspections.templateId, schema.inspectionTemplates.id))
-      .where(eq(schema.inspections.tenantId, req.user.tenantId))
-      .where(eq(schema.inspections.isActive, true));
+      // Simplified query to avoid join issues
+      let query = db.select()
+        .from(schema.inspections)
+        .where(eq(schema.inspections.tenantId, req.user.tenantId))
+        .where(eq(schema.inspections.isActive, true));
       
       if (siteId) {
         query = query.where(eq(schema.inspections.siteId, parseInt(siteId as string)));
@@ -2263,7 +2254,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         query = query.where(eq(schema.inspections.status, status as string));
       }
       
-      const results = await query;
+      const inspections = await query;
+      
+      return res.status(200).json({
+        inspections,
+        total: inspections.length
+      });
       
       // Format the results
       const formattedResults = results.map(result => ({
