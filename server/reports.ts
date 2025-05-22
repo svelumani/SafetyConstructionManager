@@ -127,14 +127,14 @@ export async function generateReport(req: Request, res: Response) {
         })
         .from(schema.inspections)
         .leftJoin(schema.sites, eq(schema.inspections.siteId, schema.sites.id))
-        .leftJoin(schema.users, eq(schema.inspections.conductedById, schema.users.id))
+        .leftJoin(schema.users, eq(schema.inspections.conductorId, schema.users.id))
         .where(
           and(
             eq(schema.inspections.siteId, siteId),
             between(schema.inspections.scheduledDate, startDateObj.toISOString(), endDateObj.toISOString())
           )
         )
-        .orderBy(desc(schema.inspections.scheduledDate));
+        .orderBy(schema.inspections.scheduledDate);
     }
 
     let permitData: any[] = [];
@@ -147,14 +147,14 @@ export async function generateReport(req: Request, res: Response) {
         })
         .from(schema.permitRequests)
         .leftJoin(schema.sites, eq(schema.permitRequests.siteId, schema.sites.id))
-        .leftJoin(schema.users, eq(schema.permitRequests.requestedById, schema.users.id))
+        .leftJoin(schema.users, eq(schema.permitRequests.requesterId, schema.users.id))
         .where(
           and(
             eq(schema.permitRequests.siteId, siteId),
             between(schema.permitRequests.createdAt, startDateObj.toISOString(), endDateObj.toISOString())
           )
         )
-        .orderBy(desc(schema.permitRequests.createdAt));
+        .orderBy(schema.permitRequests.createdAt);
     }
 
     let trainingData: any[] = [];
@@ -248,7 +248,7 @@ export async function getReportHistory(req: Request, res: Response) {
       .from(schema.reportHistory)
       .leftJoin(schema.sites, eq(schema.reportHistory.siteId, schema.sites.id))
       .leftJoin(schema.users, eq(schema.reportHistory.userId, schema.users.id))
-      .orderBy(desc(schema.reportHistory.generatedOn));
+      .orderBy(schema.reportHistory.createdAt);
 
     const formattedReports = reports.map((r) => ({
       id: r.report.id,
@@ -256,7 +256,7 @@ export async function getReportHistory(req: Request, res: Response) {
       startDate: r.report.startDate,
       endDate: r.report.endDate,
       generatedBy: r.user ? `${r.user.firstName} ${r.user.lastName}` : "Unknown User",
-      generatedOn: r.report.generatedOn,
+      generatedOn: r.report.createdAt,
       reportName: r.report.reportName,
       downloadUrl: `/api/reports/download/${r.report.id}`,
       status: r.report.status,
