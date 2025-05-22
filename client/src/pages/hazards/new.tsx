@@ -71,10 +71,24 @@ export default function NewHazardReport() {
         data.photoUrls = uploadedImages;
       }
       
-      const response = await apiRequest("POST", "/api/hazards", data);
-      return await response.json();
+      // Ensure status is set to "open" for new hazards
+      data.status = "open";
+      
+      console.log("Submitting hazard data:", data);
+      
+      try {
+        const response = await apiRequest("POST", "/api/hazards", data);
+        const responseData = await response.json();
+        console.log("Hazard creation response:", responseData);
+        return responseData;
+      } catch (error) {
+        console.error("Error in hazard creation:", error);
+        throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Hazard created successfully:", data);
+      
       toast({
         title: "Success",
         description: "Hazard report successfully created",
@@ -88,6 +102,8 @@ export default function NewHazardReport() {
       setLocation("/hazards");
     },
     onError: (error: Error) => {
+      console.error("Hazard creation error:", error);
+      
       toast({
         title: "Error",
         description: `Failed to create hazard report: ${error.message}`,
