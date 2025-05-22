@@ -303,11 +303,15 @@ export default function NewIncident() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {sites?.map((site) => (
-                          <SelectItem key={site.id} value={site.id.toString()}>
-                            {site.name}
-                          </SelectItem>
-                        ))}
+                        {Array.isArray(sites) && sites.length > 0 ? (
+                          sites.map((site) => (
+                            <SelectItem key={site.id} value={site.id.toString()}>
+                              {site.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="loading" disabled>Loading sites...</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormDescription>
