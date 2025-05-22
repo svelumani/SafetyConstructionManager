@@ -210,8 +210,8 @@ export default function AssignHazard() {
                     <h3 className="font-medium mb-2">Hazard Summary</h3>
                     <p className="text-sm mb-1"><strong>Title:</strong> {hazard.title}</p>
                     <p className="text-sm mb-1"><strong>Severity:</strong> {hazard.severity}</p>
-                    <p className="text-sm mb-1"><strong>Site:</strong> {hazard.site.name}</p>
-                    <p className="text-sm"><strong>Description:</strong> {hazard.description.substring(0, 100)}...</p>
+                    <p className="text-sm mb-1"><strong>Site:</strong> {hazard.site ? hazard.site.name : "Unknown Site"}</p>
+                    <p className="text-sm"><strong>Description:</strong> {hazard.description ? `${hazard.description.substring(0, 100)}...` : "No description available"}</p>
                   </div>
                 )}
                 
