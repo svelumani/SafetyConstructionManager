@@ -2457,24 +2457,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const templateId = parseInt(req.params.id);
     
     try {
-      const [template] = await db.select().from(schema.inspectionTemplates)
-        .where(eq(schema.inspectionTemplates.id, templateId))
-        .where(eq(schema.inspectionTemplates.tenantId, req.user.tenantId))
-        .where(eq(schema.inspectionTemplates.isActive, true));
+      // Using raw SQL to better handle our database structure
+      // Get template details
+      const templateQuery = `
+        SELECT * FROM inspection_templates
+        WHERE id = $1 AND tenant_id = $2 AND is_active = true
+      `;
       
-      if (!template) {
+      const templateResult = await pool.query(templateQuery, [templateId, req.user.tenantId]);
+      
+      if (templateResult.rows.length === 0) {
         return res.status(404).json({ message: 'Inspection template not found' });
       }
       
-      // Get checklist items
-      const checklistItems = await db.select().from(schema.inspectionChecklistItems)
-        .where(eq(schema.inspectionChecklistItems.templateId, templateId))
-        .where(eq(schema.inspectionChecklistItems.isActive, true))
-        .orderBy(schema.inspectionChecklistItems.sortOrder);
+      const template = templateResult.rows[0];
+      
+      // Get sections for this template
+      const sectionsQuery = `
+        SELECT * FROM inspection_sections
+        WHERE template_id = $1
+        ORDER BY "order"
+      `;
+      
+      const sectionsResult = await pool.query(sectionsQuery, [templateId]);
+      const sections = sectionsResult.rows;
+      
+      // For each section, get its items
+      const sectionsWithItems = await Promise.all(sections.map(async (section) => {
+        const itemsQuery = `
+          SELECT * FROM inspection_items
+          WHERE section_id = $1
+          ORDER BY "order"
+        `;
+        
+        const itemsResult = await pool.query(itemsQuery, [section.id]);
+        
+        return {
+          ...section,
+          items: itemsResult.rows
+        };
+      }));
       
       return res.status(200).json({
         ...template,
-        checklistItems
+        sections: sectionsWithItems
       });
     } catch (error) {
       console.error('Error fetching inspection template:', error);

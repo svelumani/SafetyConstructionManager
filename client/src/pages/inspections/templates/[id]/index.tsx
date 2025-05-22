@@ -38,30 +38,44 @@ import {
 import { formatUTCToLocal } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-interface ChecklistItem {
+interface Item {
   id: number;
-  templateId: number;
+  section_id: number;
   question: string;
   description: string;
   category: string;
   required: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-  isActive: boolean;
+  order: number;
+  type: string;
+  options: any;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Section {
+  id: number;
+  template_id: number;
+  name: string;
+  description: string;
+  order: number;
+  created_at: string;
+  updated_at: string;
+  items: Item[];
 }
 
 interface Template {
   id: number;
-  title: string;
+  name: string;
   description: string;
   category: string;
-  createdById: number;
-  tenantId: number;
-  createdAt: string;
-  updatedAt: string;
-  isActive: boolean;
-  checklistItems: ChecklistItem[];
+  created_by_id: number;
+  tenant_id: number;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+  is_default: boolean;
+  version: string;
+  sections: Section[];
 }
 
 export default function InspectionTemplateDetail() {
