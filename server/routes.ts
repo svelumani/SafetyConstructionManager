@@ -2571,12 +2571,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Inspection not found' });
       }
       
+      // Check if inspection is in progress
+      if (inspection.status !== 'in_progress') {
+        return res.status(400).json({ 
+          message: 'Only inspections in progress can be completed'
+        });
+      }
+      
+      // Get checklist items for this template
+      const checklistItems = await db.select().from(schema.inspectionChecklistItems)
+        .where(eq(schema.inspectionChecklistItems.templateId, inspection.templateId))
+        .where(eq(schema.inspectionChecklistItems.isActive, true));
+      
       // Calculate score
       const responses = await db.select().from(schema.inspectionResponses)
         .where(eq(schema.inspectionResponses.inspectionId, inspectionId));
       
-      const checklistItems = await db.select().from(schema.inspectionChecklistItems)
-        .where(eq(schema.inspectionChecklistItems.templateId, inspection.templateId));
+      // Create a map of all responses by checklist item ID
+      const responseMap = responses.reduce((map, response) => {
+        map[response.checklistItemId] = response;
+        return map;
+      }, {});
+      
+      // Check if all required checklist items have responses
+      const missingResponses = checklistItems.filter(item => {
+        if (item.isRequired && !responseMap[item.id]) {
+          return true;
+        }
+        return false;
+      });
+      
+      if (missingResponses.length > 0) {
+        return res.status(400).json({
+          message: `${missingResponses.length} required questions still need responses before this inspection can be completed`,
+          missingItems: missingResponses
+        });
+      }
       
       let score = 0;
       const maxScore = checklistItems.length;
