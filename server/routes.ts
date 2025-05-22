@@ -3132,6 +3132,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         AND checklist_item_id = ${responseData.checklistItemId || 'NULL'}
       `);
       
+      // Properly escape string values to prevent SQL injection
+      const response = responseData.response || '';
+      const notes = responseData.notes || null;
+      const isCompliant = responseData.isCompliant !== undefined ? responseData.isCompliant : null;
+      const photoUrls = responseData.photoUrls ? JSON.stringify(responseData.photoUrls) : '[]';
+      
       if (existingResponseResult.rows.length > 0) {
         // If the response exists, let's handle it as an update instead
         // Get the existing response
@@ -3164,12 +3170,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         return res.status(200).json(updateResult.rows[0]);
       }
-      
-      // Properly escape string values to prevent SQL injection
-      const response = responseData.response || '';
-      const notes = responseData.notes || null;
-      const isCompliant = responseData.isCompliant !== undefined ? responseData.isCompliant : null;
-      const photoUrls = responseData.photoUrls ? JSON.stringify(responseData.photoUrls) : '[]';
       
       // Log what we're about to insert for debugging
       console.log('About to insert inspection response with data:', {
