@@ -32,13 +32,18 @@ const formSchema = z.object({
   name: z.string().min(3, "Name must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   category: z.string().min(1, "Category is required"),
-  checklistItems: z.array(z.object({
-    question: z.string().min(5, "Question must be at least 5 characters"),
+  sections: z.array(z.object({
+    name: z.string().min(3, "Section name must be at least 3 characters"),
     description: z.string().optional(),
-    required: z.boolean().default(true),
-    category: z.string().optional(),
-    sortOrder: z.number(),
-  })).min(1, "At least one checklist item is required"),
+    order: z.number(),
+    items: z.array(z.object({
+      question: z.string().min(5, "Question must be at least 5 characters"),
+      description: z.string().optional(),
+      required: z.boolean().default(true),
+      category: z.string().optional(),
+      order: z.number(),
+    })).min(1, "At least one item is required in each section"),
+  })).min(1, "At least one section is required"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -56,27 +61,35 @@ export default function NewInspectionTemplate() {
       name: "",
       description: "",
       category: "",
-      checklistItems: [
+      sections: [
         {
-          question: "",
-          description: "",
-          required: true,
-          category: "",
-          sortOrder: 0,
+          name: "General Safety",
+          description: "Basic safety checks for the site",
+          order: 0,
+          items: [
+            {
+              question: "",
+              description: "",
+              required: true,
+              category: "",
+              order: 0,
+            },
+          ],
         },
       ],
     },
   });
 
-  // Setup for dynamic checklist items
-  const { fields, append, remove, move } = useFieldArray({
+  // Setup for dynamic sections and items
+  const { fields: sectionFields, append: appendSection, remove: removeSection, move: moveSection } = useFieldArray({
     control: form.control,
-    name: "checklistItems",
+    name: "sections",
   });
 
   // Mutation for creating a new template
   const createTemplateMutation = useMutation({
     mutationFn: async (data: FormValues) => {
+      // First create the template
       const response = await apiRequest("POST", "/api/inspection-templates", {
         name: data.name,
         description: data.description,
@@ -90,15 +103,38 @@ export default function NewInspectionTemplate() {
       
       const template = await response.json();
       
-      // Now create checklist items
-      const itemPromises = data.checklistItems.map((item, index) => 
-        apiRequest("POST", `/api/inspection-templates/${template.id}/checklist-items`, {
-          ...item,
-          sortOrder: index,
-        })
-      );
-      
-      await Promise.all(itemPromises);
+      // Create sections and their items
+      for (let sectionIndex = 0; sectionIndex < data.sections.length; sectionIndex++) {
+        const section = data.sections[sectionIndex];
+        
+        // Create section
+        const sectionResponse = await apiRequest("POST", "/api/inspection-sections", {
+          templateId: template.id,
+          name: section.name,
+          description: section.description,
+          order: sectionIndex,
+        });
+        
+        if (!sectionResponse.ok) {
+          throw new Error("Failed to create section");
+        }
+        
+        const createdSection = await sectionResponse.json();
+        
+        // Now create items for this section
+        for (let itemIndex = 0; itemIndex < section.items.length; itemIndex++) {
+          const item = section.items[itemIndex];
+          
+          await apiRequest("POST", "/api/inspection-items", {
+            sectionId: createdSection.id,
+            question: item.question,
+            description: item.description,
+            required: item.required,
+            category: item.category,
+            order: itemIndex,
+          });
+        }
+      }
       
       return template;
     },
@@ -226,160 +262,296 @@ export default function NewInspectionTemplate() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Checklist Items</CardTitle>
+              <CardTitle>Sections</CardTitle>
               <Button 
                 type="button" 
                 variant="outline"
-                onClick={() => append({
-                  question: "",
+                onClick={() => appendSection({
+                  name: `Section ${sectionFields.length + 1}`,
                   description: "",
-                  required: true,
-                  category: "",
-                  sortOrder: fields.length,
-                })}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Item
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {fields.length === 0 && (
-                <div className="text-center py-4">
-                  <p className="text-muted-foreground">No checklist items added yet</p>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="mt-2"
-                    onClick={() => append({
+                  order: sectionFields.length,
+                  items: [
+                    {
                       question: "",
                       description: "",
                       required: true,
                       category: "",
-                      sortOrder: 0,
+                      order: 0,
+                    }
+                  ]
+                })}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Section
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-8">
+              {sectionFields.length === 0 && (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground">No sections added yet</p>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="mt-2"
+                    onClick={() => appendSection({
+                      name: "General Safety",
+                      description: "Basic safety checks for the site",
+                      order: 0,
+                      items: [
+                        {
+                          question: "",
+                          description: "",
+                          required: true,
+                          category: "",
+                          order: 0,
+                        }
+                      ]
                     })}
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Add First Item
+                    Add First Section
                   </Button>
                 </div>
               )}
 
-              {fields.map((field, index) => (
-                <Card key={field.id} className="border border-muted">
-                  <CardHeader className="bg-muted/30 py-3">
-                    <div className="flex items-center justify-between">
-                      <div className="font-medium">Item #{index + 1}</div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => moveItemUp(index)}
-                          disabled={index === 0}
-                        >
-                          <ChevronUp className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => moveItemDown(index)}
-                          disabled={index === fields.length - 1}
-                        >
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => remove(index)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+              {sectionFields.map((sectionField, sectionIndex) => {
+                // Create field array for items within this section
+                const { fields: itemFields, append: appendItem, remove: removeItem, move: moveItem } = useFieldArray({
+                  control: form.control,
+                  name: `sections.${sectionIndex}.items`,
+                });
+
+                return (
+                  <Card key={sectionField.id} className="border border-muted">
+                    <CardHeader className="bg-muted/20 py-4">
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-lg">Section #{sectionIndex + 1}</div>
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => moveSection(sectionIndex, Math.max(0, sectionIndex - 1))}
+                            disabled={sectionIndex === 0}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => moveSection(sectionIndex, Math.min(sectionFields.length - 1, sectionIndex + 1))}
+                            disabled={sectionIndex === sectionFields.length - 1}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => removeSection(sectionIndex)}
+                            disabled={sectionFields.length <= 1}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4 space-y-4">
-                    <FormField
-                      control={form.control}
-                      name={`checklistItems.${index}.question`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Question/Item</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., Are fire extinguishers properly mounted and accessible?" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`checklistItems.${index}.description`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description/Guidance</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Additional details or guidance for inspectors" 
-                              className="min-h-20"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="flex justify-between items-center">
-                      <FormField
-                        control={form.control}
-                        name={`checklistItems.${index}.required`}
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <Switch 
-                                checked={field.value} 
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="font-normal">Required item</FormLabel>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`checklistItems.${index}.category`}
-                        render={({ field }) => (
-                          <FormItem className="w-48">
-                            <Select 
-                              onValueChange={field.onChange} 
-                              defaultValue={field.value}
-                            >
+                    </CardHeader>
+                    <CardContent className="space-y-6 pt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name={`sections.${sectionIndex}.name`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Section Name</FormLabel>
                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Sub-category" />
-                                </SelectTrigger>
+                                <Input placeholder="e.g., Fire Safety Checks" {...field} />
                               </FormControl>
-                              <SelectContent>
-                                <SelectItem value="none">None</SelectItem>
-                                <SelectItem value="critical">Critical</SelectItem>
-                                <SelectItem value="important">Important</SelectItem>
-                                <SelectItem value="general">General</SelectItem>
-                                <SelectItem value="documentation">Documentation</SelectItem>
-                                <SelectItem value="visual">Visual Inspection</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`sections.${sectionIndex}.description`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Description</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Brief description of this section" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <h4 className="text-sm font-semibold">Checklist Items</h4>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => appendItem({
+                              question: "",
+                              description: "",
+                              required: true,
+                              category: "",
+                              order: itemFields.length,
+                            })}
+                          >
+                            <Plus className="mr-2 h-3 w-3" />
+                            Add Item
+                          </Button>
+                        </div>
+                      
+                        {itemFields.length === 0 && (
+                          <div className="text-center py-4 border border-dashed rounded-md">
+                            <p className="text-muted-foreground text-sm">No items in this section</p>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => appendItem({
+                                question: "",
+                                description: "",
+                                required: true,
+                                category: "",
+                                order: 0,
+                              })}
+                            >
+                              <Plus className="mr-2 h-3 w-3" />
+                              Add First Item
+                            </Button>
+                          </div>
                         )}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                        {itemFields.map((itemField, itemIndex) => (
+                          <Card key={itemField.id} className="border border-muted">
+                            <CardHeader className="bg-muted/10 py-2">
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-sm">Item #{itemIndex + 1}</div>
+                                <div className="flex items-center gap-1">
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => moveItem(itemIndex, Math.max(0, itemIndex - 1))}
+                                    disabled={itemIndex === 0}
+                                  >
+                                    <ChevronUp className="h-3 w-3" />
+                                  </Button>
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => moveItem(itemIndex, Math.min(itemFields.length - 1, itemIndex + 1))}
+                                    disabled={itemIndex === itemFields.length - 1}
+                                  >
+                                    <ChevronDown className="h-3 w-3" />
+                                  </Button>
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="sm"
+                                    onClick={() => removeItem(itemIndex)}
+                                    disabled={itemFields.length <= 1}
+                                    className="text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="pt-3 space-y-3">
+                              <FormField
+                                control={form.control}
+                                name={`sections.${sectionIndex}.items.${itemIndex}.question`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Question/Item</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="e.g., Are fire extinguishers properly mounted and accessible?" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
+                                name={`sections.${sectionIndex}.items.${itemIndex}.description`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Description/Guidance</FormLabel>
+                                    <FormControl>
+                                      <Textarea 
+                                        placeholder="Additional details or guidance for inspectors" 
+                                        className="min-h-16"
+                                        {...field} 
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <div className="flex justify-between items-center">
+                                <FormField
+                                  control={form.control}
+                                  name={`sections.${sectionIndex}.items.${itemIndex}.required`}
+                                  render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                      <FormControl>
+                                        <Switch 
+                                          checked={field.value} 
+                                          onCheckedChange={field.onChange}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">Required item</FormLabel>
+                                    </FormItem>
+                                  )}
+                                />
+
+                                <FormField
+                                  control={form.control}
+                                  name={`sections.${sectionIndex}.items.${itemIndex}.category`}
+                                  render={({ field }) => (
+                                    <FormItem className="w-48">
+                                      <Select 
+                                        onValueChange={field.onChange} 
+                                        defaultValue={field.value}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Sub-category" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          <SelectItem value="none">None</SelectItem>
+                                          <SelectItem value="critical">Critical</SelectItem>
+                                          <SelectItem value="important">Important</SelectItem>
+                                          <SelectItem value="general">General</SelectItem>
+                                          <SelectItem value="documentation">Documentation</SelectItem>
+                                          <SelectItem value="visual">Visual Inspection</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </CardContent>
           </Card>
 
