@@ -47,12 +47,23 @@ export default function Inspections() {
   const [pageSize, setPageSize] = useState(10);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   
+  // Use different query parameters for calendar view vs table view
+  const queryParams = viewMode === "calendar" 
+    ? { 
+        // For calendar view, get all inspections without pagination
+        status: activeTab !== "all" ? activeTab : undefined,
+        limit: 100, // Include more inspections for the calendar
+        include_all: true
+      } 
+    : {
+        // For table view, use pagination
+        limit: pageSize, 
+        offset: pageIndex * pageSize,
+        status: activeTab !== "all" ? activeTab : undefined
+      };
+  
   const { data, isLoading } = useQuery<{ inspections: any[], total: number }>({
-    queryKey: ['/api/inspections', { 
-      limit: pageSize, 
-      offset: pageIndex * pageSize,
-      status: activeTab !== "all" ? activeTab : undefined
-    }],
+    queryKey: ['/api/inspections', queryParams],
   });
 
   // Map snake_case database fields to camelCase for frontend
