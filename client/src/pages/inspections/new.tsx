@@ -48,6 +48,9 @@ const formSchema = z.object({
   scheduledDate: z.date({
     required_error: "Scheduled date is required",
   }),
+  dueDate: z.date({
+    required_error: "Due date is required",
+  }),
   assignedToId: z.coerce.number().optional(),
   notes: z.string().optional(),
 });
