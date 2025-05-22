@@ -195,6 +195,7 @@ export default function InspectionDetails() {
   const { 
     data: responseData,
     isLoading: isLoadingResponses,
+    refetch: refetchResponses
   } = useQuery({
     queryKey: [`/api/inspections/${id}/responses`],
     enabled: !!id,
@@ -347,12 +348,15 @@ export default function InspectionDetails() {
         }
       }
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       // Update the responses state
       setResponses(prev => ({
         ...prev,
         [data.checklistItemId]: data
       }));
+      
+      // Directly refetch the responses to ensure the UI is up to date
+      await refetchResponses();
       
       toast({
         title: "Response saved",

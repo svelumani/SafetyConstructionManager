@@ -3218,6 +3218,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // GET inspection responses
+  app.get('/api/inspections/:id/responses', requireAuth, async (req, res) => {
+    const inspectionId = parseInt(req.params.id);
+    
+    try {
+      // Check if inspection exists and belongs to user's tenant using raw SQL
+      const inspectionResult = await db.execute(`
+        SELECT * FROM inspections 
+        WHERE id = ${inspectionId} 
+        AND tenant_id = ${req.user.tenantId}
+      `);
+      
+      if (inspectionResult.rows.length === 0) {
+        return res.status(404).json({ message: 'Inspection not found' });
+      }
+      
+      // Get the responses for this inspection using raw SQL
+      const responsesResult = await db.execute(`
+        SELECT * FROM inspection_responses 
+        WHERE inspection_id = ${inspectionId}
+        ORDER BY created_at DESC
+      `);
+      
+      return res.status(200).json({ responses: responsesResult.rows });
+    } catch (error) {
+      console.error('Error fetching inspection responses:', error);
+      return res.status(500).json({ message: 'Error fetching inspection responses' });
+    }
+  });
+  
   // Add an endpoint to update an existing response
   app.put('/api/inspections/:id/responses/:responseId', requireAuth, async (req, res) => {
     const inspectionId = parseInt(req.params.id);
