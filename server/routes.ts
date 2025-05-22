@@ -5,12 +5,19 @@ import { db } from "./db";
 import { setupAuth } from "./auth";
 import { setupEmailService } from "./email";
 import * as schema from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, not } from "drizzle-orm";
 import { ZodError } from "zod";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 // All schemas are now imported via the namespace import above
+
+// Import schemas for validation
+import { 
+  insertHazardReportSchema, insertHazardCommentSchema, insertHazardAssignmentSchema,
+  insertInspectionSchema, insertInspectionTemplateSchema, insertInspectionSectionSchema,
+  insertInspectionItemSchema, insertInspectionResponseSchema, insertInspectionFindingSchema
+} from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up file upload storage configuration
@@ -2098,20 +2105,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const tenantId = req.user.tenantId;
       
-      // Get hazard stats
-      const hazardStats = await storage.getHazardStats(tenantId);
-      
-      // Get training stats
-      const trainingStats = await storage.getTrainingStats(tenantId);
-      
-      // Get site stats
-      const siteStats = await storage.getSiteStats(tenantId);
-      
-      res.json({
-        hazards: hazardStats,
-        training: trainingStats,
-        sites: siteStats
-      });
+      try {
+        // Get hazard stats
+        const hazardStats = await storage.getHazardStats(tenantId);
+        
+        // Get training stats
+        const trainingStats = await storage.getTrainingStats(tenantId);
+        
+        // Get site stats
+        const siteStats = await storage.getSiteStats(tenantId);
+        
+        res.json({
+          hazards: hazardStats,
+          training: trainingStats,
+          sites: siteStats
+        });
+      } catch (statErr) {
+        console.error("Error in specific stats:", statErr);
+        // Return partial data if some stats fail
+        res.json({
+          hazards: {
+            open: 0,
+            assigned: 0,
+            inProgress: 0,
+            resolved: 0,
+            critical: 0,
+            highSeverity: 0,
+          },
+          training: {
+            totalUsers: 0,
+            totalRecords: 0,
+            completedTrainings: 0,
+            overdueTrainings: 0,
+            completionRate: 0
+          },
+          sites: {
+            totalSites: 0,
+            totalInspections: 0,
+            recentInspections: 0,
+            topHazardSites: []
+          }
+        });
+      }
     } catch (err) {
       console.error("Error fetching dashboard stats:", err);
       res.status(500).json({ message: "Failed to fetch dashboard statistics" });
