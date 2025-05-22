@@ -2172,14 +2172,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const tenantId = req.user.tenantId;
       
       try {
-        // Get hazard stats
-        const hazardStats = await storage.getHazardStats(tenantId);
+        // Get hazard stats directly from database
+        const hazardStats = {
+          open: 0,
+          assigned: 0,
+          inProgress: 0,
+          resolved: 0,
+          closed: 0,
+          total: 0,
+          low: 0,
+          medium: 0,
+          high: 0,
+          critical: 0
+        };
         
-        // Get training stats
-        const trainingStats = await storage.getTrainingStats(tenantId);
+        // Count hazards by status
+        const hazardStatusCounts = await db
+          .select({
+            status: schema.hazardReports.status,
+            count: sql`count(*)`.as('count')
+          })
+          .from(schema.hazardReports)
+          .where(eq(schema.hazardReports.tenantId, tenantId))
+          .where(eq(schema.hazardReports.isActive, true))
+          .groupBy(schema.hazardReports.status);
+          
+        // Process status counts
+        for (const row of hazardStatusCounts) {
+          if (row.status === 'open') hazardStats.open = Number(row.count);
+          else if (row.status === 'assigned') hazardStats.assigned = Number(row.count);
+          else if (row.status === 'in_progress') hazardStats.inProgress = Number(row.count);
+          else if (row.status === 'resolved') hazardStats.resolved = Number(row.count);
+          else if (row.status === 'closed') hazardStats.closed = Number(row.count);
+        }
         
-        // Get site stats
-        const siteStats = await storage.getSiteStats(tenantId);
+        // Calculate total
+        hazardStats.total = hazardStats.open + hazardStats.assigned + hazardStats.inProgress + 
+                          hazardStats.resolved + hazardStats.closed;
+                          
+        // Count hazards by severity
+        const hazardSeverityCounts = await db
+          .select({
+            severity: schema.hazardReports.severity,
+            count: sql`count(*)`.as('count')
+          })
+          .from(schema.hazardReports)
+          .where(eq(schema.hazardReports.tenantId, tenantId))
+          .where(eq(schema.hazardReports.isActive, true))
+          .groupBy(schema.hazardReports.severity);
+          
+        // Process severity counts
+        for (const row of hazardSeverityCounts) {
+          if (row.severity === 'low') hazardStats.low = Number(row.count);
+          else if (row.severity === 'medium') hazardStats.medium = Number(row.count);
+          else if (row.severity === 'high') hazardStats.high = Number(row.count);
+          else if (row.severity === 'critical') hazardStats.critical = Number(row.count);
+        }
+        
+        // Get training stats directly from database
+        const trainingStats = {
+          completed: 0,
+          inProgress: 0, 
+          notStarted: 0,
+          expired: 0,
+          total: 0
+        };
+        
+        // Get simple counts for training
+        const [trainingCountResult] = await db
+          .select({ count: sql`count(*)` })
+          .from(schema.userTrainings)
+          .where(eq(schema.userTrainings.tenantId, tenantId));
+          
+        trainingStats.total = Number(trainingCountResult?.count || 0);
+        
+        // Count training by status
+        const trainingStatusCounts = await db
+          .select({
+            status: schema.userTrainings.status,
+            count: sql`count(*)`.as('count')
+          })
+          .from(schema.userTrainings)
+          .where(eq(schema.userTrainings.tenantId, tenantId))
+          .groupBy(schema.userTrainings.status);
+          
+        // Process training status counts
+        for (const row of trainingStatusCounts) {
+          if (row.status === 'completed') trainingStats.completed = Number(row.count);
+          else if (row.status === 'in_progress') trainingStats.inProgress = Number(row.count);
+          else if (row.status === 'not_started') trainingStats.notStarted = Number(row.count);
+          else if (row.status === 'expired') trainingStats.expired = Number(row.count);
+        }
+        
+        // Get site stats directly from database
+        const [activeSites] = await db
+          .select({ count: sql`count(*)` })
+          .from(schema.sites)
+          .where(eq(schema.sites.tenantId, tenantId))
+          .where(eq(schema.sites.isActive, true));
+          
+        const [inactiveSites] = await db
+          .select({ count: sql`count(*)` })
+          .from(schema.sites)
+          .where(eq(schema.sites.tenantId, tenantId))
+          .where(eq(schema.sites.isActive, false));
+          
+        const siteStats = {
+          active: Number(activeSites?.count || 0),
+          inactive: Number(inactiveSites?.count || 0),
+          total: Number(activeSites?.count || 0) + Number(inactiveSites?.count || 0)
+        };
         
         res.json({
           hazards: hazardStats,
