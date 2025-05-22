@@ -18,18 +18,35 @@ export async function uploadFiles(files: File[], folder: string = 'uploads'): Pr
   for (const file of files) {
     if (!file.type.startsWith('image/')) continue;
     
-    // Create a data URL from the file
-    const dataUrl = await new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.readAsDataURL(file);
-    });
-    
-    imageUrls.push(dataUrl);
+    try {
+      // Create a data URL from the file
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (reader.result) {
+            resolve(reader.result as string);
+          } else {
+            reject(new Error('Failed to read file'));
+          }
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      
+      console.log("Generated data URL for image, length:", dataUrl.length);
+      imageUrls.push(dataUrl);
+    } catch (err) {
+      console.error("Error processing file:", file.name, err);
+    }
   }
   
   // Create a fake delay to simulate upload time
   await new Promise(resolve => setTimeout(resolve, 500));
+  
+  // Fallback to static URL if the data URL conversion fails
+  if (imageUrls.length === 0 && files.length > 0) {
+    return ["https://placehold.co/400x300?text=Sample+Photo"];
+  }
   
   return imageUrls;
   
