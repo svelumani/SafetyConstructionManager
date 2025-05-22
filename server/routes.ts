@@ -3344,14 +3344,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const inspectionId = parseInt(req.params.id);
     
     try {
-      // Check if inspection exists and belongs to user's tenant
-      const [inspection] = await db.select().from(schema.inspections)
-        .where(eq(schema.inspections.id, inspectionId))
-        .where(eq(schema.inspections.tenantId, req.user.tenantId));
+      // Use raw SQL query to avoid any schema mismatches
+      const inspectionResult = await db.execute(`
+        SELECT * FROM inspections 
+        WHERE id = ${inspectionId} AND tenant_id = ${req.user.tenantId}
+      `);
       
-      if (!inspection) {
+      if (!inspectionResult.rows.length) {
         return res.status(404).json({ message: 'Inspection not found' });
       }
+      
+      const inspection = inspectionResult.rows[0];
       
       // Check if inspection is in a valid state to start
       if (inspection.status !== 'pending' && inspection.status !== 'scheduled') {
@@ -3365,7 +3368,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await db.execute(`
         UPDATE inspections 
         SET status = 'in_progress', 
-            started_at = NOW()
+            started_at = NOW(),
+            inspector_id = ${req.user.id}
         WHERE id = ${inspectionId} AND tenant_id = ${req.user.tenantId}
         RETURNING *
       `);
