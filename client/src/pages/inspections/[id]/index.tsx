@@ -393,6 +393,9 @@ export default function InspectionDetails() {
           isCompliant // Adding this field which was missing before
         }
       });
+      
+      // Refresh the responses data after saving
+      refetchResponses();
     } catch (error) {
       console.error("Error saving response:", error);
     }
@@ -763,7 +766,7 @@ export default function InspectionDetails() {
                                         <div className="flex flex-wrap gap-3">
                                           <Button 
                                             size="sm" 
-                                            variant={response.status === "pass" ? "default" : "outline"}
+                                            variant={response.status === "pass" || response.is_compliant === true ? "default" : "outline"}
                                             onClick={() => handleResponseChange(item.id, "pass", response.notes)}
                                             className="gap-2"
                                           >
@@ -772,7 +775,7 @@ export default function InspectionDetails() {
                                           </Button>
                                           <Button 
                                             size="sm" 
-                                            variant={response.status === "fail" ? "default" : "outline"}
+                                            variant={response.status === "fail" || response.is_compliant === false ? "default" : "outline"}
                                             onClick={() => handleResponseChange(item.id, "fail", response.notes)}
                                             className="gap-2"
                                           >
