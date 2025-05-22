@@ -111,15 +111,8 @@ export default function InspectionTemplateDetail() {
       .join(' ');
   };
 
-  // Group checklist items by category
-  const groupedItems = template?.checklistItems.reduce<Record<string, ChecklistItem[]>>((groups, item) => {
-    const category = item.category || 'uncategorized';
-    if (!groups[category]) {
-      groups[category] = [];
-    }
-    groups[category].push(item);
-    return groups;
-  }, {});
+  // Count total items across all sections
+  const totalItems = template?.sections.reduce((total, section) => total + section.items.length, 0) || 0;
 
   // Get category item classes
   const getItemCategoryClass = (category?: string) => {
@@ -180,7 +173,7 @@ export default function InspectionTemplateDetail() {
       <div className="flex justify-between items-start mb-6">
         <div>
           <PageHeader 
-            title={template.title}
+            title={template.name}
             description={template.description}
           />
           <div className="flex items-center mt-2 space-x-4">
@@ -190,10 +183,10 @@ export default function InspectionTemplateDetail() {
               {formatCategory(template.category)}
             </Badge>
             <span className="text-sm text-muted-foreground">
-              Created {formatUTCToLocal(template.createdAt, "PPP")}
+              Created {formatUTCToLocal(template.created_at, "PPP")}
             </span>
             <span className="text-sm text-muted-foreground">
-              {template.checklistItems.length} checklist items
+              {totalItems} inspection items
             </span>
           </div>
         </div>
@@ -251,52 +244,67 @@ export default function InspectionTemplateDetail() {
 
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>Checklist Items</CardTitle>
+          <CardTitle>Inspection Sections and Items</CardTitle>
           <CardDescription>
-            Items are organized by category and will be presented in this order during inspections
+            Sections are presented in order with their inspection items during inspections
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {template.checklistItems.length === 0 ? (
+          {template.sections.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="h-12 w-12 text-muted-foreground opacity-50 mx-auto mb-4" />
-              <p className="text-muted-foreground">No checklist items found for this template.</p>
+              <p className="text-muted-foreground">No sections or items found for this template.</p>
             </div>
-          ) : groupedItems ? (
-            <div className="space-y-6">
-              {Object.entries(groupedItems).map(([category, items]) => (
-                <div key={category}>
-                  <h3 className="text-lg font-medium mb-3 capitalize">
-                    {category === 'uncategorized' ? 'General Items' : formatItemCategory(category)}
-                  </h3>
-                  <div className="space-y-4">
-                    {items.map((item) => (
-                      <div 
-                        key={item.id} 
-                        className={`p-4 border rounded-md bg-background shadow-sm ${getItemCategoryClass(item.category)}`}
-                      >
-                        <div className="flex justify-between">
-                          <h4 className="font-medium text-foreground">{item.question}</h4>
-                          <div className="flex items-center space-x-2">
-                            {item.required ? (
-                              <Badge variant="default" className="bg-blue-100 text-blue-800">
-                                Required
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">Optional</Badge>
+          ) : (
+            <div className="space-y-8">
+              {template.sections.map((section) => (
+                <div key={section.id} className="border rounded-md bg-card shadow-sm">
+                  <div className="p-4 border-b bg-muted/30">
+                    <h3 className="text-lg font-medium">{section.name}</h3>
+                    {section.description && (
+                      <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
+                    )}
+                  </div>
+                  
+                  {section.items.length === 0 ? (
+                    <div className="p-6 text-center">
+                      <p className="text-sm text-muted-foreground">No items in this section</p>
+                    </div>
+                  ) : (
+                    <div className="p-4">
+                      <div className="space-y-4">
+                        {section.items.map((item) => (
+                          <div 
+                            key={item.id} 
+                            className={`p-4 border rounded-md bg-background ${getItemCategoryClass(item.category)}`}
+                          >
+                            <div className="flex justify-between">
+                              <h4 className="font-medium text-foreground">{item.question}</h4>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="capitalize">
+                                  {item.type.replace('_', ' ')}
+                                </Badge>
+                                {item.required ? (
+                                  <Badge variant="default" className="bg-blue-100 text-blue-800">
+                                    Required
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline">Optional</Badge>
+                                )}
+                              </div>
+                            </div>
+                            {item.description && (
+                              <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
                             )}
                           </div>
-                        </div>
-                        {item.description && (
-                          <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
-                        )}
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-          ) : null}
+          )}
         </CardContent>
       </Card>
     </Layout>
