@@ -672,10 +672,12 @@ export default function InspectionDetails() {
                   <div>
                     <h3 className="text-sm font-medium text-muted-foreground mb-1">Scheduled Date</h3>
                     <p className="text-base">
-                      {inspection.scheduled_date ? formatUTCToLocal(inspection.scheduled_date, "PPP") : "Not scheduled"}
-                      {inspection.scheduled_date && (
+                      {(inspection.scheduled_date || inspection.scheduledDate) ? 
+                        formatUTCToLocal(inspection.scheduled_date || inspection.scheduledDate, "PPP") : 
+                        "Not scheduled"}
+                      {(inspection.scheduled_date || inspection.scheduledDate) && (
                         <span className="text-sm text-muted-foreground ml-2">
-                          ({formatDistanceToNow(new Date(inspection.scheduled_date), { addSuffix: true })})
+                          ({formatDistanceToNow(new Date(inspection.scheduled_date || inspection.scheduledDate), { addSuffix: true })})
                         </span>
                       )}
                     </p>

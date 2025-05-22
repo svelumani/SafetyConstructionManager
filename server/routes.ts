@@ -3032,6 +3032,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
       
+      // Fetch template details if a template_id exists
+      let template = null;
+      if (inspection.template_id) {
+        try {
+          // Get template info
+          const templateResult = await db.execute(`
+            SELECT * FROM inspection_templates
+            WHERE id = ${inspection.template_id}
+          `);
+          
+          if (templateResult.rows.length > 0) {
+            const templateInfo = templateResult.rows[0];
+            
+            // Get template sections
+            const sectionsResult = await db.execute(`
+              SELECT * FROM inspection_sections
+              WHERE template_id = ${inspection.template_id}
+              ORDER BY "order" ASC
+            `);
+            
+            const sections = [];
+            
+            // For each section, get its items
+            for (const section of sectionsResult.rows) {
+              // Get items for this section
+              const itemsResult = await db.execute(`
+                SELECT * FROM inspection_items
+                WHERE section_id = ${section.id}
+                ORDER BY "order" ASC
+              `);
+              
+              sections.push({
+                ...section,
+                items: itemsResult.rows
+              });
+            }
+            
+            template = {
+              ...templateInfo,
+              sections
+            };
+          }
+        } catch (templateErr) {
+          console.error("Error fetching template details:", templateErr);
+          // Don't fail the whole request if template fetching fails
+        }
+      }
+      
       // Findings and responses are stored as JSONB fields in the inspections table
       const findings = inspection.findings || [];
       const responses = []; // No responses table, may need to add this later
