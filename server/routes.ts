@@ -3364,7 +3364,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Using direct SQL query to avoid schema mismatches
       const result = await db.execute(`
         UPDATE inspections 
-        SET status = 'in_progress'
+        SET status = 'in_progress', 
+            started_at = NOW()
         WHERE id = ${inspectionId} AND tenant_id = ${req.user.tenantId}
         RETURNING *
       `);
