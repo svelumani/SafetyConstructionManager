@@ -8,7 +8,7 @@ export const userRoleEnum = pgEnum('user_role', ['super_admin', 'safety_officer'
 export const siteRoleEnum = pgEnum('site_role', ['site_manager', 'safety_coordinator', 'foreman', 'worker', 'subcontractor', 'visitor']);
 export const hazardSeverityEnum = pgEnum('hazard_severity', ['low', 'medium', 'high', 'critical']);
 export const hazardStatusEnum = pgEnum('hazard_status', ['open', 'assigned', 'in_progress', 'resolved', 'closed']);
-export const inspectionStatusEnum = pgEnum('inspection_status', ['pending', 'in_progress', 'completed']);
+export const inspectionStatusEnum = pgEnum('inspection_status', ['scheduled', 'in_progress', 'completed', 'canceled']);
 export const permitStatusEnum = pgEnum('permit_status', ['requested', 'approved', 'denied', 'expired']);
 export const incidentSeverityEnum = pgEnum('incident_severity', ['minor', 'moderate', 'major', 'critical']);
 export const subscriptionPlanEnum = pgEnum('subscription_plan', ['basic', 'standard', 'premium', 'enterprise']);
@@ -242,22 +242,145 @@ export const hazardCommentsRelations = relations(hazardComments, ({ one }) => ({
   }),
 }));
 
+// Inspection Templates
+export const inspectionTemplates = pgTable('inspection_templates', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  category: text('category').notNull(),
+  version: text('version').default('1.0'),
+  isDefault: boolean('is_default').default(false),
+  createdById: integer('created_by_id').references(() => users.id),
+  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
+  isActive: boolean('is_active').notNull().default(true),
+});
+
+export const inspectionTemplatesRelations = relations(inspectionTemplates, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [inspectionTemplates.tenantId],
+    references: [tenants.id],
+  }),
+  creator: one(users, {
+    fields: [inspectionTemplates.createdById],
+    references: [users.id],
+  })
+}));
+
+// Inspection Checklist Items
+export const inspectionChecklistItems = pgTable('inspection_checklist_items', {
+  id: serial('id').primaryKey(),
+  templateId: integer('template_id').references(() => inspectionTemplates.id, { onDelete: 'cascade' }).notNull(),
+  category: text('category'),
+  question: text('question').notNull(),
+  description: text('description'),
+  expectedAnswer: text('expected_answer').default('yes'),
+  isCritical: boolean('is_critical').default(false),
+  sortOrder: integer('sort_order').default(0),
+  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
+  isActive: boolean('is_active').notNull().default(true),
+});
+
+export const inspectionChecklistItemsRelations = relations(inspectionChecklistItems, ({ one }) => ({
+  template: one(inspectionTemplates, {
+    fields: [inspectionChecklistItems.templateId],
+    references: [inspectionTemplates.id],
+  }),
+}));
+
+// Compliance Status Enum for Inspection Responses
+export const complianceStatusEnum = pgEnum('compliance_status', [
+  'yes',
+  'no',
+  'na',
+  'partial',
+]);
+
+// Inspection Responses
+export const inspectionResponses = pgTable('inspection_responses', {
+  id: serial('id').primaryKey(),
+  inspectionId: integer('inspection_id').references(() => inspections.id, { onDelete: 'cascade' }).notNull(),
+  checklistItemId: integer('checklist_item_id').references(() => inspectionChecklistItems.id, { onDelete: 'cascade' }).notNull(),
+  response: complianceStatusEnum('response').notNull(),
+  notes: text('notes'),
+  photoUrls: jsonb('photo_urls'),
+  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
+});
+
+// Inspection Findings
+export const inspectionFindings = pgTable('inspection_findings', {
+  id: serial('id').primaryKey(),
+  inspectionId: integer('inspection_id').references(() => inspections.id, { onDelete: 'cascade' }).notNull(),
+  description: text('description').notNull(),
+  severity: hazardSeverityEnum('severity').notNull().default('medium'),
+  location: text('location'),
+  photoUrls: jsonb('photo_urls'),
+  recommendedAction: text('recommended_action'),
+  dueDate: timestamp('due_date', { mode: 'string' }),
+  assignedToId: integer('assigned_to_id').references(() => users.id),
+  status: hazardStatusEnum('status').notNull().default('open'),
+  createdById: integer('created_by_id').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
+  resolvedById: integer('resolved_by_id').references(() => users.id),
+  resolvedAt: timestamp('resolved_at', { mode: 'string' }),
+  isActive: boolean('is_active').notNull().default(true),
+});
+
+// Relations for inspection responses and findings
+export const inspectionResponsesRelations = relations(inspectionResponses, ({ one }) => ({
+  inspection: one(inspections, {
+    fields: [inspectionResponses.inspectionId],
+    references: [inspections.id],
+  }),
+  checklistItem: one(inspectionChecklistItems, {
+    fields: [inspectionResponses.checklistItemId],
+    references: [inspectionChecklistItems.id],
+  }),
+}));
+
+export const inspectionFindingsRelations = relations(inspectionFindings, ({ one }) => ({
+  inspection: one(inspections, {
+    fields: [inspectionFindings.inspectionId],
+    references: [inspections.id],
+  }),
+  assignedTo: one(users, {
+    fields: [inspectionFindings.assignedToId],
+    references: [users.id],
+  }),
+  createdBy: one(users, {
+    fields: [inspectionFindings.createdById],
+    references: [users.id],
+  }),
+  resolvedBy: one(users, {
+    fields: [inspectionFindings.resolvedById],
+    references: [users.id],
+  }),
+}));
+
 // Inspections
 export const inspections = pgTable('inspections', {
   id: serial('id').primaryKey(),
   tenantId: integer('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
   siteId: integer('site_id').references(() => sites.id, { onDelete: 'cascade' }).notNull(),
-  inspectorId: integer('inspector_id').references(() => users.id).notNull(),
-  inspectionType: text('inspection_type').notNull(),
+  templateId: integer('template_id').references(() => inspectionTemplates.id),
   title: text('title').notNull(),
   description: text('description'),
-  scheduledDate: timestamp('scheduled_date', { mode: 'string' }).notNull(),
+  scheduledDate: timestamp('scheduled_date', { mode: 'string' }),
+  dueDate: timestamp('due_date', { mode: 'string' }),
+  assignedToId: integer('assigned_to_id').references(() => users.id),
+  createdById: integer('created_by_id').references(() => users.id).notNull(),
+  completedById: integer('completed_by_id').references(() => users.id),
   completedDate: timestamp('completed_date', { mode: 'string' }),
-  status: inspectionStatusEnum('status').notNull().default('pending'),
-  result: text('result'),
-  findings: jsonb('findings'),
+  location: text('location'),
+  status: inspectionStatusEnum('status').notNull(),
+  score: integer('score'),
+  maxScore: integer('max_score'),
+  notes: text('notes'),
   photoUrls: jsonb('photo_urls'),
-  videoIds: jsonb('video_ids'),
   documentUrls: jsonb('document_urls'),
   createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'string' }).notNull().defaultNow(),
@@ -273,8 +396,20 @@ export const inspectionsRelations = relations(inspections, ({ one }) => ({
     fields: [inspections.siteId],
     references: [sites.id],
   }),
-  inspector: one(users, {
-    fields: [inspections.inspectorId],
+  template: one(inspectionTemplates, {
+    fields: [inspections.templateId],
+    references: [inspectionTemplates.id],
+  }),
+  assignedTo: one(users, {
+    fields: [inspections.assignedToId],
+    references: [users.id],
+  }),
+  createdBy: one(users, {
+    fields: [inspections.createdById],
+    references: [users.id],
+  }),
+  completedBy: one(users, {
+    fields: [inspections.completedById],
     references: [users.id],
   }),
 }));
