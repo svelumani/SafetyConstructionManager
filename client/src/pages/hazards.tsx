@@ -8,7 +8,8 @@ import {
   Filter,
   Zap,
   Cone,
-  Droplet
+  Droplet,
+  BarChart3
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -149,11 +150,19 @@ export default function Hazards() {
   return (
     <Layout title="Hazard Reporting" description="Track and manage hazards across all construction sites">
       <div className="flex justify-between items-center mb-6">
-        <Button asChild>
-          <Link href="/hazards/new">
-            <Plus className="mr-2 h-4 w-4" /> Report New Hazard
-          </Link>
-        </Button>
+        <div className="flex gap-3">
+          <Button asChild>
+            <Link href="/hazards/new">
+              <Plus className="mr-2 h-4 w-4" /> Report New Hazard
+            </Link>
+          </Button>
+          
+          <Button variant="outline" asChild>
+            <Link href="/hazards/analytics">
+              <BarChart3 className="mr-2 h-4 w-4" /> Analytics Dashboard
+            </Link>
+          </Button>
+        </div>
         
         <Button variant="outline">
           <Filter className="mr-2 h-4 w-4" /> Filter
