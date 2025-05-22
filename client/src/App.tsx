@@ -30,6 +30,11 @@ import AddTeamMember from "@/pages/teams/members/add";
 import NewHazardReport from "@/pages/hazards/new";
 import HazardDetail from "@/pages/hazards/[id]";
 import AssignHazard from "@/pages/hazards/[id]/assign";
+// Import inspection-specific pages
+import InspectionTemplates from "@/pages/inspections/templates";
+import NewInspectionTemplate from "@/pages/inspections/templates/new";
+import NewInspection from "@/pages/inspections/new";
+import InspectionDetail from "@/pages/inspections/[id]";
 
 function Router() {
   return (
@@ -48,7 +53,13 @@ function Router() {
       <ProtectedRoute path="/hazards/:id/assign" component={AssignHazard} />
       <ProtectedRoute path="/hazards/:id" component={HazardDetail} />
       
+      {/* Inspection management routes */}
       <ProtectedRoute path="/inspections" component={Inspections} />
+      <ProtectedRoute path="/inspections/templates" component={InspectionTemplates} />
+      <ProtectedRoute path="/inspections/templates/new" component={NewInspectionTemplate} />
+      <ProtectedRoute path="/inspections/new" component={NewInspection} />
+      <ProtectedRoute path="/inspections/:id" component={InspectionDetail} />
+      
       <ProtectedRoute path="/permits" component={Permits} />
       <ProtectedRoute path="/incidents" component={Incidents} />
       <ProtectedRoute path="/training" component={Training} />

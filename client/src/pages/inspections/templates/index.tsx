@@ -99,7 +99,6 @@ export default function InspectionTemplates() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <Badge
-                    variant="outline"
                     className={`${categoryColors[template.category] || 'bg-gray-100 text-gray-800'} font-medium`}
                   >
                     {formatCategory(template.category)}
