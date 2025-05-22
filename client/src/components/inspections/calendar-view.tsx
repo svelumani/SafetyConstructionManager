@@ -53,53 +53,44 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
   const getInspectionsByDate = () => {
     const inspectionDates: { [key: string]: Inspection[] } = {};
     
-    // Log received inspections for debugging
-    console.log("Calendar view received inspections:", inspections);
-    
+    // Process each inspection
     inspections.forEach(inspection => {
-      console.log("Processing inspection:", inspection);
-      
       if (inspection) {
         try {
-          // Ensure we're working with snake_case or camelCase consistently
+          // Get the scheduled date - it might be in camelCase or snake_case
           const scheduledDate = inspection.scheduledDate || inspection.scheduled_date;
-          
-          console.log("Inspection scheduled date:", scheduledDate, typeof scheduledDate);
           
           if (!scheduledDate) {
             console.warn("Missing scheduled date for inspection:", inspection.id);
             return;
           }
           
-          // Handle date formats safely
+          // Extract just the date portion (YYYY-MM-DD)
           let dateOnly;
           if (typeof scheduledDate === 'string') {
             if (scheduledDate.includes('T')) {
-              dateOnly = scheduledDate.split('T')[0];
+              dateOnly = scheduledDate.split('T')[0]; // ISO format with time
             } else if (scheduledDate.includes(' ')) {
-              dateOnly = scheduledDate.split(' ')[0];
+              dateOnly = scheduledDate.split(' ')[0]; // Format with space before time
             } else {
-              dateOnly = scheduledDate;
+              dateOnly = scheduledDate; // Already just date
             }
           } else {
             // If it's not a string (maybe a Date object), convert to ISO string first
             dateOnly = new Date(scheduledDate).toISOString().split('T')[0];
           }
           
-          console.log("Extracted date only:", dateOnly);
-          
+          // Add this inspection to the array for this date
           if (!inspectionDates[dateOnly]) {
             inspectionDates[dateOnly] = [];
           }
           inspectionDates[dateOnly].push(inspection);
-          console.log(`Added inspection ${inspection.id} to date ${dateOnly}`);
         } catch (error) {
-          console.error("Error processing inspection date:", inspection, error);
+          console.error("Error processing inspection date:", error);
         }
       }
     });
     
-    console.log("Final inspections by date:", inspectionDates);
     return inspectionDates;
   };
 
