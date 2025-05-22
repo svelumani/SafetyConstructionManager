@@ -2599,12 +2599,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Training Records
   app.get("/api/training-records", requireAuth, requirePermission("training", "read"), async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query.limit as string) || 100; // Increased limit for analytics
       const offset = parseInt(req.query.offset as string) || 0;
       const tenantId = req.user.tenantId;
       const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
       const courseId = req.query.courseId ? parseInt(req.query.courseId as string) : undefined;
       
+      // For analytics, we want to fetch all records without filtering by userId or courseId 
+      // when those filters aren't explicitly provided
       const records = await storage.listTrainingRecords({ 
         tenantId, userId, courseId, limit, offset 
       });
@@ -2613,6 +2615,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tenantId, userId, courseId 
       });
       
+      console.log(`Fetched ${records.length} training records out of ${total} total`);
       res.json({ records, total });
     } catch (err) {
       console.error("Error fetching training records:", err);
