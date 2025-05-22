@@ -3155,13 +3155,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
         
-        // Update the existing response
+        // Update the existing response - force setting isCompliant to true/false based on the request
         const updateResult = await db.execute(`
           UPDATE inspection_responses
           SET 
             response = '${response.replace(/'/g, "''")}',
             notes = ${notes ? `'${notes.replace(/'/g, "''")}'` : 'NULL'},
-            is_compliant = ${isCompliant !== null ? isCompliant : 'NULL'},
+            is_compliant = ${responseData.isCompliant === true ? 'TRUE' : responseData.isCompliant === false ? 'FALSE' : 'NULL'},
             photo_urls = '${photoUrls}'::jsonb,
             updated_at = NOW()
           WHERE id = ${existingResponse.id}
@@ -3305,6 +3305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           photo_urls,
           created_by_id,
           status,
+          priority,
           created_at,
           updated_at
         ) VALUES (
@@ -3314,6 +3315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           '${JSON.stringify(findingData.photoUrls || [])}',
           ${req.user.id},
           'open',
+          'medium',
           NOW(),
           NOW()
         )
