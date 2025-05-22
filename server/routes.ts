@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { db, pool } from "./db";
 import { setupAuth } from "./auth";
 import { setupEmailService } from "./email";
+import { generateReport, getReportHistory, downloadReport } from "./reports";
 import * as schema from "@shared/schema";
 import { eq, desc, and, not, sql } from "drizzle-orm";
 import { ZodError } from "zod";
@@ -4287,6 +4288,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error uploading training content:', error);
       res.status(500).json({ message: 'Failed to upload training content' });
+    }
+  });
+
+  // Report Generation API endpoints
+  
+  // Generate report endpoint
+  app.post('/api/reports/generate', requireAuth, async (req, res) => {
+    try {
+      await generateReport(req, res);
+    } catch (error) {
+      console.error('Error generating report:', error);
+      res.status(500).json({ message: 'Failed to generate report' });
+    }
+  });
+  
+  // Report history endpoint
+  app.get('/api/reports/history', requireAuth, async (req, res) => {
+    try {
+      await getReportHistory(req, res);
+    } catch (error) {
+      console.error('Error fetching report history:', error);
+      res.status(500).json({ message: 'Failed to fetch report history' });
+    }
+  });
+  
+  // Download report endpoint
+  app.get('/api/reports/download/:id', requireAuth, async (req, res) => {
+    try {
+      await downloadReport(req, res);
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      res.status(500).json({ message: 'Failed to download report' });
     }
   });
 
