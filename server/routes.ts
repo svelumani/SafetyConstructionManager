@@ -3296,7 +3296,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.id
       });
       
-      // Build the SQL query dynamically
+      // Build the SQL query dynamically with due_date
+      console.log('Finding data with due date:', {
+        ...findingData,
+        dueDate: findingData.dueDate ? new Date(findingData.dueDate).toISOString() : null
+      });
+      
       const insertSQL = `
         INSERT INTO inspection_findings (
           inspection_id,
@@ -3306,6 +3311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           created_by_id,
           status,
           priority,
+          due_date,
           created_at,
           updated_at
         ) VALUES (
@@ -3316,6 +3322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ${req.user.id},
           'open',
           'medium',
+          ${findingData.dueDate ? `'${new Date(findingData.dueDate).toISOString()}'` : 'NULL'},
           NOW(),
           NOW()
         )

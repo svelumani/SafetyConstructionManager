@@ -384,6 +384,8 @@ export default function InspectionDetails() {
   // Function to handle adding a new finding
   const handleAddFinding = async () => {
     try {
+      console.log('Submitting finding with date:', newFinding.dueDate);
+      
       const response = await apiRequest("POST", `/api/inspections/${id}/findings`, newFinding);
       
       if (!response.ok) {
@@ -408,6 +410,9 @@ export default function InspectionDetails() {
       
       // Close the dialog
       setFindingDialogOpen(false);
+      
+      // Refresh the findings data to ensure UI is up to date
+      queryClient.invalidateQueries({ queryKey: [`/api/inspections/${id}/findings`] });
       
       toast({
         title: "Finding Added",
