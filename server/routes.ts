@@ -3146,6 +3146,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isCompliant = responseData.isCompliant !== undefined ? responseData.isCompliant : null;
       const photoUrls = responseData.photoUrls ? JSON.stringify(responseData.photoUrls) : '[]';
       
+      // Log what we're about to insert for debugging
+      console.log('About to insert inspection response with data:', {
+        inspectionId,
+        checklistItemId: responseData.checklistItemId || null,
+        response,
+        notes,
+        isCompliant,
+        photoUrls: JSON.parse(photoUrls),
+        created_by_id: req.user.id
+      });
+      
       // Insert the response with properly formatted SQL
       const insertResult = await db.execute(`
         INSERT INTO inspection_responses (
