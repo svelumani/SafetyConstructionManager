@@ -157,6 +157,11 @@ export default function Inspections() {
               <ClipboardCheck className="mr-2 h-4 w-4" /> Manage Templates
             </Link>
           </Button>
+          <Button variant="outline" asChild>
+            <Link href="/inspections/analytics">
+              <BarChart3 className="mr-2 h-4 w-4" /> Analytics Dashboard
+            </Link>
+          </Button>
         </div>
         
         <div className="flex gap-2">
