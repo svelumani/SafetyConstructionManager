@@ -174,13 +174,13 @@ export default function IncidentAnalytics() {
                   <span>Reported</span>
                   <span className="font-medium">{incidentStats.incidentsByStatus.reported}</span>
                 </div>
-                <Progress value={statusPercentages.reported} className="h-2 bg-red-100" indicatorClassName="bg-red-400" />
+                <Progress value={statusPercentages.reported} className="h-2 bg-red-100" />
                 
                 <div className="flex justify-between text-sm">
                   <span>Investigating</span>
                   <span className="font-medium">{incidentStats.incidentsByStatus.investigating}</span>
                 </div>
-                <Progress value={statusPercentages.investigating} className="h-2 bg-amber-100" indicatorClassName="bg-amber-400" />
+                <Progress value={statusPercentages.investigating} className="h-2 bg-amber-100" />
               </div>
             </CardContent>
           </Card>
@@ -217,7 +217,7 @@ export default function IncidentAnalytics() {
                   <span>Resolved</span>
                   <span className="font-medium">{incidentStats.incidentsByStatus.resolved}</span>
                 </div>
-                <Progress value={statusPercentages.resolved} className="h-2 bg-blue-100" indicatorClassName="bg-blue-400" />
+                <Progress value={statusPercentages.resolved} className="h-2 bg-blue-100" indicatorStyle="bg-blue-400" />
                 
                 <div className="flex justify-between text-sm">
                   <span>Closed</span>
@@ -598,7 +598,7 @@ export default function IncidentAnalytics() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {incidents.slice(0, 5).map((incident) => (
+                {Array.isArray(incidents) ? incidents.slice(0, 5).map((incident) => (
                   <div key={incident.id} className="flex flex-col md:flex-row justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                     <div className="flex-1">
                       <Link href={`/incidents/${incident.id}`}>
@@ -637,7 +637,7 @@ export default function IncidentAnalytics() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )) : <div className="text-center py-4">No recent incidents found</div>}
               </div>
             </CardContent>
           </Card>
