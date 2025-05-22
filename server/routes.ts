@@ -2101,15 +2101,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const siteId = req.query.siteId ? parseInt(req.query.siteId as string) : undefined;
       const status = req.query.status as string;
       
-      // Adapt query to match actual database structure
-      // Using raw SQL since we have a schema mismatch
+      // Enhanced query to include site and inspector names
       const inspectionsQuery = `
-        SELECT * FROM inspections 
-        WHERE tenant_id = $1 
-        AND is_active = true
-        ${siteId ? 'AND site_id = $2' : ''}
-        ${status ? `AND status = ${siteId ? '$3' : '$2'}` : ''}
-        ORDER BY created_at DESC
+        SELECT 
+          i.*,
+          s.name AS site_name,
+          CONCAT(u.first_name, ' ', u.last_name) AS inspector_name
+        FROM inspections i
+        LEFT JOIN sites s ON i.site_id = s.id
+        LEFT JOIN users u ON i.inspector_id = u.id
+        WHERE i.tenant_id = $1 
+        AND i.is_active = true
+        ${siteId ? 'AND i.site_id = $2' : ''}
+        ${status ? `AND i.status = ${siteId ? '$3' : '$2'}` : ''}
+        ORDER BY i.created_at DESC
         LIMIT $${siteId && status ? '4' : (siteId || status ? '3' : '2')}
         OFFSET $${siteId && status ? '5' : (siteId || status ? '4' : '3')}
       `;
