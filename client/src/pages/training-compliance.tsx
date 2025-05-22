@@ -419,7 +419,7 @@ export default function TrainingCompliance() {
                 <SelectValue placeholder="Filter by course" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem key="all" value="">All Courses</SelectItem>
+                <SelectItem key="all" value="all-courses">All Courses</SelectItem>
                 {trainings?.courses?.map(course => (
                   <SelectItem key={course.id} value={course.id.toString()}>{course.title}</SelectItem>
                 ))}
@@ -445,7 +445,7 @@ export default function TrainingCompliance() {
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem key="all-teams" value="">All Teams</SelectItem>
+                    <SelectItem key="all-teams" value="all-teams">All Teams</SelectItem>
                     {uniqueTeams.map(team => (
                       <SelectItem key={team} value={team}>{team}</SelectItem>
                     ))}
@@ -459,15 +459,15 @@ export default function TrainingCompliance() {
         {/* Tab Navigation */}
         <Tabs defaultValue="overdue" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
-            <TabsTrigger value="overdue" className="relative">
+            <TabsTrigger key="overdue-tab" value="overdue" className="relative">
               Overdue
               <Badge className="ml-2 bg-red-500 hover:bg-red-500">{overdueCount}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="expiring" className="relative">
+            <TabsTrigger key="expiring-tab" value="expiring" className="relative">
               Expiring Soon
               <Badge className="ml-2 bg-amber-500 hover:bg-amber-500">{expiringCount}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="all">
+            <TabsTrigger key="all-tab" value="all">
               All Non-Compliant
             </TabsTrigger>
           </TabsList>
