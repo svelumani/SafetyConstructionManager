@@ -1984,7 +1984,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           scheduled_date,
           status,
           inspection_type,
-          is_active
+          is_active,
+          template_id
         ) VALUES (
           ${req.user.tenantId}, 
           ${formData.siteId}, 
@@ -1994,7 +1995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           '${new Date(formData.scheduledDate).toISOString()}',
           'pending',
           'routine',
-          true
+          true,
+          ${formData.templateId ? formData.templateId : 'NULL'}
         ) RETURNING *;
       `);
       
