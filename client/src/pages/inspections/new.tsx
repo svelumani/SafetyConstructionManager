@@ -78,7 +78,7 @@ export default function NewInspection() {
   });
   
   // Ensure templates is always an array
-  const templates = templatesResponse?.templates || [];
+  const templates = Array.isArray(templatesResponse) ? templatesResponse : [];
 
   // Fetch users
   const { data: usersResponse } = useQuery({
@@ -147,8 +147,8 @@ export default function NewInspection() {
     if (templateId) {
       const selectedTemplate = templates.find((t) => t.id === templateId);
       if (selectedTemplate) {
-        form.setValue("title", `${selectedTemplate.title}`);
-        form.setValue("description", selectedTemplate.description);
+        form.setValue("title", `${selectedTemplate.name}`);
+        form.setValue("description", selectedTemplate.description || '');
       }
     }
   }, [form.watch("templateId"), templates, form]);
@@ -189,7 +189,7 @@ export default function NewInspection() {
                               key={template.id}
                               value={template.id.toString()}
                             >
-                              {template.title}
+                              {template.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
