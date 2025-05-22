@@ -254,15 +254,1213 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  // Dashboard statistics implementations
+  async getHazardStats(tenantId: number): Promise<{
+    total: number;
+    open: number;
+    inProgress: number;
+    resolved: number;
+    bySeverity: { severity: string; count: number }[];
+  }> {
+    // Total count
+    const [totalResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(hazardReports)
+      .where(eq(hazardReports.tenantId, tenantId));
+    
+    // Open count
+    const [openResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(hazardReports)
+      .where(and(
+        eq(hazardReports.tenantId, tenantId),
+        or(
+          eq(hazardReports.status, "open"),
+          eq(hazardReports.status, "assigned")
+        )
+      ));
+    
+    // In progress count
+    const [inProgressResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(hazardReports)
+      .where(and(
+        eq(hazardReports.tenantId, tenantId),
+        eq(hazardReports.status, "in_progress")
+      ));
+    
+    // Resolved count
+    const [resolvedResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(hazardReports)
+      .where(and(
+        eq(hazardReports.tenantId, tenantId),
+        or(
+          eq(hazardReports.status, "resolved"),
+          eq(hazardReports.status, "closed")
+        )
+      ));
+    
+    // By severity
+    const severityCounts = await db
+      .select({
+        severity: hazardReports.severity,
+        count: sql<number>`count(*)`
+      })
+      .from(hazardReports)
+      .where(eq(hazardReports.tenantId, tenantId))
+      .groupBy(hazardReports.severity);
+    
+    return {
+      total: totalResult?.count || 0,
+      open: openResult?.count || 0,
+      inProgress: inProgressResult?.count || 0,
+      resolved: resolvedResult?.count || 0,
+      bySeverity: severityCounts.map(sc => ({ 
+        severity: sc.severity, 
+        count: sc.count 
+      }))
+    };
+  }
+
+  // Implement hazard report functions
+  async listHazardReports(tenantId: number, options?: { 
+    limit?: number; 
+    offset?: number; 
+    siteId?: number; 
+    status?: string; 
+    severity?: string;
+  }): Promise<HazardReport[]> {
+    let query = db.select().from(hazardReports)
+      .where(eq(hazardReports.tenantId, tenantId))
+      .orderBy(desc(hazardReports.createdAt));
+    
+    // Apply filters
+    if (options?.siteId) {
+      query = query.where(eq(hazardReports.siteId, options.siteId));
+    }
+    
+    if (options?.status) {
+      query = query.where(eq(hazardReports.status, options.status));
+    }
+    
+    if (options?.severity) {
+      query = query.where(eq(hazardReports.severity, options.severity));
+    }
+    
+    // Apply pagination
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async countHazardReports(tenantId: number, options?: { 
+    siteId?: number; 
+    status?: string; 
+    severity?: string; 
+  }): Promise<number> {
+    let query = db
+      .select({ count: sql<number>`count(*)` })
+      .from(hazardReports)
+      .where(eq(hazardReports.tenantId, tenantId));
+    
+    // Apply filters
+    if (options?.siteId) {
+      query = query.where(eq(hazardReports.siteId, options.siteId));
+    }
+    
+    if (options?.status) {
+      query = query.where(eq(hazardReports.status, options.status));
+    }
+    
+    if (options?.severity) {
+      query = query.where(eq(hazardReports.severity, options.severity));
+    }
+    
+    const [result] = await query;
+    return result?.count || 0;
+  }
+
+  // Implement inspection-related functions
+  async listInspections(tenantId: number, options?: { 
+    limit?: number; 
+    offset?: number; 
+    siteId?: number; 
+    status?: string;
+  }): Promise<Inspection[]> {
+    let query = db.select().from(inspections)
+      .where(eq(inspections.tenantId, tenantId))
+      .orderBy(desc(inspections.createdAt));
+    
+    // Apply filters
+    if (options?.siteId) {
+      query = query.where(eq(inspections.siteId, options.siteId));
+    }
+    
+    if (options?.status) {
+      query = query.where(eq(inspections.status, options.status));
+    }
+    
+    // Apply pagination
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async countInspections(tenantId: number, options?: { 
+    siteId?: number; 
+    status?: string; 
+  }): Promise<number> {
+    let query = db
+      .select({ count: sql<number>`count(*)` })
+      .from(inspections)
+      .where(eq(inspections.tenantId, tenantId));
+    
+    // Apply filters
+    if (options?.siteId) {
+      query = query.where(eq(inspections.siteId, options.siteId));
+    }
+    
+    if (options?.status) {
+      query = query.where(eq(inspections.status, options.status));
+    }
+    
+    const [result] = await query;
+    return result?.count || 0;
+  }
+
+  // Training stats for dashboard
+  async getTrainingStats(tenantId: number): Promise<{
+    totalUsers: number;
+    completedTraining: number;
+    inProgressTraining: number;
+    completionRate: number;
+    byCourse: { course: string; completed: number; total: number; rate: number }[];
+  }> {
+    // Get total users count
+    const [usersResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(eq(users.tenantId, tenantId));
+    
+    const totalUsers = usersResult?.count || 0;
+    
+    // Get completed training count
+    const [completedResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(trainingRecords)
+      .where(and(
+        eq(trainingRecords.tenantId, tenantId),
+        eq(trainingRecords.status, "completed")
+      ));
+    
+    // Get in-progress training count
+    const [inProgressResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(trainingRecords)
+      .where(and(
+        eq(trainingRecords.tenantId, tenantId),
+        eq(trainingRecords.status, "in_progress")
+      ));
+    
+    const completedTraining = completedResult?.count || 0;
+    const inProgressTraining = inProgressResult?.count || 0;
+    const completionRate = totalUsers > 0 ? (completedTraining / totalUsers) * 100 : 0;
+    
+    // Get course-specific stats
+    const courseStats = await db
+      .select({
+        courseId: trainingCourses.id,
+        courseName: trainingCourses.title,
+        completed: sql<number>`count(CASE WHEN ${trainingRecords.status} = 'completed' THEN 1 END)`,
+        total: sql<number>`count(*)`
+      })
+      .from(trainingRecords)
+      .innerJoin(trainingCourses, eq(trainingRecords.courseId, trainingCourses.id))
+      .where(eq(trainingRecords.tenantId, tenantId))
+      .groupBy(trainingCourses.id, trainingCourses.title);
+    
+    return {
+      totalUsers,
+      completedTraining,
+      inProgressTraining,
+      completionRate,
+      byCourse: courseStats.map(cs => ({
+        course: cs.courseName,
+        completed: Number(cs.completed),
+        total: Number(cs.total),
+        rate: cs.total > 0 ? (Number(cs.completed) / Number(cs.total)) * 100 : 0
+      }))
+    };
+  }
+
+  // Site stats for dashboard
+  async getSiteStats(tenantId: number): Promise<{
+    totalSites: number;
+    activeSites: number;
+    sitesWithHazards: number;
+    recentInspections: number;
+  }> {
+    // Total sites
+    const [totalResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(sites)
+      .where(eq(sites.tenantId, tenantId));
+    
+    // Active sites
+    const [activeResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(sites)
+      .where(and(
+        eq(sites.tenantId, tenantId),
+        eq(sites.status, "active")
+      ));
+    
+    // Sites with hazards
+    const sitesWithHazardsQuery = db
+      .select({ siteId: hazardReports.siteId })
+      .from(hazardReports)
+      .where(and(
+        eq(hazardReports.tenantId, tenantId),
+        or(
+          eq(hazardReports.status, "open"),
+          eq(hazardReports.status, "assigned"),
+          eq(hazardReports.status, "in_progress")
+        )
+      ))
+      .groupBy(hazardReports.siteId);
+    
+    const sitesWithHazards = await sitesWithHazardsQuery;
+    
+    // Recent inspections (in the last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const [recentInspectionsResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(inspections)
+      .where(and(
+        eq(inspections.tenantId, tenantId),
+        sql`${inspections.createdAt} >= ${thirtyDaysAgo.toISOString()}`
+      ));
+    
+    return {
+      totalSites: totalResult?.count || 0,
+      activeSites: activeResult?.count || 0,
+      sitesWithHazards: sitesWithHazards.length,
+      recentInspections: recentInspectionsResult?.count || 0
+    };
+  }
+
+  // Implement system log functionality
+  async createSystemLog(log: { 
+    tenantId?: number; 
+    userId?: number; 
+    action: string; 
+    entityType?: string; 
+    entityId?: string; 
+    details?: any; 
+    ipAddress?: string; 
+    userAgent?: string;
+  }): Promise<SystemLog> {
+    const [newLog] = await db.insert(systemLogs).values({
+      tenantId: log.tenantId,
+      userId: log.userId,
+      action: log.action,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      details: log.details ? JSON.stringify(log.details) : null,
+      ipAddress: log.ipAddress,
+      userAgent: log.userAgent,
+      createdAt: new Date().toISOString(),
+    }).returning();
+    
+    return newLog;
+  }
+  
+  async listSystemLogs(options?: { 
+    tenantId?: number; 
+    userId?: number; 
+    action?: string; 
+    limit?: number; 
+    offset?: number;
+  }): Promise<SystemLog[]> {
+    let query = db.select().from(systemLogs)
+      .orderBy(desc(systemLogs.createdAt));
+    
+    if (options?.tenantId) {
+      query = query.where(eq(systemLogs.tenantId, options.tenantId));
+    }
+    
+    if (options?.userId) {
+      query = query.where(eq(systemLogs.userId, options.userId));
+    }
+    
+    if (options?.action) {
+      query = query.where(eq(systemLogs.action, options.action));
+    }
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async countSystemLogs(options?: { 
+    tenantId?: number; 
+    userId?: number; 
+    action?: string; 
+  }): Promise<number> {
+    let query = db
+      .select({ count: sql<number>`count(*)` })
+      .from(systemLogs);
+    
+    if (options?.tenantId) {
+      query = query.where(eq(systemLogs.tenantId, options.tenantId));
+    }
+    
+    if (options?.userId) {
+      query = query.where(eq(systemLogs.userId, options.userId));
+    }
+    
+    if (options?.action) {
+      query = query.where(eq(systemLogs.action, options.action));
+    }
+    
+    const [result] = await query;
+    return result?.count || 0;
+  }
+
+  // Site management
+  async listSites(tenantId: number, options?: { limit?: number; offset?: number; }): Promise<Site[]> {
+    let query = db.select().from(sites)
+      .where(eq(sites.tenantId, tenantId))
+      .orderBy(asc(sites.name));
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async countSites(tenantId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(sites)
+      .where(eq(sites.tenantId, tenantId));
+    return result?.count || 0;
+  }
+  
+  async getSite(id: number): Promise<Site | undefined> {
+    const [site] = await db.select().from(sites).where(eq(sites.id, id));
+    return site;
+  }
+  
+  async createSite(site: InsertSite): Promise<Site> {
+    const [newSite] = await db.insert(sites).values(site).returning();
+    return newSite;
+  }
+  
+  async updateSite(id: number, siteData: Partial<InsertSite>): Promise<Site | undefined> {
+    const [updatedSite] = await db
+      .update(sites)
+      .set({ ...siteData, updatedAt: new Date().toISOString() })
+      .where(eq(sites.id, id))
+      .returning();
+    return updatedSite;
+  }
+  
+  // Email templates
+  async listEmailTemplates(options?: { tenantId?: number; limit?: number; offset?: number; }): Promise<EmailTemplate[]> {
+    let query = db.select().from(emailTemplates)
+      .orderBy(asc(emailTemplates.name));
+    
+    if (options?.tenantId) {
+      query = query.where(
+        or(
+          eq(emailTemplates.tenantId, options.tenantId),
+          isNull(emailTemplates.tenantId)
+        )
+      );
+    }
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async getEmailTemplateByName(name: string, tenantId?: number): Promise<EmailTemplate | undefined> {
+    let query = db.select().from(emailTemplates).where(eq(emailTemplates.name, name));
+    
+    if (tenantId) {
+      query = query.where(
+        or(
+          eq(emailTemplates.tenantId, tenantId),
+          isNull(emailTemplates.tenantId)
+        )
+      );
+    }
+    
+    const [template] = await query.orderBy(desc(emailTemplates.tenantId));
+    return template;
+  }
+  
+  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    const [newTemplate] = await db.insert(emailTemplates).values(template).returning();
+    return newTemplate;
+  }
+  
+  async updateEmailTemplate(id: number, templateData: Partial<InsertEmailTemplate>): Promise<EmailTemplate | undefined> {
+    const [updatedTemplate] = await db
+      .update(emailTemplates)
+      .set({ ...templateData, updatedAt: new Date().toISOString() })
+      .where(eq(emailTemplates.id, id))
+      .returning();
+    return updatedTemplate;
+  }
+
+  // Permissions
+  async hasPermission(tenantId: number, role: string, resource: string, action: string): Promise<boolean> {
+    // Super admin has all permissions
+    if (role === "super_admin") return true;
+    
+    const [permission] = await db.select()
+      .from(rolePermissions)
+      .where(and(
+        eq(rolePermissions.tenantId, tenantId),
+        eq(rolePermissions.role, role),
+        eq(rolePermissions.resource, resource),
+        eq(rolePermissions.action, action)
+      ));
+    
+    return !!permission;
+  }
+  
+  // Tenant operations
+  async getTenant(id: number): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
+    return tenant;
+  }
+  
+  async getTenantByEmail(email: string): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.email, email));
+    return tenant;
+  }
+  
+  async createTenant(tenant: InsertTenant): Promise<Tenant> {
+    const [newTenant] = await db.insert(tenants).values(tenant).returning();
+    return newTenant;
+  }
+  
+  async updateTenant(id: number, tenantData: Partial<InsertTenant>): Promise<Tenant | undefined> {
+    const [updatedTenant] = await db
+      .update(tenants)
+      .set({ ...tenantData, updatedAt: new Date().toISOString() })
+      .where(eq(tenants.id, id))
+      .returning();
+    return updatedTenant;
+  }
+  
+  async listTenants(options?: { limit?: number; offset?: number; }): Promise<Tenant[]> {
+    let query = db.select().from(tenants).orderBy(asc(tenants.name));
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async countTenants(): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(tenants);
+    return result?.count || 0;
+  }
+  
+  async registerTenant(data: RegisterTenant): Promise<{ tenant: Tenant; user: User }> {
+    return await db.transaction(async (tx) => {
+      // Create tenant
+      const [tenant] = await tx
+        .insert(tenants)
+        .values({
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          address: data.address,
+          city: data.city,
+          state: data.state,
+          zipCode: data.zipCode,
+          country: data.country,
+          logo: data.logo,
+          subscriptionPlan: data.subscriptionPlan,
+          subscriptionStatus: data.subscriptionStatus,
+          subscriptionEndDate: data.subscriptionEndDate,
+          maxUsers: data.maxUsers,
+          maxSites: data.maxSites,
+          stripeCustomerId: data.stripeCustomerId,
+          settings: data.settings,
+          isActive: true,
+        })
+        .returning();
+
+      // Create admin user
+      const [user] = await tx
+        .insert(users)
+        .values({
+          tenantId: tenant.id,
+          username: data.adminUser.username,
+          email: data.adminUser.email,
+          password: data.adminUser.password,
+          firstName: data.adminUser.firstName,
+          lastName: data.adminUser.lastName,
+          phone: data.adminUser.phone,
+          role: "safety_officer",
+          isActive: true,
+        })
+        .returning();
+
+      return { tenant, user };
+    });
+  }
+
   // User operations
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
-
+  
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
+  }
+  
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+  
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ ...userData, updatedAt: new Date().toISOString() })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    // We'll use soft delete by marking user as inactive rather than removing
+    const [updatedUser] = await db
+      .update(users)
+      .set({ isActive: false, updatedAt: new Date().toISOString() })
+      .where(eq(users.id, id))
+      .returning();
+    return !!updatedUser;
+  }
+  
+  async listUsers(tenantId: number, options?: { limit?: number; offset?: number; }): Promise<User[]> {
+    let query = db.select().from(users)
+      .where(and(
+        eq(users.tenantId, tenantId),
+        eq(users.isActive, true)
+      ))
+      .orderBy(asc(users.lastName), asc(users.firstName));
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async countUsers(tenantId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(and(
+        eq(users.tenantId, tenantId),
+        eq(users.isActive, true)
+      ));
+    return result?.count || 0;
+  }
+  
+  // Hazard report operations
+  async listHazardReports(tenantId: number, options?: { 
+    siteId?: number;
+    status?: string;
+    assignedTo?: number;
+    reportedBy?: number;
+    limit?: number; 
+    offset?: number;
+  }): Promise<HazardReport[]> {
+    let query = db.select({
+      hazardReport: hazardReports,
+      site: {
+        id: sites.id,
+        name: sites.name,
+      },
+      reportedBy: {
+        id: reporterUsers.id,
+        firstName: reporterUsers.firstName,
+        lastName: reporterUsers.lastName,
+      },
+      assignedTo: {
+        id: assigneeUsers.id,
+        firstName: assigneeUsers.firstName,
+        lastName: assigneeUsers.lastName,
+      },
+    })
+    .from(hazardReports)
+    .leftJoin(sites, eq(hazardReports.siteId, sites.id))
+    .leftJoin(users.as('reporter'), eq(hazardReports.reportedBy, reporterUsers.id))
+    .leftJoin(users.as('assignee'), eq(hazardReports.assignedTo, assigneeUsers.id))
+    .where(eq(hazardReports.tenantId, tenantId))
+    .orderBy(desc(hazardReports.reportedAt));
+    
+    if (options?.siteId) {
+      query = query.where(eq(hazardReports.siteId, options.siteId));
+    }
+    
+    if (options?.status) {
+      query = query.where(eq(hazardReports.status, options.status));
+    }
+    
+    if (options?.assignedTo) {
+      query = query.where(eq(hazardReports.assignedTo, options.assignedTo));
+    }
+    
+    if (options?.reportedBy) {
+      query = query.where(eq(hazardReports.reportedBy, options.reportedBy));
+    }
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    const results = await query;
+    
+    return results.map(row => ({
+      ...row.hazardReport,
+      site: row.site,
+      reportedByUser: row.reportedBy,
+      assignedToUser: row.assignedTo
+    }));
+  }
+  
+  async countHazardReports(tenantId: number, options?: { 
+    siteId?: number;
+    status?: string;
+    assignedTo?: number;
+    reportedBy?: number;
+  }): Promise<number> {
+    let query = db
+      .select({ count: sql<number>`count(*)` })
+      .from(hazardReports)
+      .where(eq(hazardReports.tenantId, tenantId));
+    
+    if (options?.siteId) {
+      query = query.where(eq(hazardReports.siteId, options.siteId));
+    }
+    
+    if (options?.status) {
+      query = query.where(eq(hazardReports.status, options.status));
+    }
+    
+    if (options?.assignedTo) {
+      query = query.where(eq(hazardReports.assignedTo, options.assignedTo));
+    }
+    
+    if (options?.reportedBy) {
+      query = query.where(eq(hazardReports.reportedBy, options.reportedBy));
+    }
+    
+    const [result] = await query;
+    return result?.count || 0;
+  }
+  
+  async getHazardReport(id: number): Promise<HazardReport | undefined> {
+    const [hazardReport] = await db.select().from(hazardReports).where(eq(hazardReports.id, id));
+    
+    if (!hazardReport) return undefined;
+    
+    // Get site details
+    const [site] = await db.select().from(sites).where(eq(sites.id, hazardReport.siteId));
+    
+    // Get reporter details
+    const [reportedByUser] = await db.select().from(users).where(eq(users.id, hazardReport.reportedBy));
+    
+    // Get assignee details if assigned
+    let assignedToUser;
+    if (hazardReport.assignedTo) {
+      [assignedToUser] = await db.select().from(users).where(eq(users.id, hazardReport.assignedTo));
+    }
+    
+    // Get comments
+    const comments = await db.select({
+      comment: hazardComments,
+      user: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      }
+    })
+    .from(hazardComments)
+    .leftJoin(users, eq(hazardComments.userId, users.id))
+    .where(eq(hazardComments.hazardReportId, id))
+    .orderBy(asc(hazardComments.createdAt));
+    
+    return {
+      ...hazardReport,
+      site,
+      reportedByUser,
+      assignedToUser,
+      comments: comments.map(c => ({
+        ...c.comment,
+        user: c.user
+      }))
+    };
+  }
+  
+  async createHazardReport(report: InsertHazardReport): Promise<HazardReport> {
+    const [newReport] = await db.insert(hazardReports).values(report).returning();
+    return newReport;
+  }
+  
+  async updateHazardReport(id: number, reportData: Partial<InsertHazardReport>): Promise<HazardReport | undefined> {
+    const [updatedReport] = await db
+      .update(hazardReports)
+      .set({ ...reportData, updatedAt: new Date().toISOString() })
+      .where(eq(hazardReports.id, id))
+      .returning();
+    return updatedReport;
+  }
+  
+  async addHazardComment(comment: InsertHazardComment): Promise<HazardComment> {
+    const [newComment] = await db.insert(hazardComments).values(comment).returning();
+    return newComment;
+  }
+  
+  async getHazardStats(tenantId: number): Promise<{
+    total: number;
+    open: number;
+    assigned: number;
+    inProgress: number;
+    resolved: number;
+    closed: number;
+    bySite: Array<{ siteId: number; siteName: string; count: number }>;
+    byRisk: Array<{ riskLevel: string; count: number }>;
+  }> {
+    // Total count
+    const [totalResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(hazardReports)
+      .where(eq(hazardReports.tenantId, tenantId));
+    
+    // Count by status
+    const statusCounts = await db
+      .select({
+        status: hazardReports.status,
+        count: sql<number>`count(*)`
+      })
+      .from(hazardReports)
+      .where(eq(hazardReports.tenantId, tenantId))
+      .groupBy(hazardReports.status);
+    
+    // Count by site
+    const siteCounts = await db
+      .select({
+        siteId: hazardReports.siteId,
+        siteName: sites.name,
+        count: sql<number>`count(*)`
+      })
+      .from(hazardReports)
+      .leftJoin(sites, eq(hazardReports.siteId, sites.id))
+      .where(eq(hazardReports.tenantId, tenantId))
+      .groupBy(hazardReports.siteId, sites.name)
+      .orderBy(desc(sql<number>`count(*)`))
+      .limit(5);
+    
+    // Count by risk level
+    const riskCounts = await db
+      .select({
+        riskLevel: hazardReports.riskLevel,
+        count: sql<number>`count(*)`
+      })
+      .from(hazardReports)
+      .where(eq(hazardReports.tenantId, tenantId))
+      .groupBy(hazardReports.riskLevel)
+      .orderBy(desc(sql<number>`count(*)`));
+    
+    const statusMap = Object.fromEntries(
+      statusCounts.map(item => [item.status, Number(item.count)])
+    );
+    
+    return {
+      total: Number(totalResult?.count || 0),
+      open: statusMap['open'] || 0,
+      assigned: statusMap['assigned'] || 0,
+      inProgress: statusMap['in_progress'] || 0,
+      resolved: statusMap['resolved'] || 0,
+      closed: statusMap['closed'] || 0,
+      bySite: siteCounts.map(item => ({
+        siteId: item.siteId,
+        siteName: item.siteName || 'Unknown Site',
+        count: Number(item.count)
+      })),
+      byRisk: riskCounts.map(item => ({
+        riskLevel: item.riskLevel || 'Unknown',
+        count: Number(item.count)
+      }))
+    };
+  }
+  
+  // Inspection operations
+  async listInspectionTemplates(tenantId: number, options?: { 
+    limit?: number; 
+    offset?: number;
+  }): Promise<InspectionTemplate[]> {
+    let query = db.select().from(inspectionTemplates)
+      .where(eq(inspectionTemplates.tenantId, tenantId))
+      .orderBy(asc(inspectionTemplates.name));
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    return await query;
+  }
+  
+  async countInspectionTemplates(tenantId: number): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(inspectionTemplates)
+      .where(eq(inspectionTemplates.tenantId, tenantId));
+    return result?.count || 0;
+  }
+  
+  async getInspectionTemplate(id: number): Promise<InspectionTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(inspectionTemplates)
+      .where(eq(inspectionTemplates.id, id));
+    
+    if (!template) return undefined;
+    
+    // Get sections and items
+    const sections = await db
+      .select()
+      .from(inspectionSections)
+      .where(eq(inspectionSections.templateId, id))
+      .orderBy(asc(inspectionSections.order));
+    
+    for (const section of sections) {
+      section.items = await db
+        .select()
+        .from(inspectionItems)
+        .where(eq(inspectionItems.sectionId, section.id))
+        .orderBy(asc(inspectionItems.order));
+    }
+    
+    return {
+      ...template,
+      sections
+    };
+  }
+  
+  async createInspectionTemplate(template: InsertInspectionTemplate): Promise<InspectionTemplate> {
+    return await db.transaction(async (tx) => {
+      // Insert template
+      const [newTemplate] = await tx
+        .insert(inspectionTemplates)
+        .values({
+          tenantId: template.tenantId,
+          name: template.name,
+          description: template.description,
+          category: template.category,
+          isActive: template.isActive ?? true,
+          createdBy: template.createdBy,
+        })
+        .returning();
+      
+      if (template.sections) {
+        for (let i = 0; i < template.sections.length; i++) {
+          const section = template.sections[i];
+          
+          // Insert section
+          const [newSection] = await tx
+            .insert(inspectionSections)
+            .values({
+              templateId: newTemplate.id,
+              name: section.name,
+              description: section.description,
+              order: i,
+            })
+            .returning();
+          
+          if (section.items) {
+            for (let j = 0; j < section.items.length; j++) {
+              const item = section.items[j];
+              
+              // Insert item
+              await tx
+                .insert(inspectionItems)
+                .values({
+                  sectionId: newSection.id,
+                  question: item.question,
+                  type: item.type,
+                  required: item.required,
+                  options: item.options,
+                  order: j,
+                });
+            }
+          }
+        }
+      }
+      
+      return newTemplate;
+    });
+  }
+  
+  async updateInspectionTemplate(id: number, templateData: Partial<InspectionTemplate>): Promise<InspectionTemplate | undefined> {
+    const [updatedTemplate] = await db
+      .update(inspectionTemplates)
+      .set({ 
+        ...templateData,
+        updatedAt: new Date().toISOString() 
+      })
+      .where(eq(inspectionTemplates.id, id))
+      .returning();
+    
+    return updatedTemplate;
+  }
+  
+  async deleteInspectionTemplate(id: number): Promise<boolean> {
+    return await db.transaction(async (tx) => {
+      // Find sections
+      const sections = await tx
+        .select({ id: inspectionSections.id })
+        .from(inspectionSections)
+        .where(eq(inspectionSections.templateId, id));
+      
+      // Delete items in each section
+      for (const section of sections) {
+        await tx
+          .delete(inspectionItems)
+          .where(eq(inspectionItems.sectionId, section.id));
+      }
+      
+      // Delete sections
+      await tx
+        .delete(inspectionSections)
+        .where(eq(inspectionSections.templateId, id));
+      
+      // Delete template
+      const result = await tx
+        .delete(inspectionTemplates)
+        .where(eq(inspectionTemplates.id, id));
+      
+      return result.rowCount > 0;
+    });
+  }
+  
+  async listInspections(tenantId: number, options?: { 
+    siteId?: number;
+    status?: string;
+    conductedBy?: number;
+    limit?: number; 
+    offset?: number;
+  }): Promise<Inspection[]> {
+    let query = db.select({
+      inspection: inspections,
+      site: {
+        id: sites.id,
+        name: sites.name,
+      },
+      conductedBy: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      },
+      template: {
+        id: inspectionTemplates.id,
+        name: inspectionTemplates.name,
+      }
+    })
+    .from(inspections)
+    .leftJoin(sites, eq(inspections.siteId, sites.id))
+    .leftJoin(users, eq(inspections.conductedBy, users.id))
+    .leftJoin(inspectionTemplates, eq(inspections.templateId, inspectionTemplates.id))
+    .where(eq(inspections.tenantId, tenantId))
+    .orderBy(desc(inspections.conductedAt));
+    
+    if (options?.siteId) {
+      query = query.where(eq(inspections.siteId, options.siteId));
+    }
+    
+    if (options?.status) {
+      query = query.where(eq(inspections.status, options.status));
+    }
+    
+    if (options?.conductedBy) {
+      query = query.where(eq(inspections.conductedBy, options.conductedBy));
+    }
+    
+    if (options?.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    if (options?.offset) {
+      query = query.offset(options.offset);
+    }
+    
+    const results = await query;
+    
+    return results.map(row => ({
+      ...row.inspection,
+      site: row.site,
+      conductedByUser: row.conductedBy,
+      template: row.template
+    }));
+  }
+  
+  async countInspections(tenantId: number, options?: { 
+    siteId?: number;
+    status?: string;
+    conductedBy?: number;
+  }): Promise<number> {
+    let query = db
+      .select({ count: sql<number>`count(*)` })
+      .from(inspections)
+      .where(eq(inspections.tenantId, tenantId));
+    
+    if (options?.siteId) {
+      query = query.where(eq(inspections.siteId, options.siteId));
+    }
+    
+    if (options?.status) {
+      query = query.where(eq(inspections.status, options.status));
+    }
+    
+    if (options?.conductedBy) {
+      query = query.where(eq(inspections.conductedBy, options.conductedBy));
+    }
+    
+    const [result] = await query;
+    return result?.count || 0;
+  }
+  
+  async getInspection(id: number): Promise<Inspection | undefined> {
+    const [inspection] = await db.select().from(inspections).where(eq(inspections.id, id));
+    
+    if (!inspection) return undefined;
+    
+    // Get template with sections and items
+    const template = await this.getInspectionTemplate(inspection.templateId);
+    
+    // Get responses
+    const responses = await db
+      .select()
+      .from(inspectionResponses)
+      .where(eq(inspectionResponses.inspectionId, id));
+    
+    // Get site info
+    const [site] = await db.select().from(sites).where(eq(sites.id, inspection.siteId));
+    
+    // Get user who conducted
+    const [conductedByUser] = await db.select().from(users).where(eq(users.id, inspection.conductedBy));
+    
+    return {
+      ...inspection,
+      template,
+      responses,
+      site,
+      conductedByUser
+    };
+  }
+  
+  async createInspection(inspection: InsertInspection): Promise<Inspection> {
+    const [newInspection] = await db
+      .insert(inspections)
+      .values(inspection)
+      .returning();
+    return newInspection;
+  }
+  
+  async updateInspection(id: number, inspectionData: Partial<InsertInspection>): Promise<Inspection | undefined> {
+    const [updatedInspection] = await db
+      .update(inspections)
+      .set({ 
+        ...inspectionData,
+        updatedAt: new Date().toISOString() 
+      })
+      .where(eq(inspections.id, id))
+      .returning();
+    return updatedInspection;
+  }
+  
+  async addInspectionResponse(response: InsertInspectionResponse): Promise<InspectionResponse> {
+    const [newResponse] = await db
+      .insert(inspectionResponses)
+      .values(response)
+      .returning();
+    return newResponse;
+  }
+  
+  async updateInspectionResponse(id: number, responseData: Partial<InsertInspectionResponse>): Promise<InspectionResponse | undefined> {
+    const [updatedResponse] = await db
+      .update(inspectionResponses)
+      .set({ 
+        ...responseData,
+        updatedAt: new Date().toISOString() 
+      })
+      .where(eq(inspectionResponses.id, id))
+      .returning();
+    return updatedResponse;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
