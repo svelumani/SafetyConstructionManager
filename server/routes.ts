@@ -2710,15 +2710,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .returning();
       
-      // Create system log
-      await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
-        action: "inspection_item_created",
-        entityType: "inspection_item",
-        entityId: item.id.toString(),
-        details: { sectionId, question }
-      });
+      // Create system log directly with database query
+      await db
+        .insert(schema.systemLogs)
+        .values({
+          tenantId: req.user.tenantId,
+          userId: req.user.id,
+          action: "inspection_item_created",
+          entityType: "inspection_item",
+          entityId: item.id.toString(),
+          details: { sectionId, question },
+          createdAt: new Date().toISOString()
+        });
       
       return res.status(201).json(item);
     } catch (error) {
