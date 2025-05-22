@@ -3272,6 +3272,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET inspection findings endpoint
+  app.get('/api/inspections/:id/findings', requireAuth, async (req, res) => {
+    const inspectionId = parseInt(req.params.id);
+    
+    try {
+      // Check if inspection exists and belongs to user's tenant using raw SQL
+      const inspectionResult = await db.execute(`
+        SELECT * FROM inspections 
+        WHERE id = ${inspectionId} 
+        AND tenant_id = ${req.user.tenantId}
+      `);
+      
+      if (inspectionResult.rows.length === 0) {
+        return res.status(404).json({ message: 'Inspection not found' });
+      }
+      
+      // Get the findings for this inspection using raw SQL
+      const findingsResult = await db.execute(`
+        SELECT * FROM inspection_findings 
+        WHERE inspection_id = ${inspectionId}
+        ORDER BY created_at DESC
+      `);
+      
+      return res.status(200).json({ findings: findingsResult.rows });
+    } catch (error) {
+      console.error('Error fetching inspection findings:', error);
+      return res.status(500).json({ message: 'Error fetching inspection findings' });
+    }
+  });
+
   app.post('/api/inspections/:id/findings', requireAuth, async (req, res) => {
     const inspectionId = parseInt(req.params.id);
     const findingData = req.body;
