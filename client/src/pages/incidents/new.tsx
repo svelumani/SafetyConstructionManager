@@ -143,7 +143,9 @@ export default function NewIncident() {
   };
 
   return (
-    <Layout title="Report Incident" description="Report a new workplace incident">
+    <Layout>
+      <h1 className="text-3xl font-bold mb-2">Report Incident</h1>
+      <p className="text-muted-foreground mb-6">Report a new workplace incident</p>
       <Card className="w-full max-w-4xl mx-auto">
         <CardHeader>
           <CardTitle className="text-2xl">Report a Workplace Incident</CardTitle>

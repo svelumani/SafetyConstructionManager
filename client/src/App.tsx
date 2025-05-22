@@ -74,7 +74,10 @@ function Router() {
       <ProtectedRoute path="/permits/new" component={NewPermit} />
       <ProtectedRoute path="/permits/:id" component={PermitDetail} />
       
+      {/* Incident management routes */}
       <ProtectedRoute path="/incidents" component={Incidents} />
+      <ProtectedRoute path="/incidents/new" component={import("@/pages/incidents/new").then((mod) => mod.default)} />
+      <ProtectedRoute path="/incidents/:id" component={import("@/pages/incidents/[id]").then((mod) => mod.default)} />
       <ProtectedRoute path="/training" component={Training} />
       <ProtectedRoute path="/safety-scores" component={SafetyScores} />
       <ProtectedRoute path="/users" component={Users} />
