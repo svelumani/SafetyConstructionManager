@@ -22,6 +22,7 @@ import {
 import {
   AlertCircle,
   AlertTriangle,
+  BarChart3,
   CheckCircle,
   ChevronRight,
   FileText,
@@ -175,13 +176,21 @@ export default function Incidents() {
             Track, investigate, and resolve workplace incidents
           </p>
         </div>
-        <Button 
-          className="mt-4 md:mt-0" 
-          onClick={() => navigate("/incidents/new")}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Report New Incident
-        </Button>
+        <div className="flex flex-col md:flex-row gap-2 mt-4 md:mt-0">
+          <Button 
+            variant="outline"
+            onClick={() => navigate("/incidents/analytics")}
+          >
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Analytics Dashboard
+          </Button>
+          <Button 
+            onClick={() => navigate("/incidents/new")}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Report New Incident
+          </Button>
+        </div>
       </div>
 
       {/* Stats dashboard */}

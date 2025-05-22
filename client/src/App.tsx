@@ -45,6 +45,7 @@ import PermitDetail from "@/pages/permits/[id]";
 // Import incident-specific pages
 import IncidentNew from "@/pages/incidents/new";
 import IncidentDetail from "@/pages/incidents/[id]";
+import IncidentAnalytics from "@/pages/incident-analytics";
 
 function Router() {
   return (
@@ -80,6 +81,7 @@ function Router() {
       
       {/* Incident management routes */}
       <ProtectedRoute path="/incidents/new" component={IncidentNew} />
+      <ProtectedRoute path="/incidents/analytics" component={IncidentAnalytics} />
       <ProtectedRoute path="/incidents/:id" component={IncidentDetail} />
       <ProtectedRoute path="/incidents" component={Incidents} />
       <ProtectedRoute path="/training" component={Training} />
