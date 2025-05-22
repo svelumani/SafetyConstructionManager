@@ -1413,14 +1413,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/hazards", requireAuth, requirePermission("hazards", "create"), async (req, res) => {
     try {
+      // Parse and validate the incoming data
       const data = insertHazardReportSchema.parse({
         ...req.body,
         tenantId: req.user.tenantId,
-        reportedById: req.user.id
+        reportedById: req.user.id,
+        status: "open" // Ensure status is explicitly set
       });
       
+      // Create the hazard report in the database
       const hazard = await storage.createHazardReport(data);
       
+      // Log the hazard creation in the system logs
       await storage.createSystemLog({
         tenantId: req.user.tenantId,
         userId: req.user.id,
@@ -1430,50 +1434,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: { title: hazard.title, severity: hazard.severity, siteId: hazard.siteId },
       });
       
-      // Send email notifications to safety officers and site managers
-      try {
-        // Get the site for the name
-        const site = await storage.getSite(hazard.siteId);
-        
-        // Get the user who reported the hazard
-        const reportedBy = await storage.getUser(hazard.reportedById);
-        
-        // Get safety officers and site managers for the tenant
-        const safetyOfficers = await storage.getUsersByRole(hazard.tenantId, 'safety_officer');
-        
-        // Get site personnel with site manager role
-        const siteManagers = await storage.getSitePersonnelByRole(hazard.siteId, 'site_manager');
-        const siteManagerUsers = await Promise.all(
-          siteManagers.map(sm => storage.getUser(sm.userId))
-        );
-        
-        // Combine recipients and filter out the reporter to avoid duplicate notifications
-        const recipients = [...safetyOfficers, ...siteManagerUsers.filter(u => u !== null)]
-          .filter(user => user.id !== hazard.reportedById);
-        
-        if (site && reportedBy && recipients.length > 0) {
-          // Import is inside try block to handle potential missing module gracefully
-          const { sendHazardReportedNotification } = await import('./notifications/hazard-notifications');
+      // Send email notifications asynchronously (don't block the response)
+      setTimeout(async () => {
+        try {
+          // Get the site for the name
+          const site = await storage.getSite(hazard.siteId);
           
-          // Send notification (don't await, let it process in background)
-          sendHazardReportedNotification(
-            hazard,
-            reportedBy,
-            site.name,
-            recipients
-          ).catch(error => {
-            console.error('Error sending hazard notification:', error);
-          });
+          if (!site) {
+            console.error(`Site with ID ${hazard.siteId} not found for hazard notification`);
+            return;
+          }
+          
+          // Get the user who reported the hazard
+          const reportedBy = await storage.getUser(hazard.reportedById);
+          
+          if (!reportedBy) {
+            console.error(`User with ID ${hazard.reportedById} not found for hazard notification`);
+            return;
+          }
+          
+          // Get safety officers and site managers for the tenant
+          const safetyOfficers = await storage.getUsersByRole(hazard.tenantId, 'safety_officer');
+          
+          // Get site personnel with site manager role
+          const siteManagers = await storage.getSitePersonnelByRole(hazard.siteId, 'site_manager');
+          const siteManagerUsers = await Promise.all(
+            siteManagers.map(sm => storage.getUser(sm.userId))
+          );
+          
+          // Combine recipients and filter out the reporter to avoid duplicate notifications
+          const recipients = [...safetyOfficers, ...siteManagerUsers.filter(u => u !== null)]
+            .filter(user => user && user.id !== hazard.reportedById);
+          
+          if (recipients.length > 0) {
+            // Import is inside try block to handle potential missing module gracefully
+            const { sendHazardReportedNotification } = await import('./notifications/hazard-notifications');
+            
+            // Send notification
+            await sendHazardReportedNotification(
+              hazard,
+              reportedBy,
+              site.name,
+              recipients
+            );
+            console.log(`Hazard notification sent for hazard ID ${hazard.id} to ${recipients.length} recipients`);
+          } else {
+            console.log(`No recipients found for hazard notification for hazard ID ${hazard.id}`);
+          }
+        } catch (notificationError) {
+          // Log but don't fail the request if notification sending fails
+          console.error("Error sending hazard notification:", notificationError);
         }
-      } catch (notificationError) {
-        // Log but don't fail the request if notification sending fails
-        console.error("Error sending hazard notification:", notificationError);
-      }
+      }, 100); // Small delay to ensure the response is sent first
       
+      // Return success response immediately
       res.status(201).json(hazard);
     } catch (err) {
       console.error("Error creating hazard:", err);
-      res.status(500).json({ message: "Failed to create hazard" });
+      res.status(500).json({ message: "Failed to create hazard", error: err instanceof Error ? err.message : String(err) });
     }
   });
 
