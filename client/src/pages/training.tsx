@@ -504,12 +504,20 @@ export default function Training() {
             </p>
           </div>
           {(user?.role === 'safety_officer' || user?.role === 'super_admin') && (
-            <Link href="/training/new">
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Create Course
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              <Link href="/training-analytics">
+                <Button variant="outline" className="gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Analytics Dashboard
+                </Button>
+              </Link>
+              <Link href="/training/new">
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create Course
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
 

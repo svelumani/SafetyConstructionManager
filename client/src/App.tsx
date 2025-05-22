@@ -48,6 +48,8 @@ import PermitDetail from "@/pages/permits/[id]";
 import IncidentNew from "@/pages/incidents/new";
 import IncidentDetail from "@/pages/incidents/[id]";
 import IncidentAnalytics from "@/pages/incident-analytics";
+// Import training-specific pages
+import TrainingAnalytics from "@/pages/training-analytics";
 
 function Router() {
   return (
@@ -89,6 +91,7 @@ function Router() {
       
       {/* Training management routes */}
       <ProtectedRoute path="/training/new" component={TrainingNew} />
+      <ProtectedRoute path="/training-analytics" component={TrainingAnalytics} />
       <ProtectedRoute path="/training/:id" component={TrainingCourseView} />
       <ProtectedRoute path="/training" component={Training} />
       <ProtectedRoute path="/safety-scores" component={SafetyScores} />
