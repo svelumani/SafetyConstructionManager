@@ -191,7 +191,6 @@ export default function ReportsPage() {
                       <DatePicker 
                         date={startDate} 
                         onSelect={setStartDate} 
-                        className="w-full"
                       />
                     </div>
                     <div className="space-y-2">
@@ -199,7 +198,6 @@ export default function ReportsPage() {
                       <DatePicker 
                         date={endDate} 
                         onSelect={setEndDate}
-                        className="w-full"
                       />
                     </div>
                   </div>

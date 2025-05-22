@@ -1,21 +1,41 @@
-import { Request, Response } from 'express';
-import { db } from './db';
-import { eq, between, and, desc, SQL, sql } from 'drizzle-orm';
-import { Pool } from '@neondatabase/serverless';
-import * as fs from 'fs';
-import * as path from 'path';
-import { 
-  Document, Paragraph, Table, TableRow, TableCell, TextRun, 
-  HeadingLevel, AlignmentType, BorderStyle, WidthType,
-  Packer, ShadingType, HeightRule 
-} from 'docx';
-import { format } from 'date-fns';
-import { 
-  hazardReports, incidentReports, inspections, permitRequests,
-  trainingRecords, sites, users, reportHistory, InsertReportHistory,
-  HazardReport, IncidentReport, Inspection, PermitRequest, TrainingRecord
-} from '@shared/schema';
+import { Request, Response } from "express";
+import path from "path";
+import fs from "fs";
+import {
+  Document,
+  Paragraph,
+  TextRun,
+  SectionType,
+  Table,
+  TableRow,
+  TableCell,
+  BorderStyle,
+  HeadingLevel,
+  AlignmentType,
+  WidthType,
+  TableOfContents,
+  LevelFormat,
+  ImageRun,
+  Header,
+  Footer,
+} from "docx";
+import { db } from "./db";
+import * as schema from "@shared/schema";
+import { eq, and, between, desc, sql } from "drizzle-orm";
+import { format } from "date-fns";
 
+// Ensure the uploads directory exists
+const uploadDir = path.join(process.cwd(), "uploads");
+const reportDir = path.join(uploadDir, "reports");
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+if (!fs.existsSync(reportDir)) {
+  fs.mkdirSync(reportDir);
+}
+
+// Define the report generation parameters interface
 interface ReportGenerationParams {
   siteId: number;
   startDate: string;
@@ -27,842 +47,1048 @@ interface ReportGenerationParams {
   includeTraining: boolean;
 }
 
-// Generate report filename based on site and date range
+// Generate a formatted report name based on site and date range
 function generateReportName(siteName: string, startDate: string, endDate: string): string {
-  const formattedStart = format(new Date(startDate), 'MMddyyyy');
-  const formattedEnd = format(new Date(endDate), 'MMddyyyy');
-  return `${siteName.replace(/[^a-zA-Z0-9]/g, '_')}_Report_${formattedStart}_${formattedEnd}.docx`;
+  const formattedStartDate = format(new Date(startDate), "yyyy-MM-dd");
+  const formattedEndDate = format(new Date(endDate), "yyyy-MM-dd");
+  return `${siteName}_Safety_Report_${formattedStartDate}_to_${formattedEndDate}`;
 }
 
-// Handler for generating a report
+// Main report generation function
 export async function generateReport(req: Request, res: Response) {
   try {
-    const tenantId = req.user?.tenantId;
-    const userId = req.user?.id;
-    
-    if (!tenantId || !userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
     }
-    
+
     const params: ReportGenerationParams = req.body;
-    
-    if (!params.siteId || !params.startDate || !params.endDate) {
-      return res.status(400).json({ message: 'Missing required parameters' });
-    }
+    const { siteId, startDate, endDate, includeHazards, includeIncidents, includeInspections, includePermits, includeTraining } = params;
     
     // Get site information
-    const siteResult = await db.select().from(sites).where(eq(sites.id, params.siteId)).limit(1);
+    const [site] = await db.select().from(schema.sites).where(eq(schema.sites.id, siteId));
     
-    if (siteResult.length === 0) {
-      return res.status(404).json({ message: 'Site not found' });
+    if (!site) {
+      return res.status(404).json({ message: "Site not found" });
     }
-    
-    const site = siteResult[0];
-    const siteName = site.name;
-    const reportName = generateReportName(siteName, params.startDate, params.endDate);
-    
-    // Fetch data for report sections
-    const startDate = new Date(params.startDate);
-    const endDate = new Date(params.endDate);
-    
-    // 1. Hazard data if requested
-    let hazardData = [];
-    if (params.includeHazards) {
-      hazardData = await db.select()
-        .from(hazardReports)
+
+    // Convert dates to Date objects
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    endDateObj.setHours(23, 59, 59, 999); // Set end date to end of day
+
+    // Fetch data based on parameters
+    let hazardData: any[] = [];
+    if (includeHazards) {
+      hazardData = await db
+        .select({
+          hazard: schema.hazardReports,
+          site: schema.sites,
+          reportedBy: schema.users,
+        })
+        .from(schema.hazardReports)
+        .leftJoin(schema.sites, eq(schema.hazardReports.siteId, schema.sites.id))
+        .leftJoin(schema.users, eq(schema.hazardReports.reportedById, schema.users.id))
         .where(
           and(
-            eq(hazardReports.siteId, params.siteId),
-            eq(hazardReports.tenantId, tenantId),
-            between(hazardReports.reportedAt, startDate, endDate)
+            eq(schema.hazardReports.siteId, siteId),
+            between(schema.hazardReports.createdAt, startDateObj.toISOString(), endDateObj.toISOString())
           )
         )
-        .orderBy(desc(hazardReports.reportedAt));
+        .orderBy(desc(schema.hazardReports.createdAt));
     }
-    
-    // 2. Incident data if requested
-    let incidentData = [];
-    if (params.includeIncidents) {
-      incidentData = await db.select()
-        .from(incidentReports)
+
+    let incidentData: any[] = [];
+    if (includeIncidents) {
+      incidentData = await db
+        .select({
+          incident: schema.incidentReports,
+          site: schema.sites,
+          reportedBy: schema.users,
+        })
+        .from(schema.incidentReports)
+        .leftJoin(schema.sites, eq(schema.incidentReports.siteId, schema.sites.id))
+        .leftJoin(schema.users, eq(schema.incidentReports.reportedById, schema.users.id))
         .where(
           and(
-            eq(incidentReports.siteId, params.siteId),
-            eq(incidentReports.tenantId, tenantId),
-            between(incidentReports.incidentDate, startDate, endDate)
+            eq(schema.incidentReports.siteId, siteId),
+            between(schema.incidentReports.incidentDate, startDateObj.toISOString(), endDateObj.toISOString())
           )
         )
-        .orderBy(desc(incidentReports.incidentDate));
+        .orderBy(desc(schema.incidentReports.incidentDate));
     }
-    
-    // 3. Inspection data if requested
-    let inspectionData = [];
-    if (params.includeInspections) {
-      inspectionData = await db.select()
-        .from(inspections)
+
+    let inspectionData: any[] = [];
+    if (includeInspections) {
+      inspectionData = await db
+        .select({
+          inspection: schema.inspections,
+          site: schema.sites,
+          conductedBy: schema.users,
+        })
+        .from(schema.inspections)
+        .leftJoin(schema.sites, eq(schema.inspections.siteId, schema.sites.id))
+        .leftJoin(schema.users, eq(schema.inspections.conductedById, schema.users.id))
         .where(
           and(
-            eq(inspections.siteId, params.siteId),
-            eq(inspections.tenantId, tenantId),
-            between(inspections.scheduledDate, startDate, endDate)
+            eq(schema.inspections.siteId, siteId),
+            between(schema.inspections.scheduledDate, startDateObj.toISOString(), endDateObj.toISOString())
           )
         )
-        .orderBy(desc(inspections.scheduledDate));
+        .orderBy(desc(schema.inspections.scheduledDate));
     }
-    
-    // 4. Permit data if requested
-    let permitData = [];
-    if (params.includePermits) {
-      permitData = await db.select()
-        .from(permitRequests)
+
+    let permitData: any[] = [];
+    if (includePermits) {
+      permitData = await db
+        .select({
+          permit: schema.permitRequests,
+          site: schema.sites,
+          requestedBy: schema.users,
+        })
+        .from(schema.permitRequests)
+        .leftJoin(schema.sites, eq(schema.permitRequests.siteId, schema.sites.id))
+        .leftJoin(schema.users, eq(schema.permitRequests.requestedById, schema.users.id))
         .where(
           and(
-            eq(permitRequests.siteId, params.siteId),
-            eq(permitRequests.tenantId, tenantId),
-            between(permitRequests.requestDate, startDate, endDate)
+            eq(schema.permitRequests.siteId, siteId),
+            between(schema.permitRequests.createdAt, startDateObj.toISOString(), endDateObj.toISOString())
           )
         )
-        .orderBy(desc(permitRequests.requestDate));
+        .orderBy(desc(schema.permitRequests.createdAt));
     }
-    
-    // 5. Training data if requested
-    let trainingData = [];
-    if (params.includeTraining) {
-      trainingData = await db.select()
-        .from(trainingRecords)
+
+    let trainingData: any[] = [];
+    if (includeTraining) {
+      trainingData = await db
+        .select({
+          record: schema.trainingRecords,
+          course: schema.trainingCourses,
+          user: schema.users,
+        })
+        .from(schema.trainingRecords)
+        .leftJoin(schema.trainingCourses, eq(schema.trainingRecords.courseId, schema.trainingCourses.id))
+        .leftJoin(schema.users, eq(schema.trainingRecords.userId, schema.users.id))
         .where(
           and(
-            eq(trainingRecords.tenantId, tenantId),
-            between(trainingRecords.completedDate, startDate, endDate)
+            eq(schema.trainingRecords.isActive, true),
+            between(schema.trainingRecords.completionDate, startDateObj.toISOString(), endDateObj.toISOString())
           )
         )
-        .orderBy(desc(trainingRecords.completedDate));
-      
-      // Filter training data by site (this would need to be implemented based on your schema)
-      // For now, we'll use all tenant training data
+        .orderBy(desc(schema.trainingRecords.completionDate));
     }
-    
-    // Generate document
+
+    // Generate report document
     const doc = createReportDocument(
-      siteName,
-      params.startDate,
-      params.endDate,
+      site,
+      startDate,
+      endDate,
       hazardData,
       incidentData,
       inspectionData,
       permitData,
       trainingData
     );
+
+    // Create filename and save path
+    const reportFileName = generateReportName(site.name, startDate, endDate);
+    const reportFilePath = path.join(reportDir, `${reportFileName}.docx`);
     
-    // Save report to uploads directory (create if it doesn't exist)
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    
-    const reportPath = path.join(uploadsDir, reportName);
-    const buffer = await Packer.toBuffer(doc);
-    fs.writeFileSync(reportPath, buffer);
-    
-    // Save report record in database
-    const [reportRecord] = await db.insert(reportHistory)
+    // Save the document
+    const buffer = await doc.save();
+    fs.writeFileSync(reportFilePath, buffer);
+
+    // Save a record of the generated report in the database
+    const insertResult = await db
+      .insert(schema.reportHistory)
       .values({
-        tenantId,
-        userId,
-        siteId: params.siteId,
-        startDate: new Date(params.startDate),
-        endDate: new Date(params.endDate),
-        reportName,
-        reportUrl: `/uploads/${reportName}`,
-        status: 'generated',
-        createdAt: new Date()
+        siteId: site.id,
+        userId: req.user.id,
+        startDate,
+        endDate,
+        generatedOn: new Date().toISOString(),
+        reportName: reportFileName,
+        reportUrl: `/api/reports/download/${reportFileName}`,
+        status: "completed",
+        includeHazards,
+        includeIncidents,
+        includeInspections,
+        includePermits,
+        includeTraining,
       })
       .returning();
-    
-    // Send response with report details
+
+    // Return success response
     res.status(200).json({
-      id: reportRecord.id,
-      reportName,
-      downloadUrl: `/api/reports/download/${reportRecord.id}`,
-      message: 'Report generated successfully'
+      message: "Report generated successfully",
+      report: {
+        id: insertResult[0].id,
+        reportName: reportFileName,
+        downloadUrl: `/api/reports/download/${insertResult[0].id}`,
+      },
     });
-    
   } catch (error) {
-    console.error('Error generating report:', error);
-    res.status(500).json({ message: 'An error occurred while generating the report' });
+    console.error("Error generating report:", error);
+    res.status(500).json({ message: "Failed to generate report", error: String(error) });
   }
 }
 
-// Handler for fetching report history
+// Function to retrieve report history
 export async function getReportHistory(req: Request, res: Response) {
   try {
-    const tenantId = req.user?.tenantId;
-    
-    if (!tenantId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
     }
-    
-    // Optional filter by site
-    const siteId = req.query.siteId ? Number(req.query.siteId) : undefined;
-    
-    // Get report history with site and user information
-    const query = db.select({
-      report: reportHistory,
-      site: sites,
-      user: {
-        id: users.id,
-        username: users.username,
-        firstName: users.firstName,
-        lastName: users.lastName
-      }
-    })
-    .from(reportHistory)
-    .leftJoin(sites, eq(reportHistory.siteId, sites.id))
-    .leftJoin(users, eq(reportHistory.userId, users.id))
-    .where(eq(reportHistory.tenantId, tenantId))
-    .orderBy(desc(reportHistory.createdAt));
-    
-    // Apply site filter if provided
-    if (siteId) {
-      query.where(eq(reportHistory.siteId, siteId));
-    }
-    
-    const reports = await query;
-    
-    res.status(200).json({
-      reports: reports.map(r => ({
-        id: r.report.id,
-        siteName: r.site.name,
-        startDate: r.report.startDate,
-        endDate: r.report.endDate,
-        generatedBy: `${r.user.firstName} ${r.user.lastName}`,
-        generatedOn: r.report.createdAt,
-        reportName: r.report.reportName,
-        downloadUrl: `/api/reports/download/${r.report.id}`,
-        status: r.report.status
-      }))
-    });
-    
+
+    const reports = await db
+      .select({
+        report: schema.reportHistory,
+        site: schema.sites,
+        user: schema.users,
+      })
+      .from(schema.reportHistory)
+      .leftJoin(schema.sites, eq(schema.reportHistory.siteId, schema.sites.id))
+      .leftJoin(schema.users, eq(schema.reportHistory.userId, schema.users.id))
+      .orderBy(desc(schema.reportHistory.generatedOn));
+
+    const formattedReports = reports.map((r) => ({
+      id: r.report.id,
+      siteName: r.site ? r.site.name : "Unknown Site",
+      startDate: r.report.startDate,
+      endDate: r.report.endDate,
+      generatedBy: r.user ? `${r.user.firstName} ${r.user.lastName}` : "Unknown User",
+      generatedOn: r.report.generatedOn,
+      reportName: r.report.reportName,
+      downloadUrl: `/api/reports/download/${r.report.id}`,
+      status: r.report.status,
+    }));
+
+    res.status(200).json({ reports: formattedReports });
   } catch (error) {
-    console.error('Error fetching report history:', error);
-    res.status(500).json({ message: 'An error occurred while fetching report history' });
+    console.error("Error fetching report history:", error);
+    res.status(500).json({ message: "Failed to fetch report history", error: String(error) });
   }
 }
 
-// Handler for downloading a report
+// Function to download a previously generated report
 export async function downloadReport(req: Request, res: Response) {
   try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
     const reportId = Number(req.params.id);
-    const tenantId = req.user?.tenantId;
-    
-    if (!tenantId) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-    
-    // Get report details
-    const [report] = await db.select()
-      .from(reportHistory)
-      .where(
-        and(
-          eq(reportHistory.id, reportId),
-          eq(reportHistory.tenantId, tenantId)
-        )
-      );
-    
+    const [report] = await db
+      .select()
+      .from(schema.reportHistory)
+      .where(eq(schema.reportHistory.id, reportId));
+
     if (!report) {
-      return res.status(404).json({ message: 'Report not found' });
+      return res.status(404).json({ message: "Report not found" });
     }
+
+    const reportPath = path.join(reportDir, `${report.reportName}.docx`);
     
-    const filePath = path.join(process.cwd(), 'uploads', report.reportName);
-    
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'Report file not found' });
+    if (!fs.existsSync(reportPath)) {
+      return res.status(404).json({ message: "Report file not found" });
     }
+
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename=${report.reportName}.docx`);
     
-    res.download(filePath, report.reportName);
-    
+    const stream = fs.createReadStream(reportPath);
+    stream.pipe(res);
   } catch (error) {
-    console.error('Error downloading report:', error);
-    res.status(500).json({ message: 'An error occurred while downloading the report' });
+    console.error("Error downloading report:", error);
+    res.status(500).json({ message: "Failed to download report", error: String(error) });
   }
 }
 
-// Create the Word document structure
+// Helper function to create the Word document
 function createReportDocument(
-  siteName: string,
-  startDateStr: string,
-  endDateStr: string,
-  hazards: any[],
-  incidents: any[],
-  inspections: any[],
-  permits: any[],
-  trainings: any[]
-) {
-  const startDate = new Date(startDateStr);
-  const endDate = new Date(endDateStr);
-  const formattedStartDate = format(startDate, 'MMMM d, yyyy');
-  const formattedEndDate = format(endDate, 'MMMM d, yyyy');
-  
+  site: any,
+  startDate: string,
+  endDate: string,
+  hazardData: any[],
+  incidentData: any[],
+  inspectionData: any[],
+  permitData: any[],
+  trainingData: any[]
+): Document {
   // Create document
   const doc = new Document({
-    title: `${siteName} Safety Report`,
-    description: `Safety report for ${siteName} from ${formattedStartDate} to ${formattedEndDate}`,
-    styles: {
-      paragraphStyles: [
-        {
-          id: "Heading1",
-          name: "Heading 1",
-          basedOn: "Normal",
-          next: "Normal",
-          quickFormat: true,
-          run: {
-            size: 28,
-            bold: true,
-            color: "000000",
-            font: "Calibri",
-          },
-          paragraph: {
-            spacing: {
-              after: 120,
-            },
-          },
+    sections: [
+      {
+        properties: {
+          type: SectionType.CONTINUOUS,
         },
-        {
-          id: "Heading2",
-          name: "Heading 2",
-          basedOn: "Normal",
-          next: "Normal",
-          quickFormat: true,
-          run: {
-            size: 24,
-            bold: true,
-            color: "2F5496",
-            font: "Calibri",
-          },
-          paragraph: {
-            spacing: {
-              before: 240,
-              after: 120,
-            },
-          },
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({
+                    text: "MySafety for Construction",
+                    bold: true,
+                    size: 24,
+                  }),
+                ],
+              }),
+            ],
+          }),
         },
-        {
-          id: "TableHeader",
-          name: "Table Header",
-          basedOn: "Normal",
-          next: "Normal",
-          quickFormat: true,
-          run: {
-            size: 22,
-            bold: true,
-            color: "FFFFFF",
-            font: "Calibri",
-          },
-          paragraph: {
-            spacing: {
-              after: 120,
-            },
-          },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `Generated on ${format(new Date(), "MMMM d, yyyy")}`,
+                    size: 20,
+                  }),
+                ],
+              }),
+            ],
+          }),
         },
+        children: [
+          // Title
+          new Paragraph({
+            heading: HeadingLevel.TITLE,
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: "Safety Compliance Report", bold: true, size: 40 })],
+          }),
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: site.name, bold: true, size: 32 })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({
+                text: `${format(new Date(startDate), "MMMM d, yyyy")} to ${format(
+                  new Date(endDate),
+                  "MMMM d, yyyy"
+                )}`,
+                size: 28,
+              }),
+            ],
+          }),
+          new Paragraph({ text: "" }),
+
+          // Site Information
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            children: [new TextRun({ text: "Site Information", bold: true, size: 32 })],
+          }),
+          new Table({
+            width: {
+              size: 100,
+              type: WidthType.PERCENTAGE,
+            },
+            borders: {
+              top: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+              bottom: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+              left: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+              right: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+              insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+              insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+            },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ text: "Site Name", bold: true })] }),
+                  new TableCell({ children: [new Paragraph({ text: site.name })] }),
+                ],
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ text: "Address", bold: true })] }),
+                  new TableCell({ children: [new Paragraph({ text: site.address })] }),
+                ],
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ text: "Location", bold: true })] }),
+                  new TableCell({
+                    children: [new Paragraph({ text: `${site.city}, ${site.state}` })],
+                  }),
+                ],
+              }),
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ text: "Type", bold: true })] }),
+                  new TableCell({ children: [new Paragraph({ text: site.type })] }),
+                ],
+              }),
+            ],
+          }),
+          new Paragraph({ text: "" }),
+
+          // Executive Summary
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            children: [new TextRun({ text: "Executive Summary", bold: true, size: 32 })],
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: "This report provides a comprehensive overview of safety performance and compliance for the specified site and time period. It includes detailed information on hazards, incidents, inspections, permits, and training records to help maintain a safe working environment and ensure regulatory compliance.",
+                size: 24,
+              }),
+            ],
+          }),
+          new Paragraph({ text: "" }),
+
+          // Table of Contents
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            children: [new TextRun({ text: "Table of Contents", bold: true, size: 32 })],
+          }),
+          new TableOfContents("Table of Contents", {
+            hyperlink: true,
+            headingStyleRange: "1-5",
+            stylesWithLevels: [
+              { styleId: "Heading1", level: 1 },
+              { styleId: "Heading2", level: 2 },
+              { styleId: "Heading3", level: 3 },
+            ],
+          }),
+          new Paragraph({ text: "" }),
+          new Paragraph({ text: "" }),
+        ],
+      },
+    ],
+  });
+
+  // Add Hazard Section if data is included
+  if (hazardData.length > 0) {
+    const section = doc.addSection({
+      properties: {
+        type: SectionType.CONTINUOUS,
+      },
+      children: [
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: "Hazard Reports", bold: true, size: 32 })],
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Total Hazard Reports: ${hazardData.length}`,
+              size: 24,
+              bold: true,
+            }),
+          ],
+        }),
+        new Paragraph({ text: "" }),
+        createHazardsTable(hazardData),
+        new Paragraph({ text: "" }),
       ],
+    });
+  }
+
+  // Add Incident Section if data is included
+  if (incidentData.length > 0) {
+    const section = doc.addSection({
+      properties: {
+        type: SectionType.CONTINUOUS,
+      },
+      children: [
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: "Incident Reports", bold: true, size: 32 })],
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Total Incidents: ${incidentData.length}`,
+              size: 24,
+              bold: true,
+            }),
+          ],
+        }),
+        new Paragraph({ text: "" }),
+        createIncidentsTable(incidentData),
+        new Paragraph({ text: "" }),
+      ],
+    });
+  }
+
+  // Add Inspection Section if data is included
+  if (inspectionData.length > 0) {
+    const section = doc.addSection({
+      properties: {
+        type: SectionType.CONTINUOUS,
+      },
+      children: [
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: "Safety Inspections", bold: true, size: 32 })],
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Total Inspections: ${inspectionData.length}`,
+              size: 24,
+              bold: true,
+            }),
+          ],
+        }),
+        new Paragraph({ text: "" }),
+        createInspectionsTable(inspectionData),
+        new Paragraph({ text: "" }),
+      ],
+    });
+  }
+
+  // Add Permit Section if data is included
+  if (permitData.length > 0) {
+    const section = doc.addSection({
+      properties: {
+        type: SectionType.CONTINUOUS,
+      },
+      children: [
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: "Work Permits", bold: true, size: 32 })],
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Total Permits: ${permitData.length}`,
+              size: 24,
+              bold: true,
+            }),
+          ],
+        }),
+        new Paragraph({ text: "" }),
+        createPermitsTable(permitData),
+        new Paragraph({ text: "" }),
+      ],
+    });
+  }
+
+  // Add Training Section if data is included
+  if (trainingData.length > 0) {
+    const section = doc.addSection({
+      properties: {
+        type: SectionType.CONTINUOUS,
+      },
+      children: [
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: "Training Records", bold: true, size: 32 })],
+        }),
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Total Training Completions: ${trainingData.length}`,
+              size: 24,
+              bold: true,
+            }),
+          ],
+        }),
+        new Paragraph({ text: "" }),
+        createTrainingTable(trainingData),
+        new Paragraph({ text: "" }),
+      ],
+    });
+  }
+
+  // Add Conclusion Section
+  const conclusionSection = doc.addSection({
+    properties: {
+      type: SectionType.CONTINUOUS,
     },
+    children: [
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun({ text: "Conclusion and Recommendations", bold: true, size: 32 })],
+      }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "This section is provided for safety officers to enter their conclusions and recommendations based on the data presented in this report.",
+            size: 24,
+          }),
+        ],
+      }),
+      new Paragraph({ text: "" }),
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "Please add your analysis of safety trends, areas of improvement, and specific recommendations for enhancing safety on this construction site.",
+            size: 24,
+          }),
+        ],
+      }),
+      new Paragraph({ text: "" }),
+    ],
   });
-  
-  // Add report sections
-  const children = [
-    // Title page
-    new Paragraph({
-      text: `${siteName} Safety Report`,
-      heading: HeadingLevel.HEADING_1,
-      alignment: AlignmentType.CENTER,
-      spacing: {
-        after: 400,
-      },
-    }),
-    new Paragraph({
-      text: `Reporting Period: ${formattedStartDate} to ${formattedEndDate}`,
-      alignment: AlignmentType.CENTER,
-      spacing: {
-        after: 400,
-      },
-    }),
-    new Paragraph({
-      text: `Generated: ${format(new Date(), 'MMMM d, yyyy')}`,
-      alignment: AlignmentType.CENTER,
-      spacing: {
-        after: 800,
-      },
-    }),
-    
-    // Executive Summary
-    new Paragraph({
-      text: 'Executive Summary',
-      heading: HeadingLevel.HEADING_2,
-    }),
-    new Paragraph({
-      text: `This report provides a comprehensive overview of all safety-related activities at ${siteName} between ${formattedStartDate} and ${formattedEndDate}.`,
-    }),
-    new Paragraph({
-      text: `During this period, there were ${hazards.length} hazards reported, ${incidents.length} incidents recorded, ${inspections.length} inspections conducted, and ${permits.length} permits processed.`,
-    }),
-  ];
-  
-  // Add hazards section if included
-  if (hazards.length > 0) {
-    children.push(
-      new Paragraph({
-        text: 'Hazard Reports',
-        heading: HeadingLevel.HEADING_2,
-      }),
-      new Paragraph({
-        text: `${hazards.length} hazards were reported during this period.`,
-      }),
-      createHazardsTable(hazards)
-    );
-  }
-  
-  // Add incidents section if included
-  if (incidents.length > 0) {
-    children.push(
-      new Paragraph({
-        text: 'Incident Reports',
-        heading: HeadingLevel.HEADING_2,
-      }),
-      new Paragraph({
-        text: `${incidents.length} incidents were recorded during this period.`,
-      }),
-      createIncidentsTable(incidents)
-    );
-  }
-  
-  // Add inspections section if included
-  if (inspections.length > 0) {
-    children.push(
-      new Paragraph({
-        text: 'Inspections',
-        heading: HeadingLevel.HEADING_2,
-      }),
-      new Paragraph({
-        text: `${inspections.length} inspections were conducted during this period.`,
-      }),
-      createInspectionsTable(inspections)
-    );
-  }
-  
-  // Add permits section if included
-  if (permits.length > 0) {
-    children.push(
-      new Paragraph({
-        text: 'Permits',
-        heading: HeadingLevel.HEADING_2,
-      }),
-      new Paragraph({
-        text: `${permits.length} permits were processed during this period.`,
-      }),
-      createPermitsTable(permits)
-    );
-  }
-  
-  // Add training section if included
-  if (trainings.length > 0) {
-    children.push(
-      new Paragraph({
-        text: 'Training',
-        heading: HeadingLevel.HEADING_2,
-      }),
-      new Paragraph({
-        text: `${trainings.length} training completions were recorded during this period.`,
-      }),
-      createTrainingTable(trainings)
-    );
-  }
-  
-  // Add conclusion
-  children.push(
-    new Paragraph({
-      text: 'Conclusion and Recommendations',
-      heading: HeadingLevel.HEADING_2,
-    }),
-    new Paragraph({
-      text: 'This section can be edited to provide overall conclusions and specific recommendations based on the data presented in this report.',
-    }),
-    new Paragraph({
-      text: '____________________________________________________________________________________',
-    }),
-    new Paragraph({
-      text: '____________________________________________________________________________________',
-    }),
-    new Paragraph({
-      text: '____________________________________________________________________________________',
-    })
-  );
-  
-  // Add all sections to document
-  doc.addSection({
-    children,
-  });
-  
+
   return doc;
 }
 
-// Create hazards table
+// Helper function to create hazards table
 function createHazardsTable(hazards: any[]) {
-  // Table header row
-  const headerRow = new TableRow({
-    tableHeader: true,
-    height: {
-      value: 400,
-      rule: HeightRule.EXACT,
-    },
-    children: [
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Date', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Description', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Severity', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Status', style: 'TableHeader' })],
-      }),
-    ],
-  });
-  
-  // Table data rows
-  const rows = hazards.map(hazard => {
-    return new TableRow({
+  const rows = [
+    new TableRow({
+      tableHeader: true,
       children: [
         new TableCell({
-          children: [new Paragraph({ text: format(new Date(hazard.reportedAt), 'MMM d, yyyy') })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Hazard Description", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: hazard.description })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Location", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: hazard.severity })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Severity", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: hazard.status })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Status", bold: true })],
+        }),
+        new TableCell({
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Reported By", bold: true })],
+        }),
+        new TableCell({
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Reported Date", bold: true })],
         }),
       ],
-    });
+    }),
+  ];
+
+  hazards.forEach((h) => {
+    rows.push(
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: h.hazard.description })] }),
+          new TableCell({ children: [new Paragraph({ text: h.hazard.location })] }),
+          new TableCell({ children: [new Paragraph({ text: h.hazard.severity })] }),
+          new TableCell({ children: [new Paragraph({ text: h.hazard.status })] }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: h.reportedBy
+                  ? `${h.reportedBy.firstName} ${h.reportedBy.lastName}`
+                  : "Unknown",
+              }),
+            ],
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: format(new Date(h.hazard.createdAt), "MMM d, yyyy"),
+              }),
+            ],
+          }),
+        ],
+      })
+    );
   });
-  
+
   return new Table({
     width: {
       size: 100,
       type: WidthType.PERCENTAGE,
     },
-    rows: [headerRow, ...rows],
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+    },
+    rows,
   });
 }
 
-// Create incidents table
+// Helper function to create incidents table
 function createIncidentsTable(incidents: any[]) {
-  // Table header row
-  const headerRow = new TableRow({
-    tableHeader: true,
-    height: {
-      value: 400,
-      rule: HeightRule.EXACT,
-    },
-    children: [
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Date', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Description', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Severity', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Status', style: 'TableHeader' })],
-      }),
-    ],
-  });
-  
-  // Table data rows
-  const rows = incidents.map(incident => {
-    return new TableRow({
+  const rows = [
+    new TableRow({
+      tableHeader: true,
       children: [
         new TableCell({
-          children: [new Paragraph({ text: format(new Date(incident.incidentDate), 'MMM d, yyyy') })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Incident Title", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: incident.description })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Description", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: incident.severity || 'Medium' })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Location", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: incident.status })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Severity", bold: true })],
+        }),
+        new TableCell({
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Status", bold: true })],
+        }),
+        new TableCell({
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Incident Date", bold: true })],
         }),
       ],
-    });
+    }),
+  ];
+
+  incidents.forEach((i) => {
+    rows.push(
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: i.incident.title })] }),
+          new TableCell({ children: [new Paragraph({ text: i.incident.description })] }),
+          new TableCell({ children: [new Paragraph({ text: i.incident.location })] }),
+          new TableCell({ children: [new Paragraph({ text: i.incident.severity })] }),
+          new TableCell({ children: [new Paragraph({ text: i.incident.status })] }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: format(new Date(i.incident.incidentDate), "MMM d, yyyy"),
+              }),
+            ],
+          }),
+        ],
+      })
+    );
   });
-  
+
   return new Table({
     width: {
       size: 100,
       type: WidthType.PERCENTAGE,
     },
-    rows: [headerRow, ...rows],
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+    },
+    rows,
   });
 }
 
-// Create inspections table
+// Helper function to create inspections table
 function createInspectionsTable(inspections: any[]) {
-  // Table header row
-  const headerRow = new TableRow({
-    tableHeader: true,
-    height: {
-      value: 400,
-      rule: HeightRule.EXACT,
-    },
-    children: [
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Date', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Inspector', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Template', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Status', style: 'TableHeader' })],
-      }),
-    ],
-  });
-  
-  // Table data rows
-  const rows = inspections.map(inspection => {
-    return new TableRow({
+  const rows = [
+    new TableRow({
+      tableHeader: true,
       children: [
         new TableCell({
-          children: [new Paragraph({ text: format(new Date(inspection.scheduledDate), 'MMM d, yyyy') })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Inspection Title", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: inspection.inspectorName || 'Safety Officer' })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Type", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: inspection.templateName || 'Standard Inspection' })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Status", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: inspection.status })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Conducted By", bold: true })],
+        }),
+        new TableCell({
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Inspection Date", bold: true })],
+        }),
+        new TableCell({
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Score", bold: true })],
         }),
       ],
-    });
+    }),
+  ];
+
+  inspections.forEach((i) => {
+    rows.push(
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: i.inspection.title })] }),
+          new TableCell({ children: [new Paragraph({ text: i.inspection.type || "General" })] }),
+          new TableCell({ children: [new Paragraph({ text: i.inspection.status })] }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: i.conductedBy
+                  ? `${i.conductedBy.firstName} ${i.conductedBy.lastName}`
+                  : "Unknown",
+              }),
+            ],
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: i.inspection.scheduledDate
+                  ? format(new Date(i.inspection.scheduledDate), "MMM d, yyyy")
+                  : "N/A",
+              }),
+            ],
+          }),
+          new TableCell({
+            children: [new Paragraph({ text: i.inspection.score ? `${i.inspection.score}%` : "N/A" })],
+          }),
+        ],
+      })
+    );
   });
-  
+
   return new Table({
     width: {
       size: 100,
       type: WidthType.PERCENTAGE,
     },
-    rows: [headerRow, ...rows],
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+    },
+    rows,
   });
 }
 
-// Create permits table
+// Helper function to create permits table
 function createPermitsTable(permits: any[]) {
-  // Table header row
-  const headerRow = new TableRow({
-    tableHeader: true,
-    height: {
-      value: 400,
-      rule: HeightRule.EXACT,
-    },
-    children: [
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Date', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Type', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Expiration', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Status', style: 'TableHeader' })],
-      }),
-    ],
-  });
-  
-  // Table data rows
-  const rows = permits.map(permit => {
-    return new TableRow({
+  const rows = [
+    new TableRow({
+      tableHeader: true,
       children: [
         new TableCell({
-          children: [new Paragraph({ text: format(new Date(permit.requestDate), 'MMM d, yyyy') })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Permit Type", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: permit.type })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Description", bold: true })],
         }),
         new TableCell({
-          children: [
-            new Paragraph({ 
-              text: permit.expirationDate 
-                ? format(new Date(permit.expirationDate), 'MMM d, yyyy')
-                : 'N/A'
-            })
-          ],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Status", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: permit.status })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Requested By", bold: true })],
+        }),
+        new TableCell({
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Start Date", bold: true })],
+        }),
+        new TableCell({
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "End Date", bold: true })],
         }),
       ],
-    });
+    }),
+  ];
+
+  permits.forEach((p) => {
+    rows.push(
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: p.permit.type })] }),
+          new TableCell({ children: [new Paragraph({ text: p.permit.description })] }),
+          new TableCell({ children: [new Paragraph({ text: p.permit.status })] }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: p.requestedBy
+                  ? `${p.requestedBy.firstName} ${p.requestedBy.lastName}`
+                  : "Unknown",
+              }),
+            ],
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: p.permit.startDate
+                  ? format(new Date(p.permit.startDate), "MMM d, yyyy")
+                  : "N/A",
+              }),
+            ],
+          }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: p.permit.endDate
+                  ? format(new Date(p.permit.endDate), "MMM d, yyyy")
+                  : "N/A",
+              }),
+            ],
+          }),
+        ],
+      })
+    );
   });
-  
+
   return new Table({
     width: {
       size: 100,
       type: WidthType.PERCENTAGE,
     },
-    rows: [headerRow, ...rows],
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+    },
+    rows,
   });
 }
 
-// Create training table
+// Helper function to create training table
 function createTrainingTable(trainings: any[]) {
-  // Table header row
-  const headerRow = new TableRow({
-    tableHeader: true,
-    height: {
-      value: 400,
-      rule: HeightRule.EXACT,
-    },
-    children: [
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Date', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Employee', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Course', style: 'TableHeader' })],
-      }),
-      new TableCell({
-        shading: {
-          fill: '2F5496',
-          val: ShadingType.CLEAR,
-        },
-        children: [new Paragraph({ text: 'Status', style: 'TableHeader' })],
-      }),
-    ],
-  });
-  
-  // Table data rows
-  const rows = trainings.map(training => {
-    return new TableRow({
+  const rows = [
+    new TableRow({
+      tableHeader: true,
       children: [
         new TableCell({
-          children: [
-            new Paragraph({ 
-              text: training.completedDate 
-                ? format(new Date(training.completedDate), 'MMM d, yyyy')
-                : format(new Date(training.assignedDate), 'MMM d, yyyy')
-            })
-          ],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Course Name", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: training.userName || 'Employee' })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Employee", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: training.courseTitle || 'Safety Training' })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Status", bold: true })],
         }),
         new TableCell({
-          children: [new Paragraph({ text: training.status || 'Completed' })],
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Completion Date", bold: true })],
+        }),
+        new TableCell({
+          shading: {
+            fill: "CCCCCC",
+          },
+          children: [new Paragraph({ text: "Score", bold: true })],
         }),
       ],
-    });
+    }),
+  ];
+
+  trainings.forEach((t) => {
+    rows.push(
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph({ text: t.course ? t.course.title : "Unknown Course" })] }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: t.user
+                  ? `${t.user.firstName} ${t.user.lastName}`
+                  : "Unknown User",
+              }),
+            ],
+          }),
+          new TableCell({ children: [new Paragraph({ text: t.record.status })] }),
+          new TableCell({
+            children: [
+              new Paragraph({
+                text: t.record.completionDate
+                  ? format(new Date(t.record.completionDate), "MMM d, yyyy")
+                  : "N/A",
+              }),
+            ],
+          }),
+          new TableCell({ children: [new Paragraph({ text: t.record.score ? `${t.record.score}%` : "N/A" })] }),
+        ],
+      })
+    );
   });
-  
+
   return new Table({
     width: {
       size: 100,
       type: WidthType.PERCENTAGE,
     },
-    rows: [headerRow, ...rows],
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "auto" },
+    },
+    rows,
   });
 }
