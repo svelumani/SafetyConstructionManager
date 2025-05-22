@@ -1,7 +1,7 @@
 import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { setupAuth } from "./auth";
 import { setupEmailService } from "./email";
 import * as schema from "@shared/schema";
@@ -1920,46 +1920,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const siteId = req.query.siteId ? parseInt(req.query.siteId as string) : undefined;
       const status = req.query.status as string;
       
-      // Create base query
-      let query = db
-        .select()
-        .from(schema.inspections)
-        .where(eq(schema.inspections.tenantId, tenantId))
-        .where(eq(schema.inspections.isActive, true));
+      // Adapt query to match actual database structure
+      // Using raw SQL since we have a schema mismatch
+      const inspectionsQuery = `
+        SELECT * FROM inspections 
+        WHERE tenant_id = $1 
+        AND is_active = true
+        ${siteId ? 'AND site_id = $2' : ''}
+        ${status ? `AND status = ${siteId ? '$3' : '$2'}` : ''}
+        ORDER BY created_at DESC
+        LIMIT $${siteId && status ? '4' : (siteId || status ? '3' : '2')}
+        OFFSET $${siteId && status ? '5' : (siteId || status ? '4' : '3')}
+      `;
       
-      // Add filters if provided
-      if (siteId) {
-        query = query.where(eq(schema.inspections.siteId, siteId));
-      }
+      // Build parameters array
+      const queryParams = [tenantId];
+      if (siteId) queryParams.push(siteId);
+      if (status) queryParams.push(status);
+      queryParams.push(limit, offset);
       
-      if (status) {
-        query = query.where(eq(schema.inspections.status, status));
-      }
+      // Count query
+      const countQuery = `
+        SELECT COUNT(*) FROM inspections 
+        WHERE tenant_id = $1 
+        AND is_active = true
+        ${siteId ? 'AND site_id = $2' : ''}
+        ${status ? `AND status = ${siteId ? '$3' : '$2'}` : ''}
+      `;
       
-      // Get paginated inspections
-      const inspections = await query
-        .orderBy(desc(schema.inspections.createdAt))
-        .limit(limit)
-        .offset(offset);
+      // Build count parameters
+      const countParams = [tenantId];
+      if (siteId) countParams.push(siteId);
+      if (status) countParams.push(status);
       
-      // Count total records with same filters
-      const countQuery = db
-        .select({ count: sql`count(*)` })
-        .from(schema.inspections)
-        .where(eq(schema.inspections.tenantId, tenantId))
-        .where(eq(schema.inspections.isActive, true));
+      // Execute queries using pool directly for raw SQL
+      const inspectionsResult = await pool.query(inspectionsQuery, queryParams);
+      const countResult = await pool.query(countQuery, countParams);
       
-      // Add the same filters to count query
-      if (siteId) {
-        countQuery.where(eq(schema.inspections.siteId, siteId));
-      }
-      
-      if (status) {
-        countQuery.where(eq(schema.inspections.status, status));
-      }
-      
-      const [countResult] = await countQuery;
-      const total = Number(countResult?.count || 0);
+      const inspections = inspectionsResult.rows;
+      const total = parseInt(countResult.rows[0]?.count || '0');
       
       res.json({ inspections, total });
     } catch (err) {
