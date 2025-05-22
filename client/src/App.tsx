@@ -52,6 +52,7 @@ import IncidentAnalytics from "@/pages/incident-analytics";
 import TrainingAnalytics from "@/pages/training-analytics";
 import TrainingCompliance from "@/pages/training-compliance";
 import DailyReport from "@/pages/daily-report";
+import Settings from "@/pages/settings";
 
 function Router() {
   return (
@@ -99,6 +100,7 @@ function Router() {
       <ProtectedRoute path="/training" component={Training} />
       <ProtectedRoute path="/daily-report" component={DailyReport} />
       <ProtectedRoute path="/safety-scores" component={SafetyScores} />
+      <ProtectedRoute path="/settings" component={Settings} />
       <ProtectedRoute path="/users" component={Users} />
       <ProtectedRoute path="/users/:id" component={UserProfile} />
       <ProtectedRoute path="/sites" component={Sites} />
