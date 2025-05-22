@@ -12,6 +12,7 @@ export const inspectionStatusEnum = pgEnum('inspection_status', ['scheduled', 'i
 // Compliance status enum is defined below around line 295
 export const permitStatusEnum = pgEnum('permit_status', ['requested', 'approved', 'denied', 'expired']);
 export const incidentSeverityEnum = pgEnum('incident_severity', ['minor', 'moderate', 'major', 'critical']);
+export const incidentStatusEnum = pgEnum('incident_status', ['reported', 'investigating', 'resolved', 'closed']);
 export const subscriptionPlanEnum = pgEnum('subscription_plan', ['basic', 'standard', 'premium', 'enterprise']);
 
 // Tenants
@@ -519,6 +520,7 @@ export const incidentReports = pgTable('incident_reports', {
   location: text('location').notNull(),
   incidentType: text('incident_type').notNull(),
   severity: incidentSeverityEnum('severity').notNull(),
+  status: incidentStatusEnum('status').notNull().default('reported'),
   injuryOccurred: boolean('injury_occurred').notNull().default(false),
   injuryDetails: text('injury_details'),
   witnesses: jsonb('witnesses'),
