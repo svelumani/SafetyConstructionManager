@@ -314,9 +314,9 @@ export default function HazardDetail() {
           <div className="flex items-center space-x-2">
             <Badge variant="outline" className={cn(
               "px-2 py-1 text-xs rounded-full font-medium",
-              getSeverityColor(hazard.severity)
+              hazard.severity ? getSeverityColor(hazard.severity) : ""
             )}>
-              {hazard.severity.charAt(0).toUpperCase() + hazard.severity.slice(1)} Severity
+              {hazard.severity ? `${hazard.severity.charAt(0).toUpperCase() + hazard.severity.slice(1)} Severity` : "Unknown Severity"}
             </Badge>
             
             <Badge variant="outline" className={cn(
