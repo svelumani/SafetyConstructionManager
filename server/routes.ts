@@ -2996,36 +2996,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const inspectionId = parseInt(req.params.id);
     
     try {
-      // Use raw SQL to get inspection details (avoiding schema mismatches)
-      const inspectionResult = await db.execute(`
-        SELECT * FROM inspections 
-        WHERE id = ${inspectionId}
-        AND tenant_id = ${req.user.tenantId}
+      // Use simplified SQL to get all the required data with a single query
+      const result = await db.execute(`
+        SELECT i.*, s.name as site_name, s.address as site_address, 
+               u.first_name as inspector_first_name, u.last_name as inspector_last_name
+        FROM inspections i
+        LEFT JOIN sites s ON i.site_id = s.id
+        LEFT JOIN users u ON i.inspector_id = u.id
+        WHERE i.id = ${inspectionId}
+        AND i.tenant_id = ${req.user.tenantId}
       `);
       
-      const inspection = inspectionResult.rows[0];
-      
-      if (!inspection) {
+      if (result.rows.length === 0) {
         return res.status(404).json({ message: 'Inspection not found' });
       }
       
-      // Get site info
-      const siteResult = await db.execute(`
-        SELECT * FROM sites 
-        WHERE id = ${inspection.site_id}
-      `);
-      
-      const site = siteResult.rows[0];
-      
-      // Get inspector info
-      let inspector = null;
-      if (inspection.inspector_id) {
-        const inspectorResult = await db.execute(`
-          SELECT * FROM users 
-          WHERE id = ${inspection.inspector_id}
-        `);
-        inspector = inspectorResult.rows[0];
-      }
+      const inspection = result.rows[0];
       
       // Get responses using raw SQL
       const responsesResult = await db.execute(`
@@ -3040,10 +3026,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE inspection_id = ${inspectionId}
         AND is_active = true
       `);
-      
-      // Simplified response - we'll fix user details on the frontend if needed
       const findings = findingsResult.rows;
       
+      // Format the response to include site details
+      const site = {
+        id: inspection.site_id,
+        name: inspection.site_name,
+        address: inspection.site_address
+      };
+      
+      // Format the inspector details if available
+      let inspector = null;
+      if (inspection.inspector_id) {
+        inspector = {
+          id: inspection.inspector_id,
+          firstName: inspection.inspector_first_name,
+          lastName: inspection.inspector_last_name
+        };
+      }
+      
+      // Create a well-formatted response object
       return res.status(200).json({
         inspection,
         site,
@@ -3228,10 +3230,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get checklist items for this template
-      const checklistItems = await db.select().from(schema.inspectionChecklistItems)
-        .where(eq(schema.inspectionChecklistItems.templateId, inspection.templateId))
-        .where(eq(schema.inspectionChecklistItems.isActive, true));
+      // Get checklist items for this template using raw SQL to avoid column name mismatches
+      let checklistItems = [];
+      if (inspection.template_id) {
+        const checklistItemsResult = await db.execute(`
+          SELECT * FROM inspection_checklist_items 
+          WHERE template_id = ${inspection.template_id}
+          AND is_active = true
+        `);
+        checklistItems = checklistItemsResult.rows;
+      }
       
       // Calculate score
       const responses = await db.select().from(schema.inspectionResponses)
