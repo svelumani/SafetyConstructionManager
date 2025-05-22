@@ -2280,31 +2280,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
           total: 0
         };
         
-        // Get simple counts for training
+        // Get simple counts for training using trainingRecords
         const [trainingCountResult] = await db
           .select({ count: sql`count(*)` })
-          .from(schema.userTrainings)
-          .where(eq(schema.userTrainings.tenantId, tenantId));
+          .from(schema.trainingRecords)
+          .where(eq(schema.trainingRecords.tenantId, tenantId));
           
         trainingStats.total = Number(trainingCountResult?.count || 0);
         
-        // Count training by status
-        const trainingStatusCounts = await db
-          .select({
-            status: schema.userTrainings.status,
-            count: sql`count(*)`.as('count')
-          })
-          .from(schema.userTrainings)
-          .where(eq(schema.userTrainings.tenantId, tenantId))
-          .groupBy(schema.userTrainings.status);
+        // For training status, we need to use a different approach since we don't have a status field
+        // Instead, we'll determine status based on completionDate and passed fields
+        
+        // Count completed trainings (has completion date and passed)
+        const [completedTrainings] = await db
+          .select({ count: sql`count(*)` })
+          .from(schema.trainingRecords)
+          .where(eq(schema.trainingRecords.tenantId, tenantId))
+          .where(sql`completion_date IS NOT NULL`)
+          .where(eq(schema.trainingRecords.passed, true));
+        
+        // Count in progress trainings (has start date but no completion date)
+        const [inProgressTrainings] = await db
+          .select({ count: sql`count(*)` })
+          .from(schema.trainingRecords)
+          .where(eq(schema.trainingRecords.tenantId, tenantId))
+          .where(sql`completion_date IS NULL`);
+        
+        // Count failed trainings (has completion date but not passed)
+        const [failedTrainings] = await db
+          .select({ count: sql`count(*)` })
+          .from(schema.trainingRecords)
+          .where(eq(schema.trainingRecords.tenantId, tenantId))
+          .where(sql`completion_date IS NOT NULL`)
+          .where(eq(schema.trainingRecords.passed, false));
           
-        // Process training status counts
-        for (const row of trainingStatusCounts) {
-          if (row.status === 'completed') trainingStats.completed = Number(row.count);
-          else if (row.status === 'in_progress') trainingStats.inProgress = Number(row.count);
-          else if (row.status === 'not_started') trainingStats.notStarted = Number(row.count);
-          else if (row.status === 'expired') trainingStats.expired = Number(row.count);
-        }
+        // Manually update training stats
+        trainingStats.completed = Number(completedTrainings?.count || 0);
+        trainingStats.inProgress = Number(inProgressTrainings?.count || 0);
+        trainingStats.notStarted = 0; // We don't have this concept in our schema
+        trainingStats.expired = Number(failedTrainings?.count || 0); // Using failed as a proxy for expired
         
         // Get site stats directly from database
         const [activeSites] = await db
