@@ -59,7 +59,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -411,8 +412,15 @@ export default function InspectionDetails() {
     startInspectionMutation.mutate();
   };
 
+  const [completionNotes, setCompletionNotes] = useState("");
+  
   const handleCompleteInspection = () => {
-    completeInspectionMutation.mutate();
+    // Show dialog first
+    setShowCompletionDialog(true);
+  };
+  
+  const confirmCompleteInspection = () => {
+    completeInspectionMutation.mutate({ notes: completionNotes });
   };
 
   const handleCancelInspection = () => {
@@ -478,6 +486,65 @@ export default function InspectionDetails() {
       </Layout>
     );
   }
+
+  // Completion dialog UI
+  const CompletionDialog = () => (
+    <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Complete Inspection</DialogTitle>
+          <DialogDescription>
+            Add any final notes before completing this inspection.
+            {missingRequiredItems.length > 0 && (
+              <div className="mt-4 p-3 border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-900 rounded-md">
+                <h4 className="font-semibold text-red-600 dark:text-red-400 mb-2">
+                  Missing Required Responses
+                </h4>
+                <p className="text-sm text-red-600 dark:text-red-400 mb-2">
+                  {missingRequiredItems.length} required questions still need responses:
+                </p>
+                <ul className="text-sm text-red-600 dark:text-red-400 ml-4 list-disc">
+                  {missingRequiredItems.slice(0, 3).map((item) => (
+                    <li key={item.id}>{item.question}</li>
+                  ))}
+                  {missingRequiredItems.length > 3 && (
+                    <li>...and {missingRequiredItems.length - 3} more</li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              placeholder="Enter any final notes or observations..."
+              value={completionNotes}
+              onChange={(e) => setCompletionNotes(e.target.value)}
+              className="min-h-[100px]"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowCompletionDialog(false)}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={confirmCompleteInspection} 
+            disabled={completeInspectionMutation.isPending}>
+            {completeInspectionMutation.isPending ? (
+              <>
+                <span className="mr-2">Saving...</span>
+                <span className="animate-spin">⟳</span>
+              </>
+            ) : 'Complete Inspection'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 
   return (
     <Layout>
