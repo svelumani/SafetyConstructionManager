@@ -115,11 +115,18 @@ export default function Inspections() {
   return (
     <Layout title="Inspections" description="Schedule, perform, and track safety inspections across sites">
       <div className="flex justify-between items-center mb-6">
-        <Button asChild>
-          <Link href="/inspections/new">
-            <Plus className="mr-2 h-4 w-4" /> New Inspection
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link href="/inspections/new">
+              <Plus className="mr-2 h-4 w-4" /> New Inspection
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/inspections/templates">
+              <ClipboardCheck className="mr-2 h-4 w-4" /> Manage Templates
+            </Link>
+          </Button>
+        </div>
         
         <div className="flex gap-2">
           <Button variant="outline">
