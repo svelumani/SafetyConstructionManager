@@ -1629,13 +1629,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Hazard not found" });
       }
       
+      // Get site information for this hazard
+      if (hazard.siteId) {
+        const site = await storage.getSite(hazard.siteId);
+        if (site) {
+          hazard.site = {
+            id: site.id,
+            name: site.name
+          };
+        } else {
+          hazard.site = { id: hazard.siteId, name: "Unknown Site" };
+        }
+      } else {
+        hazard.site = { id: 0, name: "No Site Assigned" };
+      }
+      
+      // Get reported by user information
+      if (hazard.reportedById) {
+        const user = await storage.getUser(hazard.reportedById);
+        if (user) {
+          hazard.reportedBy = {
+            id: user.id,
+            firstName: user.firstName || user.username || '',
+            lastName: user.lastName || '',
+            email: user.email,
+            profileImageUrl: user.profileImageUrl
+          };
+        } else {
+          hazard.reportedBy = { 
+            id: hazard.reportedById, 
+            firstName: "Unknown", 
+            lastName: "User",
+            email: "",
+            profileImageUrl: null
+          };
+        }
+      } else {
+        hazard.reportedBy = { 
+          id: 0, 
+          firstName: "System", 
+          lastName: "",
+          email: "",
+          profileImageUrl: null
+        };
+      }
+      
       // Get assignments
       const assignments = await storage.listHazardAssignments(id);
       
       // Get comments
       const comments = await storage.listHazardComments(id);
       
-      res.json({ hazard, assignments, comments });
+      res.json(hazard);
     } catch (err) {
       console.error("Error fetching hazard:", err);
       res.status(500).json({ message: "Failed to fetch hazard" });
