@@ -1674,16 +1674,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
       
-      // Get assignments
-      const assignments = await storage.listHazardAssignments(id);
-      
-      // Get comments
-      const comments = await storage.listHazardComments(id);
-      
       res.json(hazard);
     } catch (err) {
       console.error("Error fetching hazard:", err);
       res.status(500).json({ message: "Failed to fetch hazard" });
+    }
+  });
+  
+  // Add endpoint for comments
+  app.get("/api/hazards/:id/comments", requireAuth, requirePermission("hazards", "read"), async (req, res) => {
+    try {
+      const hazardId = parseInt(req.params.id);
+      const hazard = await storage.getHazardReport(hazardId);
+      
+      if (!hazard || hazard.tenantId !== req.user.tenantId) {
+        return res.status(404).json({ message: "Hazard not found" });
+      }
+      
+      const comments = await storage.listHazardComments(hazardId);
+      
+      // Enhance comments with user information
+      const enhancedComments = await Promise.all(comments.map(async (comment) => {
+        if (comment.userId) {
+          const user = await storage.getUser(comment.userId);
+          if (user) {
+            return {
+              ...comment,
+              user: {
+                id: user.id,
+                firstName: user.firstName || user.username || '',
+                lastName: user.lastName || '',
+                profileImageUrl: user.profileImageUrl
+              }
+            };
+          }
+        }
+        return {
+          ...comment,
+          user: {
+            id: comment.userId || 0,
+            firstName: "Unknown",
+            lastName: "User",
+            profileImageUrl: null
+          }
+        };
+      }));
+      
+      res.json({ comments: enhancedComments });
+    } catch (err) {
+      console.error("Error fetching hazard comments:", err);
+      res.status(500).json({ message: "Failed to fetch hazard comments" });
+    }
+  });
+  
+  // Add endpoint for assignments
+  app.get("/api/hazards/:id/assignments", requireAuth, requirePermission("hazards", "read"), async (req, res) => {
+    try {
+      const hazardId = parseInt(req.params.id);
+      const hazard = await storage.getHazardReport(hazardId);
+      
+      if (!hazard || hazard.tenantId !== req.user.tenantId) {
+        return res.status(404).json({ message: "Hazard not found" });
+      }
+      
+      const assignments = await storage.listHazardAssignments(hazardId);
+      
+      // Enhance assignments with user information
+      const enhancedAssignments = await Promise.all(assignments.map(async (assignment) => {
+        const enhancedAssignment = { ...assignment };
+        
+        // Get assigned by user
+        if (assignment.assignedById) {
+          const assignedBy = await storage.getUser(assignment.assignedById);
+          if (assignedBy) {
+            enhancedAssignment.assignedBy = {
+              id: assignedBy.id,
+              firstName: assignedBy.firstName || assignedBy.username || '',
+              lastName: assignedBy.lastName || ''
+            };
+          } else {
+            enhancedAssignment.assignedBy = {
+              id: assignment.assignedById,
+              firstName: "Unknown",
+              lastName: "User"
+            };
+          }
+        }
+        
+        // Get assigned to user
+        if (assignment.assignedToUserId) {
+          const assignedTo = await storage.getUser(assignment.assignedToUserId);
+          if (assignedTo) {
+            enhancedAssignment.assignedToUser = {
+              id: assignedTo.id,
+              firstName: assignedTo.firstName || assignedTo.username || '',
+              lastName: assignedTo.lastName || '',
+              profileImageUrl: assignedTo.profileImageUrl
+            };
+          } else {
+            enhancedAssignment.assignedToUser = {
+              id: assignment.assignedToUserId,
+              firstName: "Unknown",
+              lastName: "User",
+              profileImageUrl: null
+            };
+          }
+        }
+        
+        // Get assigned to subcontractor if applicable
+        if (assignment.assignedToSubcontractorId) {
+          // Implement if needed
+        }
+        
+        return enhancedAssignment;
+      }));
+      
+      res.json({ assignments: enhancedAssignments });
+    } catch (err) {
+      console.error("Error fetching hazard assignments:", err);
+      res.status(500).json({ message: "Failed to fetch hazard assignments" });
     }
   });
 
