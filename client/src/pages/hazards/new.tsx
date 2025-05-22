@@ -167,6 +167,15 @@ export default function NewHazardReport() {
   };
 
   const onSubmit = (data: FormData) => {
+    // Make sure to include uploaded images
+    if (uploadedImages.length > 0) {
+      data.photoUrls = uploadedImages;
+    }
+    
+    // Log the submission data for debugging
+    console.log("Submitting hazard report:", data);
+    
+    // Execute the mutation to create the hazard
     createHazardMutation.mutate(data);
   };
 
@@ -406,8 +415,32 @@ export default function NewHazardReport() {
                   <Button 
                     type="submit" 
                     disabled={createHazardMutation.isPending}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!form.formState.isValid) {
+                        // Log validation errors for debugging
+                        console.log("Form validation errors:", form.formState.errors);
+                        
+                        // Show toast with validation errors
+                        toast({
+                          title: "Please check the form",
+                          description: "Some required fields are missing or invalid",
+                          variant: "destructive"
+                        });
+                      } else {
+                        // Form is valid, manually trigger submission
+                        form.handleSubmit(onSubmit)();
+                      }
+                    }}
                   >
-                    {createHazardMutation.isPending ? "Submitting..." : "Submit Report"}
+                    {createHazardMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      "Submit Report"
+                    )}
                   </Button>
                 </div>
               </form>
