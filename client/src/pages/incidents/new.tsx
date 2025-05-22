@@ -72,9 +72,12 @@ export default function NewIncident() {
   const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
 
   // Get sites for dropdown
-  const { data: sitesData } = useQuery({
+  const { data: sitesData } = useQuery<{sites: Array<{id: number, name: string}>}>({
     queryKey: ["/api/sites"],
+    refetchOnWindowFocus: false,
   });
+  
+  const sites = sitesData?.sites || [];
 
   // Set up form
   const form = useForm<FormValues>({
@@ -188,7 +191,7 @@ export default function NewIncident() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {sitesData?.sites?.map((site: any) => (
+                            {sites.map((site: any) => (
                               <SelectItem key={site.id} value={site.id.toString()} className="text-base">
                                 {site.name}
                               </SelectItem>
