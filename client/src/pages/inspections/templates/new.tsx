@@ -499,29 +499,73 @@ export default function NewInspectionTemplate() {
                                   </FormItem>
                                 )}
                               />
-
-                              <div className="flex justify-between items-center">
+                              
+                              {/* Show options field for multiple choice or checkbox questions */}
+                              {(watch(`sections.${sectionIndex}.items.${itemIndex}.type`) === 'multiple_choice' || 
+                                watch(`sections.${sectionIndex}.items.${itemIndex}.type`) === 'checkbox') && (
                                 <FormField
                                   control={form.control}
-                                  name={`sections.${sectionIndex}.items.${itemIndex}.required`}
+                                  name={`sections.${sectionIndex}.items.${itemIndex}.options`}
                                   render={({ field }) => (
-                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                    <FormItem>
+                                      <FormLabel>Options</FormLabel>
                                       <FormControl>
-                                        <Switch 
-                                          checked={field.value} 
-                                          onCheckedChange={field.onChange}
+                                        <Textarea 
+                                          placeholder="Enter options, one per line (e.g. Option 1&#10;Option 2&#10;Option 3)" 
+                                          className="min-h-24"
+                                          value={field.value ? Array.isArray(field.value) ? field.value.join('\n') : field.value : ''}
+                                          onChange={(e) => {
+                                            const options = e.target.value.split('\n').filter(o => o.trim());
+                                            field.onChange(options.length > 0 ? options : null);
+                                          }}
                                         />
                                       </FormControl>
-                                      <FormLabel className="font-normal">Required item</FormLabel>
+                                      <FormDescription>
+                                        Enter each option on a new line. These will be presented as choices to the inspector.
+                                      </FormDescription>
+                                      <FormMessage />
                                     </FormItem>
                                   )}
                                 />
+                              )}
 
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <FormField
+                                  control={form.control}
+                                  name={`sections.${sectionIndex}.items.${itemIndex}.type`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Question Type</FormLabel>
+                                      <Select 
+                                        onValueChange={field.onChange} 
+                                        defaultValue={field.value || "yes_no"}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select question type" />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          <SelectItem value="yes_no">Yes/No</SelectItem>
+                                          <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                                          <SelectItem value="checkbox">Checkboxes</SelectItem>
+                                          <SelectItem value="numeric">Numeric Input</SelectItem>
+                                          <SelectItem value="text">Text Input</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                      <FormDescription>
+                                        How inspectors will respond to this question
+                                      </FormDescription>
+                                    </FormItem>
+                                  )}
+                                />
+                                
                                 <FormField
                                   control={form.control}
                                   name={`sections.${sectionIndex}.items.${itemIndex}.category`}
                                   render={({ field }) => (
-                                    <FormItem className="w-48">
+                                    <FormItem>
+                                      <FormLabel>Category</FormLabel>
                                       <Select 
                                         onValueChange={field.onChange} 
                                         defaultValue={field.value}
@@ -540,6 +584,24 @@ export default function NewInspectionTemplate() {
                                           <SelectItem value="visual">Visual Inspection</SelectItem>
                                         </SelectContent>
                                       </Select>
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              
+                              <div className="flex justify-between items-center">
+                                <FormField
+                                  control={form.control}
+                                  name={`sections.${sectionIndex}.items.${itemIndex}.required`}
+                                  render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                                      <FormControl>
+                                        <Switch 
+                                          checked={field.value} 
+                                          onCheckedChange={field.onChange}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="font-normal">Required item</FormLabel>
                                     </FormItem>
                                   )}
                                 />
