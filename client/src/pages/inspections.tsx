@@ -47,7 +47,7 @@ export default function Inspections() {
   const [pageSize, setPageSize] = useState(10);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("table");
   
-  const { data, isLoading } = useQuery<{ inspections: Inspection[], total: number }>({
+  const { data, isLoading } = useQuery<{ inspections: any[], total: number }>({
     queryKey: ['/api/inspections', { 
       limit: pageSize, 
       offset: pageIndex * pageSize,
@@ -55,7 +55,20 @@ export default function Inspections() {
     }],
   });
 
-  const inspections = data?.inspections || [];
+  // Map snake_case database fields to camelCase for frontend
+  const inspections = (data?.inspections || []).map(inspection => ({
+    id: inspection.id,
+    title: inspection.title,
+    inspectionType: inspection.inspection_type,
+    description: inspection.description,
+    scheduledDate: inspection.scheduled_date,
+    completedDate: inspection.completed_date,
+    status: inspection.status,
+    inspectorId: inspection.inspector_id,
+    inspectorName: inspection.inspector_name || "Unknown Inspector",
+    siteId: inspection.site_id,
+    siteName: inspection.site_name || "Unknown Site"
+  }));
   const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
   
   const toggleViewMode = () => {
