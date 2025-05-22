@@ -323,9 +323,13 @@ export default function HazardDetail() {
               "px-2 py-1 text-xs rounded-full font-medium",
               getStatusColor(hazard.status)
             )}>
-              {hazard.status.split('_').map(word => 
-                word.charAt(0).toUpperCase() + word.slice(1)
-              ).join(' ')}
+              {hazard.status && hazard.status.includes('_') 
+                ? hazard.status.split('_').map(word => 
+                  word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ') 
+                : hazard.status 
+                  ? hazard.status.charAt(0).toUpperCase() + hazard.status.slice(1)
+                  : "Unknown Status"}
             </Badge>
           </div>
         </div>
