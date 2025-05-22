@@ -16,7 +16,9 @@ import fs from "fs";
 import { 
   insertHazardReportSchema, insertHazardCommentSchema, insertHazardAssignmentSchema,
   insertInspectionSchema, insertInspectionTemplateSchema, insertInspectionSectionSchema,
-  insertInspectionItemSchema, insertInspectionResponseSchema, insertInspectionFindingSchema
+  insertInspectionItemSchema, insertInspectionResponseSchema, insertInspectionFindingSchema,
+  insertPermitRequestSchema, insertTenantSchema, insertUserSchema, userRoleEnum, permitStatusEnum,
+  insertEmailTemplateSchema, insertIncidentReportSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
