@@ -21,11 +21,49 @@ export function formatDate(date: string | Date) {
   }
 }
 
-export function formatUTCToLocal(utcDateString: string) {
+export function formatUTCToLocal(utcDateString: string, format?: string) {
   if (!utcDateString) return "";
   
   try {
     const date = new Date(utcDateString);
+    
+    // If date is invalid, return empty string
+    if (isNaN(date.getTime())) {
+      console.warn("Invalid date:", utcDateString);
+      return "";
+    }
+    
+    // If a specific format is provided using date-fns format
+    if (format) {
+      // Basic implementation of date-fns-like format patterns
+      switch (format) {
+        case "PP": // Jul 2, 2023
+          return new Intl.DateTimeFormat("en-US", {
+            month: "short", 
+            day: "numeric", 
+            year: "numeric"
+          }).format(date);
+        case "PPpp": // Jul 2, 2023, 12:30 PM
+          return new Intl.DateTimeFormat("en-US", {
+            month: "short", 
+            day: "numeric", 
+            year: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            hour12: true
+          }).format(date);
+        case "p": // 12:30 PM
+          return new Intl.DateTimeFormat("en-US", {
+            hour: "numeric",
+            minute: "numeric",
+            hour12: true
+          }).format(date);
+        default:
+          return new Intl.DateTimeFormat("en-US").format(date);
+      }
+    }
+    
+    // Default format if no format is provided
     return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "short",
