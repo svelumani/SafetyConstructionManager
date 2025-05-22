@@ -397,6 +397,23 @@ export class DatabaseStorage implements IStorage {
     return newSection;
   }
   
+  async getInspectionSection(id: number): Promise<InspectionSection | undefined> {
+    const [section] = await db
+      .select()
+      .from(inspectionSections)
+      .where(eq(inspectionSections.id, id));
+    
+    return section;
+  }
+  
+  async listInspectionSections(templateId: number): Promise<InspectionSection[]> {
+    return db
+      .select()
+      .from(inspectionSections)
+      .where(eq(inspectionSections.templateId, templateId))
+      .orderBy(asc(inspectionSections.order));
+  }
+  
   async updateInspectionSection(id: number, data: Partial<InsertInspectionSection>): Promise<InspectionSection | undefined> {
     const [updatedSection] = await db
       .update(inspectionSections)
@@ -431,6 +448,23 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return newItem;
+  }
+  
+  async getInspectionItem(id: number): Promise<InspectionItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(inspectionItems)
+      .where(eq(inspectionItems.id, id));
+    
+    return item;
+  }
+  
+  async listInspectionItems(sectionId: number): Promise<InspectionItem[]> {
+    return db
+      .select()
+      .from(inspectionItems)
+      .where(eq(inspectionItems.sectionId, sectionId))
+      .orderBy(asc(inspectionItems.order));
   }
   
   async updateInspectionItem(id: number, data: Partial<InsertInspectionItem>): Promise<InspectionItem | undefined> {
