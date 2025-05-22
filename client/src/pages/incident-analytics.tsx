@@ -223,7 +223,7 @@ export default function IncidentAnalytics() {
                   <span>Closed</span>
                   <span className="font-medium">{incidentStats.incidentsByStatus.closed}</span>
                 </div>
-                <Progress value={statusPercentages.closed} className="h-2 bg-green-100" indicatorClassName="bg-green-500" />
+                <Progress value={statusPercentages.closed} className="h-2 bg-green-100" indicatorStyle="bg-green-500" />
               </div>
             </CardContent>
           </Card>
@@ -452,7 +452,7 @@ export default function IncidentAnalytics() {
                         <Progress 
                           value={Math.round((site.count / totalIncidents) * 100)} 
                           className="h-2"
-                          indicatorClassName={
+                          indicatorStyle={
                             site.count > 10 
                               ? "bg-red-500" 
                               : site.count > 5 
@@ -533,7 +533,7 @@ export default function IncidentAnalytics() {
                         <Progress 
                           value={100 - (team.incidentRate * 40)} 
                           className="h-2 mt-2"
-                          indicatorClassName="bg-blue-500"
+                          indicatorStyle="bg-blue-500"
                         />
                       </div>
                   ))}
@@ -575,7 +575,7 @@ export default function IncidentAnalytics() {
                         <Progress 
                           value={team.improvementRate * 2} 
                           className="h-2 mt-2"
-                          indicatorClassName="bg-green-500"
+                          indicatorStyle="bg-green-500"
                         />
                       </div>
                   ))}
