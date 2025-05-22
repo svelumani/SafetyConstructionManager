@@ -2411,7 +2411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/inspections/:id/responses', requireAuth, async (req, res) => {
     const inspectionId = parseInt(req.params.id);
-    const responsesData = req.body;
+    const responseData = req.body;
     
     try {
       // Check if inspection exists and belongs to user's tenant
@@ -2423,57 +2423,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Inspection not found' });
       }
       
-      // Validate response data
-      if (!Array.isArray(responsesData)) {
-        return res.status(400).json({ message: 'Invalid responses data format. Expected an array.' });
+      // Check if inspection is in progress
+      if (inspection.status !== 'in_progress') {
+        return res.status(400).json({ message: 'Inspection must be in progress to add responses' });
       }
       
-      // Process each response
-      const createdResponses = [];
+      // Check if a response already exists for this checklist item
+      const [existingResponse] = await db.select().from(schema.inspectionResponses)
+        .where(eq(schema.inspectionResponses.inspectionId, inspectionId))
+        .where(eq(schema.inspectionResponses.checklistItemId, responseData.checklistItemId));
       
-      for (const responseData of responsesData) {
-        const validatedData = schema.insertInspectionResponseSchema.parse({
-          ...responseData,
-          inspectionId
+      if (existingResponse) {
+        // If it exists, return a 409 Conflict with the existing response
+        return res.status(409).json({
+          message: 'Response already exists for this checklist item',
+          existingResponse
         });
-        
-        // Check if response already exists
-        const [existingResponse] = await db.select().from(schema.inspectionResponses)
-          .where(eq(schema.inspectionResponses.inspectionId, inspectionId))
-          .where(eq(schema.inspectionResponses.checklistItemId, validatedData.checklistItemId));
-        
-        let response;
-        
-        if (existingResponse) {
-          // Update existing response
-          [response] = await db.update(schema.inspectionResponses)
-            .set({
-              response: validatedData.response,
-              notes: validatedData.notes,
-              photoUrls: validatedData.photoUrls,
-              updatedAt: new Date().toISOString()
-            })
-            .where(eq(schema.inspectionResponses.id, existingResponse.id))
-            .returning();
-        } else {
-          // Create new response
-          [response] = await db.insert(schema.inspectionResponses)
-            .values(validatedData)
-            .returning();
-        }
-        
-        createdResponses.push(response);
       }
       
-      return res.status(201).json(createdResponses);
+      // Validate response data
+      const validatedData = schema.insertInspectionResponseSchema.parse({
+        ...responseData,
+        inspectionId,
+        createdById: req.user.id
+      });
+      
+      // Create the response
+      const [newResponse] = await db.insert(schema.inspectionResponses)
+        .values(validatedData)
+        .returning();
+      
+      return res.status(201).json(newResponse);
     } catch (error) {
-      console.error('Error saving inspection responses:', error);
+      console.error('Error saving inspection response:', error);
       
       if (error instanceof ZodError) {
         return res.status(400).json({ message: 'Invalid response data', errors: error.errors });
       }
       
-      return res.status(500).json({ message: 'Error saving inspection responses' });
+      return res.status(500).json({ message: 'Error saving inspection response' });
+    }
+  });
+  
+  // Add an endpoint to update an existing response
+  app.put('/api/inspections/:id/responses/:responseId', requireAuth, async (req, res) => {
+    const inspectionId = parseInt(req.params.id);
+    const responseId = parseInt(req.params.responseId);
+    const updateData = req.body;
+    
+    try {
+      // Check if inspection exists and belongs to user's tenant
+      const [inspection] = await db.select().from(schema.inspections)
+        .where(eq(schema.inspections.id, inspectionId))
+        .where(eq(schema.inspections.tenantId, req.user.tenantId));
+      
+      if (!inspection) {
+        return res.status(404).json({ message: 'Inspection not found' });
+      }
+      
+      // Check if inspection is in progress
+      if (inspection.status !== 'in_progress') {
+        return res.status(400).json({ message: 'Inspection must be in progress to update responses' });
+      }
+      
+      // Check if the response exists and belongs to this inspection
+      const [existingResponse] = await db.select().from(schema.inspectionResponses)
+        .where(eq(schema.inspectionResponses.id, responseId))
+        .where(eq(schema.inspectionResponses.inspectionId, inspectionId));
+      
+      if (!existingResponse) {
+        return res.status(404).json({ message: 'Response not found' });
+      }
+      
+      // Update the response
+      const [updatedResponse] = await db.update(schema.inspectionResponses)
+        .set({
+          status: updateData.status,
+          notes: updateData.notes,
+          updatedAt: new Date().toISOString()
+        })
+        .where(eq(schema.inspectionResponses.id, responseId))
+        .returning();
+      
+      return res.status(200).json(updatedResponse);
+    } catch (error) {
+      console.error('Error updating inspection response:', error);
+      
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: 'Invalid response data', errors: error.errors });
+      }
+      
+      return res.status(500).json({ message: 'Error updating inspection response' });
     }
   });
 
