@@ -775,6 +775,40 @@ export const emailTemplatesRelations = relations(emailTemplates, ({ one }) => ({
   }),
 }));
 
+// Report History
+export const reportHistory = pgTable('report_history', {
+  id: serial('id').primaryKey(),
+  tenantId: integer('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  siteId: integer('site_id').references(() => sites.id).notNull(),
+  startDate: date('start_date', { mode: 'string' }).notNull(),
+  endDate: date('end_date', { mode: 'string' }).notNull(),
+  createdAt: timestamp('created_at', { mode: 'string' }).notNull().defaultNow(),
+  reportName: text('report_name').notNull(),
+  reportUrl: text('report_url'),
+  status: text('status').notNull().default('generated')
+});
+
+export const reportHistoryRelations = relations(reportHistory, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [reportHistory.tenantId],
+    references: [tenants.id],
+  }),
+  user: one(users, {
+    fields: [reportHistory.userId],
+    references: [users.id],
+  }),
+  site: one(sites, {
+    fields: [reportHistory.siteId],
+    references: [sites.id],
+  }),
+}));
+
+export const insertReportHistorySchema = createInsertSchema(reportHistory).omit({ 
+  id: true, 
+  createdAt: true,
+});
+
 // Role Permissions
 export const rolePermissions = pgTable('role_permissions', {
   id: serial('id').primaryKey(),
@@ -940,6 +974,7 @@ export type InsertInspectionTemplate = z.infer<typeof insertInspectionTemplateSc
 export type InsertInspectionChecklistItem = z.infer<typeof insertInspectionChecklistItemSchema>;
 export type InsertInspectionResponse = z.infer<typeof insertInspectionResponseSchema>;
 export type InsertInspectionFinding = z.infer<typeof insertInspectionFindingSchema>;
+export type InsertReportHistory = z.infer<typeof insertReportHistorySchema>;
 
 // Type exports for select schemas
 export type Tenant = typeof tenants.$inferSelect;
