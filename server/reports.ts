@@ -127,7 +127,7 @@ export async function generateReport(req: Request, res: Response) {
         })
         .from(schema.inspections)
         .leftJoin(schema.sites, eq(schema.inspections.siteId, schema.sites.id))
-        .leftJoin(schema.users, eq(schema.inspections.conductorId, schema.users.id))
+        .leftJoin(schema.users, eq(schema.inspections.completedById, schema.users.id))
         .where(
           and(
             eq(schema.inspections.siteId, siteId),
@@ -205,7 +205,7 @@ export async function generateReport(req: Request, res: Response) {
         userId: req.user.id,
         startDate,
         endDate,
-        generatedOn: new Date().toISOString(),
+
         reportName: reportFileName,
         reportUrl: `/api/reports/download/${reportFileName}`,
         status: "completed",
