@@ -3145,55 +3145,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const { siteId, status, limit, offset, include_all } = req.query;
     
     try {
-      // Simplified query to avoid join issues
-      let query = db.select()
-        .from(schema.inspections)
-        .where(eq(schema.inspections.tenantId, req.user.tenantId))
-        .where(eq(schema.inspections.isActive, true));
+      // Use a raw SQL query to properly get all inspections with site and inspector details
+      // This avoids issues with Drizzle joins that were causing the site/inspector data to be missing
+      
+      let inspectionQuery = `
+        SELECT 
+          i.*,
+          s.name AS site_name,
+          CONCAT(u.first_name, ' ', u.last_name) AS inspector_name
+        FROM 
+          inspections i
+        LEFT JOIN 
+          sites s ON i.site_id = s.id
+        LEFT JOIN 
+          users u ON i.inspector_id = u.id
+        WHERE 
+          i.tenant_id = $1
+          AND i.is_active = true
+      `;
+      
+      const queryParams = [req.user.tenantId];
+      let paramCounter = 2;
       
       if (siteId) {
-        query = query.where(eq(schema.inspections.siteId, parseInt(siteId as string)));
+        inspectionQuery += ` AND i.site_id = $${paramCounter++}`;
+        queryParams.push(parseInt(siteId as string));
       }
       
       if (status) {
-        query = query.where(eq(schema.inspections.status, status as string));
+        inspectionQuery += ` AND i.status = $${paramCounter++}`;
+        queryParams.push(status as string);
       }
       
-      // Get related site and inspector data with raw SQL since the joins have issues
-      const inspectionsRaw = await query;
+      // Add order by
+      inspectionQuery += ` ORDER BY i.scheduled_date DESC`;
       
-      // Get site and user data for proper display
-      const inspections = await Promise.all(inspectionsRaw.map(async (inspection) => {
-        // Get site name
-        let siteName = "Unknown Site";
-        if (inspection.siteId) {
-          const site = await db.query.sites.findFirst({
-            where: eq(schema.sites.id, inspection.siteId)
-          });
-          if (site) siteName = site.name;
-        }
-        
-        // Get inspector name
-        let inspectorName = "Unknown Inspector";
-        if (inspection.inspectorId) {
-          const inspector = await db.query.users.findFirst({
-            where: eq(schema.users.id, inspection.inspectorId)
-          });
-          if (inspector) {
-            inspectorName = `${inspector.firstName || ''} ${inspector.lastName || ''}`.trim() || inspector.username;
-          }
-        }
-        
-        return {
-          ...inspection,
-          site_name: siteName,
-          inspector_name: inspectorName
-        };
-      }));
+      // Only add limits if not in calendar view
+      if (include_all !== 'true') {
+        inspectionQuery += ` LIMIT $${paramCounter++} OFFSET $${paramCounter++}`;
+        queryParams.push(parseInt(limit as string) || 10);
+        queryParams.push(parseInt(offset as string) || 0);
+      }
+      
+      // Execute the query
+      const result = await db.query(inspectionQuery, queryParams);
+      const inspections = result.rows;
+      
+      // Count total for pagination
+      let countQuery = `
+        SELECT COUNT(*) FROM inspections 
+        WHERE tenant_id = $1 AND is_active = true
+      `;
+      
+      const countParams = [req.user.tenantId];
+      paramCounter = 2;
+      
+      if (siteId) {
+        countQuery += ` AND site_id = $${paramCounter++}`;
+        countParams.push(parseInt(siteId as string));
+      }
+      
+      if (status) {
+        countQuery += ` AND status = $${paramCounter++}`;
+        countParams.push(status as string);
+      }
+      
+      const countResult = await db.query(countQuery, countParams);
+      const total = parseInt(countResult.rows[0].count);
       
       return res.status(200).json({
         inspections,
-        total: inspections.length
+        total: include_all === 'true' ? inspections.length : total
       });
     } catch (error) {
       console.error('Error fetching inspections:', error);
