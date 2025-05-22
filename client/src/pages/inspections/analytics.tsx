@@ -43,6 +43,29 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
+// StatCard component for displaying metrics
+interface StatCardProps {
+  title: string;
+  value: number;
+  icon: React.ReactNode;
+  description: string;
+}
+
+function StatCard({ title, value, icon, description }: StatCardProps) {
+  return (
+    <div className="rounded-lg border bg-card p-4 shadow-sm">
+      <div className="flex items-center gap-2">
+        <div className="rounded-full bg-background p-2">{icon}</div>
+        <span className="text-sm font-medium">{title}</span>
+      </div>
+      <div className="mt-3">
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
+
 // Mock data for demonstration
 const MOCK_COMPLETION_RATE = 78;
 const MOCK_COMPLETION_CHANGE = 12;
@@ -648,18 +671,5 @@ export default function InspectionAnalytics() {
         </Card>
       </section>
     </Layout>
-  );
-}
-
-function StatCard({ title, value, icon, description }) {
-  return (
-    <div className="bg-white/70 dark:bg-gray-800/70 rounded-xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-        {icon}
-      </div>
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground mt-1">{description}</p>
-    </div>
   );
 }

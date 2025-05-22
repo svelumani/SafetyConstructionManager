@@ -7,7 +7,8 @@ import {
   Plus, 
   Filter,
   Calendar,
-  List
+  List,
+  BarChart3
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
