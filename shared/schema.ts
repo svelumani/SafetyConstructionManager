@@ -784,11 +784,44 @@ export const insertHazardCommentSchema = createInsertSchema(hazardComments).omit
   updatedAt: true 
 });
 
+export const insertInspectionTemplateSchema = createInsertSchema(inspectionTemplates).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true, 
+  isActive: true 
+});
+
+export const insertInspectionChecklistItemSchema = createInsertSchema(inspectionChecklistItems).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true, 
+  isActive: true 
+});
+
 export const insertInspectionSchema = createInsertSchema(inspections).omit({ 
   id: true, 
   createdAt: true, 
   updatedAt: true, 
-  completedDate: true 
+  completedDate: true,
+  completedById: true,
+  score: true,
+  maxScore: true,
+  isActive: true
+});
+
+export const insertInspectionResponseSchema = createInsertSchema(inspectionResponses).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true
+});
+
+export const insertInspectionFindingSchema = createInsertSchema(inspectionFindings).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true,
+  resolvedAt: true,
+  resolvedById: true,
+  isActive: true
 });
 
 export const insertPermitRequestSchema = createInsertSchema(permitRequests).omit({ 
@@ -856,6 +889,10 @@ export type InsertTrainingRecord = z.infer<typeof insertTrainingRecordSchema>;
 export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
 export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
 export type InsertSitePersonnel = z.infer<typeof insertSitePersonnelSchema>;
+export type InsertInspectionTemplate = z.infer<typeof insertInspectionTemplateSchema>;
+export type InsertInspectionChecklistItem = z.infer<typeof insertInspectionChecklistItemSchema>;
+export type InsertInspectionResponse = z.infer<typeof insertInspectionResponseSchema>;
+export type InsertInspectionFinding = z.infer<typeof insertInspectionFindingSchema>;
 
 // Type exports for select schemas
 export type Tenant = typeof tenants.$inferSelect;
@@ -865,7 +902,11 @@ export type Subcontractor = typeof subcontractors.$inferSelect;
 export type HazardReport = typeof hazardReports.$inferSelect;
 export type HazardAssignment = typeof hazardAssignments.$inferSelect;
 export type HazardComment = typeof hazardComments.$inferSelect;
+export type InspectionTemplate = typeof inspectionTemplates.$inferSelect;
+export type InspectionChecklistItem = typeof inspectionChecklistItems.$inferSelect;
 export type Inspection = typeof inspections.$inferSelect;
+export type InspectionResponse = typeof inspectionResponses.$inferSelect;
+export type InspectionFinding = typeof inspectionFindings.$inferSelect;
 export type PermitRequest = typeof permitRequests.$inferSelect;
 export type IncidentReport = typeof incidentReports.$inferSelect;
 export type TrainingContent = typeof trainingContent.$inferSelect;
