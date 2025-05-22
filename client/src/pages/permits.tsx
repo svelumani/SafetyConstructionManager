@@ -40,7 +40,7 @@ export default function Permits() {
   const [location, setLocation] = useLocation();
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
-  const { data, isLoading, error } = useQuery<{ permits: Permit[] }>({
+  const { data, isLoading, error } = useQuery<{ permits: Permit[]; total: string }>({
     queryKey: ["/api/permits"],
   });
 
@@ -70,14 +70,14 @@ export default function Permits() {
     {
       accessorKey: "title",
       header: "Permit",
-      cell: (info: any) => (
+      cell: (info) => (
         <div>
-          <Link href={`/permits/${info.row.original.id}`}>
+          <Link href={`/permits/${info.id}`}>
             <span className="font-medium text-primary hover:underline cursor-pointer">
-              {info.getValue()}
+              {info.title}
             </span>
           </Link>
-          <div className="text-sm text-muted-foreground">{info.row.original.permitType}</div>
+          <div className="text-sm text-muted-foreground">{info.permitType}</div>
         </div>
       ),
     },
@@ -92,8 +92,8 @@ export default function Permits() {
     {
       accessorKey: "status",
       header: "Status",
-      cell: (info: any) => {
-        const status = info.getValue();
+      cell: (info) => {
+        const status = info.status;
         return (
           <Badge
             variant={
@@ -102,6 +102,8 @@ export default function Permits() {
                 : status === "requested"
                 ? "default"
                 : status === "expired"
+                ? "destructive"
+                : status === "denied"
                 ? "destructive"
                 : "outline"
             }
@@ -114,12 +116,12 @@ export default function Permits() {
     {
       accessorKey: "startDate",
       header: "Start Date",
-      cell: (info: any) => formatUTCToLocal(info.getValue(), "PP"),
+      cell: (info) => formatUTCToLocal(info.startDate, "PP"),
     },
     {
       accessorKey: "endDate",
       header: "End Date",
-      cell: (info: any) => formatUTCToLocal(info.getValue(), "PP"),
+      cell: (info) => formatUTCToLocal(info.endDate, "PP"),
     },
     {
       accessorKey: "requesterName",
@@ -127,11 +129,11 @@ export default function Permits() {
     },
     {
       id: "actions",
-      cell: (info: any) => (
+      cell: (info) => (
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setLocation(`/permits/${info.row.original.id}`)}
+          onClick={() => setLocation(`/permits/${info.id}`)}
         >
           View Details
         </Button>
