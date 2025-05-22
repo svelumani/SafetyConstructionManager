@@ -14,7 +14,7 @@ import { formatUTCToLocal } from "@/lib/utils";
 
 interface InspectionTemplate {
   id: number;
-  title: string;
+  name: string;
   description: string;
   category: string;
   createdAt: string;
@@ -34,7 +34,7 @@ export default function InspectionTemplates() {
 
   // Filter templates based on search query
   const filteredTemplates = templates.filter(template => 
-    template.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
     template.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -107,7 +107,7 @@ export default function InspectionTemplates() {
                     {formatUTCToLocal(template.createdAt, "PPP")}
                   </div>
                 </div>
-                <CardTitle className="mt-2 line-clamp-2">{template.title}</CardTitle>
+                <CardTitle className="mt-2 line-clamp-2">{template.name}</CardTitle>
                 <CardDescription className="line-clamp-3">
                   {template.description}
                 </CardDescription>
