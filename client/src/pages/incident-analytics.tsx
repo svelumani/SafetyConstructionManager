@@ -126,9 +126,8 @@ export default function IncidentAnalytics() {
     enabled: false, // Disable this query as we're using mock data
   });
   
-  const { data: incidents = mockIncidents, isLoading: isIncidentsLoading } = useQuery({
+  const { data: incidents = [], isLoading: isIncidentsLoading } = useQuery({
     queryKey: ["/api/incidents"],
-    enabled: false, // Disable this query as we're using mock data
   });
 
   return (
