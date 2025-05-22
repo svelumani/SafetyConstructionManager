@@ -357,12 +357,31 @@ export default function NewHazardReport() {
                 
                 <div>
                   <FormLabel className="block mb-2">Photos (Optional)</FormLabel>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {uploadedImages.map((img, i) => (
-                      <div key={i} className="relative border rounded-md overflow-hidden">
-                        <img src={img} alt={`Hazard photo ${i+1}`} className="w-32 h-24 object-cover" />
-                      </div>
-                    ))}
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {uploadedImages.length > 0 ? (
+                      uploadedImages.map((img, i) => (
+                        <div key={i} className="relative border rounded-md overflow-hidden">
+                          <img 
+                            src={img} 
+                            alt={`Hazard photo ${i+1}`} 
+                            className="w-32 h-24 object-cover" 
+                          />
+                          <button
+                            type="button"
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                            onClick={() => {
+                              const newImages = [...uploadedImages];
+                              newImages.splice(i, 1);
+                              setUploadedImages(newImages);
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-500 italic text-sm mb-2">No photos added yet</div>
+                    )}
                   </div>
                   <Button 
                     type="button" 

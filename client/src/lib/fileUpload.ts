@@ -9,19 +9,29 @@ import { apiRequest } from "./queryClient";
 export async function uploadFiles(files: File[], folder: string = 'uploads'): Promise<string[]> {
   if (!files.length) return [];
   
-  // For the demo, we'll simulate successful uploads with placeholders
-  // In production, you would implement actual file uploads to a storage service
+  // For the demo, we'll convert the images to data URLs
+  // In production, you'd upload to a server/S3/etc.
+  
+  const imageUrls: string[] = [];
+  
+  // Process each file and convert to data URL
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue;
+    
+    // Create a data URL from the file
+    const dataUrl = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+    
+    imageUrls.push(dataUrl);
+  }
   
   // Create a fake delay to simulate upload time
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise(resolve => setTimeout(resolve, 500));
   
-  // Return mock URLs for the uploaded files
-  return files.map((file, index) => {
-    // Encode a timestamp and random number to simulate unique filenames
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    return `https://placehold.co/800x600?text=${encodeURIComponent(file.name)}&timestamp=${timestamp}&r=${random}`;
-  });
+  return imageUrls;
   
   // For real implementation, you would use a FormData to upload files
   /*
