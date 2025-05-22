@@ -2498,8 +2498,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the response
       const [updatedResponse] = await db.update(schema.inspectionResponses)
         .set({
-          status: updateData.status,
-          notes: updateData.notes,
+          response: updateData.response || existingResponse.response,
+          status: updateData.status || existingResponse.status,
+          notes: updateData.notes ?? existingResponse.notes,
+          photoUrls: updateData.photoUrls || existingResponse.photoUrls,
           updatedAt: new Date().toISOString()
         })
         .where(eq(schema.inspectionResponses.id, responseId))

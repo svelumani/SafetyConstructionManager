@@ -274,18 +274,56 @@ export default function InspectionDetails() {
   const saveResponseMutation = useMutation({
     mutationFn: async ({ checklistItemId, data }: { checklistItemId: number, data: any }) => {
       const existingResponse = responses[checklistItemId];
-      const endpoint = existingResponse?.id 
-        ? `/api/inspections/${id}/responses/${existingResponse.id}` 
-        : `/api/inspections/${id}/responses`;
-      const method = existingResponse?.id ? "PUT" : "POST";
       
-      const response = await apiRequest(method, endpoint, {
-        ...data,
-        checklistItemId,
-        inspectionId: Number(id),
-      });
-      
-      return await response.json();
+      if (existingResponse?.id) {
+        // Update existing response
+        const response = await apiRequest("PUT", `/api/inspections/${id}/responses/${existingResponse.id}`, {
+          ...data,
+        });
+        
+        if (response.status === 404) {
+          throw new Error("Response not found");
+        }
+        
+        return await response.json();
+      } else {
+        // Create new response
+        try {
+          const response = await apiRequest("POST", `/api/inspections/${id}/responses`, {
+            checklistItemId,
+            ...data,
+          });
+          
+          // Handle 409 Conflict - response already exists
+          if (response.status === 409) {
+            const conflictData = await response.json();
+            
+            // Use the existing response data
+            setResponses(prev => ({
+              ...prev,
+              [checklistItemId]: conflictData.existingResponse
+            }));
+            
+            // Now update that existing response
+            const updateResponse = await apiRequest(
+              "PUT", 
+              `/api/inspections/${id}/responses/${conflictData.existingResponse.id}`, 
+              { ...data }
+            );
+            
+            return await updateResponse.json();
+          }
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to save response");
+          }
+          
+          return await response.json();
+        } catch (error) {
+          throw error;
+        }
+      }
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: [`/api/inspections/${id}/responses`] });
@@ -363,6 +401,21 @@ export default function InspectionDetails() {
   };
 
   const handleResponseChange = (checklistItemId: number, status: string, notes: string = "") => {
+    // Optimistically update the UI
+    setResponses(prev => ({
+      ...prev,
+      [checklistItemId]: {
+        ...prev[checklistItemId],
+        status,
+        notes,
+        // These are temporary values that will be updated after the API call
+        id: prev[checklistItemId]?.id || -1,
+        checklistItemId,
+        inspectionId: Number(id),
+      }
+    }));
+
+    // Then send to the server
     saveResponseMutation.mutate({
       checklistItemId,
       data: {
