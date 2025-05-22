@@ -65,19 +65,28 @@ export default function NewInspection() {
   const templateIdParam = params.get('templateId');
 
   // Fetch sites
-  const { data: sites = [] } = useQuery({
+  const { data: sitesResponse } = useQuery({
     queryKey: ['/api/sites'],
   });
+  
+  // Ensure sites is always an array
+  const sites = sitesResponse?.sites || [];
 
   // Fetch templates
-  const { data: templates = [] } = useQuery({
+  const { data: templatesResponse } = useQuery({
     queryKey: ['/api/inspection-templates'],
   });
+  
+  // Ensure templates is always an array
+  const templates = templatesResponse?.templates || [];
 
   // Fetch users
-  const { data: users = [] } = useQuery({
+  const { data: usersResponse } = useQuery({
     queryKey: ['/api/users'],
   });
+  
+  // Ensure users is always an array
+  const users = usersResponse?.users || [];
 
   // Form setup
   const form = useForm<FormValues>({
@@ -175,7 +184,7 @@ export default function NewInspection() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {templates.map((template) => (
+                          {Array.isArray(templates) && templates.map((template) => (
                             <SelectItem
                               key={template.id}
                               value={template.id.toString()}
@@ -320,7 +329,7 @@ export default function NewInspection() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="0">Unassigned</SelectItem>
-                          {users
+                          {Array.isArray(users) && users
                             .filter((user) => user.role === "safety_officer" || user.role === "supervisor")
                             .map((user) => (
                               <SelectItem
