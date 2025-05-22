@@ -1,21 +1,20 @@
 import { Request, Response } from 'express';
 import { db } from './db';
-import { eq, between, and, desc } from 'drizzle-orm';
+import { eq, between, and, desc, SQL, sql } from 'drizzle-orm';
 import { Pool } from '@neondatabase/serverless';
 import * as fs from 'fs';
 import * as path from 'path';
-import Docx from 'docx';
+import { 
+  Document, Paragraph, Table, TableRow, TableCell, TextRun, 
+  HeadingLevel, AlignmentType, BorderStyle, WidthType,
+  Packer, ShadingType, HeightRule 
+} from 'docx';
 import { format } from 'date-fns';
-import { hazardReports } from '@shared/schema';
-import { incidentReports } from '@shared/schema';
-import { inspections } from '@shared/schema';
-import { permitRequests } from '@shared/schema';
-import { trainingRecords } from '@shared/schema';
-import { sites } from '@shared/schema';
-import { users } from '@shared/schema';
-import { reportHistory } from '@shared/schema';
-
-const { Document, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, AlignmentType, BorderStyle } = Docx;
+import { 
+  hazardReports, incidentReports, inspections, permitRequests,
+  trainingRecords, sites, users, reportHistory, InsertReportHistory,
+  HazardReport, IncidentReport, Inspection, PermitRequest, TrainingRecord
+} from '@shared/schema';
 
 interface ReportGenerationParams {
   siteId: number;
