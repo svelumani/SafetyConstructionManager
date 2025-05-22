@@ -69,9 +69,9 @@ export default function Inspections() {
   // Map snake_case database fields to camelCase for frontend
   const inspections = (data?.inspections || []).map(inspection => ({
     id: inspection.id,
-    title: inspection.title,
-    inspectionType: inspection.inspection_type,
-    description: inspection.description,
+    title: inspection.title || inspection.template_name || `Inspection #${inspection.id}`,
+    inspectionType: inspection.inspection_type || inspection.template_name || 'Standard Inspection',
+    description: inspection.description || '',
     scheduledDate: inspection.scheduled_date,
     completedDate: inspection.completed_date,
     status: inspection.status,
