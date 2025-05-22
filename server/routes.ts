@@ -3067,33 +3067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/inspections', requireAuth, async (req, res) => {
-    const inspectionData = req.body;
-    
-    try {
-      // Validate inspection data
-      const validatedData = schema.insertInspectionSchema.parse({
-        ...inspectionData,
-        tenantId: req.user.tenantId,
-        createdById: req.user.id
-      });
-      
-      // Create inspection
-      const [newInspection] = await db.insert(schema.inspections)
-        .values(validatedData)
-        .returning();
-      
-      return res.status(201).json(newInspection);
-    } catch (error) {
-      console.error('Error creating inspection:', error);
-      
-      if (error instanceof ZodError) {
-        return res.status(400).json({ message: 'Invalid inspection data', errors: error.errors });
-      }
-      
-      return res.status(500).json({ message: 'Error creating inspection' });
-    }
-  });
+  // Removed duplicate inspection route - already defined above
 
   app.post('/api/inspections/:id/responses', requireAuth, async (req, res) => {
     const inspectionId = parseInt(req.params.id);
