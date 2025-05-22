@@ -29,7 +29,7 @@ import {
 
 // Schema validation for the form
 const formSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters"),
+  name: z.string().min(3, "Name must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   category: z.string().min(1, "Category is required"),
   checklistItems: z.array(z.object({
@@ -53,7 +53,7 @@ export default function NewInspectionTemplate() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: "",
+      name: "",
       description: "",
       category: "",
       checklistItems: [
@@ -78,7 +78,7 @@ export default function NewInspectionTemplate() {
   const createTemplateMutation = useMutation({
     mutationFn: async (data: FormValues) => {
       const response = await apiRequest("POST", "/api/inspection-templates", {
-        title: data.title,
+        name: data.name,
         description: data.description,
         category: data.category,
       });
@@ -156,10 +156,10 @@ export default function NewInspectionTemplate() {
             <CardContent className="space-y-4">
               <FormField
                 control={form.control}
-                name="title"
+                name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Template Title</FormLabel>
+                    <FormLabel>Template Name</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., Monthly Safety Inspection" {...field} />
                     </FormControl>
