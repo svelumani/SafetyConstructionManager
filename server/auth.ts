@@ -35,13 +35,14 @@ export function setupAuth(app: Express) {
 
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || randomBytes(32).toString("hex"),
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     store: storage.sessionStore,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Allow non-secure cookies in development
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax' // Allow cookies to be sent in first-party context
     }
   };
 

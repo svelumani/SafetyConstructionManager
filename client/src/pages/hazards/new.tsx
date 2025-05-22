@@ -76,8 +76,32 @@ export default function NewHazardReport() {
       
       console.log("Submitting hazard data:", data);
       
+      // Make sure we have the current user session first
+      const userResponse = await fetch('/api/user', { 
+        credentials: 'include',
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      if (!userResponse.ok) {
+        throw new Error("You must be logged in to create a hazard report");
+      }
+      
+      // Now submit the hazard with the active session
       try {
-        const response = await apiRequest("POST", "/api/hazards", data);
+        const response = await fetch('/api/hazards', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Server error: ${response.status} - ${errorText}`);
+        }
+        
         const responseData = await response.json();
         console.log("Hazard creation response:", responseData);
         return responseData;
