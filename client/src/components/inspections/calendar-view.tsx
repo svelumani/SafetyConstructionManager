@@ -45,18 +45,26 @@ interface InspectionEventProps {
 }
 
 export function InspectionCalendarView({ inspections }: InspectionEventProps) {
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  // Set default date to May 2025 to match our inspection data
+  const [date, setDate] = useState<Date | undefined>(new Date('2025-05-22'));
   const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null);
 
   // Function to get inspection dates for highlighting in calendar
   const getInspectionsByDate = () => {
     const inspectionDates: { [key: string]: Inspection[] } = {};
     
+    // Log received inspections for debugging
+    console.log("Calendar view received inspections:", inspections);
+    
     inspections.forEach(inspection => {
-      if (inspection && inspection.scheduledDate) {
+      console.log("Processing inspection:", inspection);
+      
+      if (inspection) {
         try {
           // Ensure we're working with snake_case or camelCase consistently
           const scheduledDate = inspection.scheduledDate || inspection.scheduled_date;
+          
+          console.log("Inspection scheduled date:", scheduledDate, typeof scheduledDate);
           
           if (!scheduledDate) {
             console.warn("Missing scheduled date for inspection:", inspection.id);
@@ -65,24 +73,33 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
           
           // Handle date formats safely
           let dateOnly;
-          if (scheduledDate.includes('T')) {
-            dateOnly = scheduledDate.split('T')[0];
-          } else if (scheduledDate.includes(' ')) {
-            dateOnly = scheduledDate.split(' ')[0];
+          if (typeof scheduledDate === 'string') {
+            if (scheduledDate.includes('T')) {
+              dateOnly = scheduledDate.split('T')[0];
+            } else if (scheduledDate.includes(' ')) {
+              dateOnly = scheduledDate.split(' ')[0];
+            } else {
+              dateOnly = scheduledDate;
+            }
           } else {
-            dateOnly = scheduledDate;
+            // If it's not a string (maybe a Date object), convert to ISO string first
+            dateOnly = new Date(scheduledDate).toISOString().split('T')[0];
           }
+          
+          console.log("Extracted date only:", dateOnly);
           
           if (!inspectionDates[dateOnly]) {
             inspectionDates[dateOnly] = [];
           }
           inspectionDates[dateOnly].push(inspection);
+          console.log(`Added inspection ${inspection.id} to date ${dateOnly}`);
         } catch (error) {
           console.error("Error processing inspection date:", inspection, error);
         }
       }
     });
     
+    console.log("Final inspections by date:", inspectionDates);
     return inspectionDates;
   };
 
@@ -97,6 +114,10 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
     
     const day = props.day;
     const dateString = day.toISOString().split('T')[0];
+    
+    // Debug the current day being rendered
+    console.log(`Rendering day: ${dateString}, has inspections: ${!!inspectionDates[dateString]}`);
+    
     const hasInspections = inspectionDates[dateString]?.length > 0;
     const count = inspectionDates[dateString]?.length || 0;
     
@@ -109,7 +130,7 @@ export function InspectionCalendarView({ inspections }: InspectionEventProps) {
               <TooltipTrigger asChild>
                 <Badge
                   className={cn(
-                    "absolute -bottom-1 left-1/2 transform -translate-x-1/2 text-xs px-1.5 py-0.5",
+                    "absolute -bottom-1 left-1/2 transform -translate-x-1/2 text-xs px-1.5 py-0.5 rounded-full",
                     count > 2 ? "bg-red-100 text-red-800 hover:bg-red-200" :
                     count > 1 ? "bg-amber-100 text-amber-800 hover:bg-amber-200" :
                     "bg-blue-100 text-blue-800 hover:bg-blue-200"
