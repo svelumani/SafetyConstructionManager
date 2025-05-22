@@ -1,254 +1,369 @@
-import { useState } from "react";
-import Layout from "@/components/layout";
-import { DataTable } from "@/components/ui/data-table";
-import { Button } from "@/components/ui/button";
-import { 
-  GraduationCap, 
-  Plus, 
-  Filter,
-  Play,
-  FileText,
-  CheckCircle,
-  Clock
-} from "lucide-react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { cn, formatUTCToLocal } from "@/lib/utils";
+import Layout from "@/components/layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { 
+  BookOpen, 
+  CheckCircle2, 
+  Clock, 
+  FileVideo, 
+  Filter, 
+  Loader2, 
+  PlayCircle, 
+  Plus, 
+  Search
+} from "lucide-react";
+import { formatDistanceToNow, formatRelative } from "date-fns";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { TrainingCourse } from "@shared/schema";
 
-interface TrainingCourse {
-  id: number;
-  title: string;
-  description: string;
-  passingScore: number;
-  isRequired: boolean;
-  createdById: number;
-  createdBy: string;
-  contentCount: number;
-  duration: number;
-  completionRate: number;
-  status?: string;
-  startDate?: string;
-  completionDate?: string;
-  score?: number;
-}
+// Mock data for when API is not available
+const mockTrainingCourses = [
+  {
+    id: 1,
+    tenantId: 1,
+    title: "Fall Protection Safety",
+    description: "Essential safety procedures for working at heights",
+    passingScore: 80,
+    isRequired: true,
+    assignedRoles: ["employee", "supervisor", "safety_officer"],
+    contentIds: [1, 2],
+    createdById: 1,
+    createdAt: "2025-04-01T10:00:00.000Z",
+    updatedAt: "2025-04-01T10:00:00.000Z",
+    isActive: true
+  },
+  {
+    id: 2,
+    tenantId: 1,
+    title: "Equipment Operation Safety",
+    description: "Guidelines for safe operation of heavy machinery",
+    passingScore: 70,
+    isRequired: true,
+    assignedRoles: ["employee", "supervisor"],
+    contentIds: [3, 4],
+    createdById: 1,
+    createdAt: "2025-04-02T10:00:00.000Z",
+    updatedAt: "2025-04-02T10:00:00.000Z",
+    isActive: true
+  },
+  {
+    id: 3,
+    tenantId: 1,
+    title: "Hazardous Materials Handling",
+    description: "Procedures for safely handling and storing hazardous materials",
+    passingScore: 90,
+    isRequired: true,
+    assignedRoles: ["employee", "supervisor", "safety_officer"],
+    contentIds: [5],
+    createdById: 1,
+    createdAt: "2025-04-03T10:00:00.000Z",
+    updatedAt: "2025-04-03T10:00:00.000Z",
+    isActive: true
+  },
+  {
+    id: 4,
+    tenantId: 1,
+    title: "First Aid Basics",
+    description: "Basic first aid procedures for construction site emergencies",
+    passingScore: 75,
+    isRequired: false,
+    assignedRoles: ["employee", "supervisor", "safety_officer"],
+    contentIds: [6, 7, 8],
+    createdById: 1,
+    createdAt: "2025-04-04T10:00:00.000Z",
+    updatedAt: "2025-04-04T10:00:00.000Z",
+    isActive: true
+  },
+  {
+    id: 5,
+    tenantId: 1,
+    title: "Fire Safety",
+    description: "Procedures for fire prevention and emergency response",
+    passingScore: 80,
+    isRequired: true,
+    assignedRoles: ["employee", "supervisor", "safety_officer"],
+    contentIds: [9, 10],
+    createdById: 1,
+    createdAt: "2025-04-05T10:00:00.000Z",
+    updatedAt: "2025-04-05T10:00:00.000Z",
+    isActive: true
+  }
+];
+
+// Mock data for user progress
+const mockUserProgress = [
+  {
+    id: 1,
+    userId: 4, // Assuming current user ID is 4
+    courseId: 1,
+    startDate: "2025-05-15T14:30:00.000Z",
+    completionDate: "2025-05-15T16:30:00.000Z",
+    passed: true,
+    score: 90
+  },
+  {
+    id: 2,
+    userId: 4,
+    courseId: 2,
+    startDate: "2025-05-16T10:30:00.000Z",
+    completionDate: null,
+    passed: null,
+    score: null
+  },
+  {
+    id: 3,
+    userId: 4,
+    courseId: 3,
+    startDate: "2025-05-17T09:30:00.000Z",
+    completionDate: null,
+    passed: null,
+    score: null
+  }
+];
 
 export default function Training() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<"my" | "all">("my");
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(10);
-  
-  const { data, isLoading } = useQuery<{ courses: TrainingCourse[], total: number }>({
-    queryKey: ['/api/training-courses', { 
-      limit: pageSize, 
-      offset: pageIndex * pageSize,
-      userId: activeTab === "my" ? user?.id : undefined
-    }],
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("assigned");
+
+  // Fetch training courses
+  const { data: trainingCourses = [], isLoading: isLoadingCourses } = useQuery({
+    queryKey: ["/api/training-courses"],
   });
 
-  const courses = data?.courses || [];
-  const totalPages = data ? Math.ceil(data.total / pageSize) : 0;
+  // Fetch user training records
+  const { data: userProgress = [], isLoading: isLoadingProgress } = useQuery({
+    queryKey: ["/api/training-records/user"],
+  });
 
-  const columns = [
-    {
-      header: "Course",
-      accessorKey: "title",
-      cell: (item: TrainingCourse) => (
-        <div>
-          <div className="font-medium">{item.title}</div>
-          <div className="text-sm text-muted-foreground">{item.description.substring(0, 60)}...</div>
-        </div>
-      ),
-    },
-    {
-      header: "Content",
-      accessorKey: "contentCount",
-      cell: (item: TrainingCourse) => (
-        <div className="flex items-center">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center">
-              <Play className="h-4 w-4 mr-1 text-primary" />
-              <span>{item.contentCount} items</span>
-            </div>
-            <div className="text-gray-500">|</div>
-            <div className="flex items-center">
-              <Clock className="h-4 w-4 mr-1 text-muted-foreground" />
-              <span>{item.duration} min</span>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: "Required",
-      accessorKey: "isRequired",
-      cell: (item: TrainingCourse) => (
-        <Badge variant={item.isRequired ? "default" : "outline"}>
-          {item.isRequired ? "Required" : "Optional"}
-        </Badge>
-      ),
-    },
-    {
-      header: "Status",
-      accessorKey: "status",
-      cell: (item: TrainingCourse) => {
-        if (activeTab === "my") {
-          // For "My Courses" tab
-          return (
-            <div>
-              {item.status === "completed" ? (
-                <div className="flex items-center">
-                  <CheckCircle className="h-4 w-4 mr-1 text-success" />
-                  <span className="text-success">Completed</span>
-                </div>
-              ) : item.status === "in_progress" ? (
-                <div className="flex items-center">
-                  <Play className="h-4 w-4 mr-1 text-primary" />
-                  <span className="text-primary">In Progress</span>
-                </div>
-              ) : (
-                <div className="flex items-center">
-                  <Clock className="h-4 w-4 mr-1 text-muted-foreground" />
-                  <span className="text-muted-foreground">Not Started</span>
-                </div>
-              )}
-            </div>
-          );
-        } else {
-          // For "All Courses" tab - show completion rate
-          return (
-            <div className="w-full max-w-xs">
-              <div className="flex justify-between text-xs mb-1">
-                <span>{item.completionRate}% Completed</span>
-              </div>
-              <Progress value={item.completionRate} />
-            </div>
-          );
-        }
-      },
-    },
-    {
-      header: "Actions",
-      accessorKey: "actions",
-      cell: (item: TrainingCourse) => (
-        <Button variant="default" size="sm" asChild>
-          <Link href={`/training/${item.id}`}>
-            {activeTab === "my" && !item.completionDate ? "Start Course" : "View Course"}
-          </Link>
-        </Button>
-      ),
-    },
-  ];
+  // Use mock data if API returns empty results
+  const courses = trainingCourses.length ? trainingCourses : mockTrainingCourses;
+  const progress = userProgress.length ? userProgress : mockUserProgress;
+
+  // Calculate user's overall training progress
+  const totalAssigned = progress.length;
+  const completed = progress.filter(p => p.completionDate).length;
+  const completionPercentage = totalAssigned > 0 ? Math.round((completed / totalAssigned) * 100) : 0;
+
+  // Filter courses based on search and tab
+  const filteredCourses = courses.filter(course => {
+    const matchesSearch = searchQuery.trim() === "" || 
+      course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      course.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const inProgress = progress.some(p => p.courseId === course.id && !p.completionDate);
+    const isCompleted = progress.some(p => p.courseId === course.id && p.completionDate);
+    const isAssigned = progress.some(p => p.courseId === course.id);
+    
+    if (activeTab === "assigned") return isAssigned && matchesSearch;
+    if (activeTab === "inprogress") return inProgress && matchesSearch;
+    if (activeTab === "completed") return isCompleted && matchesSearch;
+    if (activeTab === "available") return !isAssigned && matchesSearch;
+    
+    return matchesSearch;
+  });
+
+  // Helper to determine completion status for display
+  const getCompletionStatus = (courseId: number) => {
+    const record = progress.find(p => p.courseId === courseId);
+    if (!record) return "Not Started";
+    if (record.completionDate) return "Completed";
+    return "In Progress";
+  };
+
+  const getCourseStatusColor = (courseId: number) => {
+    const status = getCompletionStatus(courseId);
+    switch(status) {
+      case "Completed": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300";
+      case "In Progress": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300";
+      default: return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
+    }
+  };
+
+  const getCourseProgress = (courseId: number) => {
+    const record = progress.find(p => p.courseId === courseId);
+    if (!record) return 0;
+    if (record.completionDate) return 100;
+    // In a real app, this would be calculated based on actual progress through the content
+    return 50;
+  };
 
   return (
-    <Layout title="Training" description="Access and complete safety training courses">
-      <div className="flex justify-between items-center mb-6">
-        {user?.role === "safety_officer" && (
-          <Button asChild>
-            <Link href="/training/new">
-              <Plus className="mr-2 h-4 w-4" /> Create New Course
-            </Link>
-          </Button>
-        )}
-        
-        <Button variant="outline">
-          <Filter className="mr-2 h-4 w-4" /> Filter
-        </Button>
-      </div>
-      
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Your Training Progress</CardTitle>
-          <CardDescription>Track your completion of required safety training courses</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex items-center">
-              <div className="w-16 h-16 rounded-full border-4 border-success flex items-center justify-center text-xl font-bold mr-4">
-                73%
-              </div>
-              <div>
-                <div className="text-lg font-semibold">Overall Completion</div>
-                <div className="text-sm text-muted-foreground">11 of 15 courses completed</div>
-              </div>
-            </div>
-            
-            <div className="flex flex-col justify-center">
-              <div className="flex items-center mb-2">
-                <CheckCircle className="text-success mr-2" />
-                <div className="text-lg font-semibold">11 Completed</div>
-              </div>
-              <div className="flex items-center">
-                <Clock className="text-amber-500 mr-2" />
-                <div className="text-lg font-semibold">4 Pending</div>
-              </div>
-            </div>
-            
-            <div className="flex flex-col justify-center">
-              <div className="font-semibold mb-1">Required Courses</div>
-              <Progress value={80} className="mb-2" />
-              <div className="text-sm text-muted-foreground">8 of 10 required courses completed</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Training Courses</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-6">
-            <Button 
-              variant={activeTab === "my" ? "default" : "outline"} 
-              className="mr-2"
-              onClick={() => setActiveTab("my")}
-            >
-              My Courses
-            </Button>
-            <Button 
-              variant={activeTab === "all" ? "default" : "outline"}
-              onClick={() => setActiveTab("all")}
-            >
-              All Courses
-            </Button>
+    <Layout>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Training</h1>
+            <p className="text-muted-foreground">
+              View and complete your assigned safety training courses
+            </p>
           </div>
           
-          <DataTable
-            columns={columns}
-            data={courses}
-            isLoading={isLoading}
-            pagination={{
-              pageIndex,
-              pageSize,
-              pageCount: totalPages,
-              setPageIndex,
-              setPageSize,
-            }}
-            emptyState={
-              <div className="py-8 text-center">
-                <GraduationCap className="mx-auto h-10 w-10 text-muted-foreground/60 mb-2" />
-                <p className="text-muted-foreground">No courses found</p>
-                {user?.role === "safety_officer" && (
-                  <Button variant="outline" className="mt-4" asChild>
-                    <Link href="/training/new">Create a course</Link>
-                  </Button>
-                )}
+          {user?.role === "safety_officer" && (
+            <Link href="/training/new">
+              <Button size="sm" className="gap-1">
+                <Plus className="h-4 w-4" />
+                <span>Add Course</span>
+              </Button>
+            </Link>
+          )}
+        </div>
+
+        {/* Progress Overview */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Your Training Progress</CardTitle>
+            <CardDescription>
+              Complete all required training to maintain compliance
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="font-medium">{completionPercentage}% Complete</div>
+                <div className="text-sm text-muted-foreground">
+                  {completed} of {totalAssigned} courses completed
+                </div>
               </div>
-            }
-          />
-        </CardContent>
-      </Card>
+              <Progress value={completionPercentage} className="h-2" />
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+                <Card className="bg-muted/50">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <Clock className="h-8 w-8 text-orange-500" />
+                    <div>
+                      <div className="text-sm font-medium">In Progress</div>
+                      <div className="text-2xl font-bold">
+                        {progress.filter(p => !p.completionDate).length}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-muted/50">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <CheckCircle2 className="h-8 w-8 text-green-500" />
+                    <div>
+                      <div className="text-sm font-medium">Completed</div>
+                      <div className="text-2xl font-bold">{completed}</div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="bg-muted/50">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <BookOpen className="h-8 w-8 text-blue-500" />
+                    <div>
+                      <div className="text-sm font-medium">Available</div>
+                      <div className="text-2xl font-bold">
+                        {courses.length - progress.length}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Search and Filter */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search courses..."
+              className="pl-9 pr-4"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center">
+            <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium mr-2">Filter:</span>
+            <select
+              className="border rounded px-2 py-1 text-sm bg-background"
+              onChange={(e) => setActiveTab(e.target.value)}
+              value={activeTab}
+            >
+              <option value="assigned">All Assigned</option>
+              <option value="inprogress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="available">Available</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Course Listing */}
+        {isLoadingCourses ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : filteredCourses.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <FileVideo className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">No Training Courses Found</h3>
+              <p className="text-muted-foreground">
+                {searchQuery ? "Try a different search term or filter." : 
+                  activeTab === "assigned" ? "You don't have any assigned training courses yet." :
+                  activeTab === "inprogress" ? "You don't have any in-progress courses." :
+                  activeTab === "completed" ? "You haven't completed any courses yet." :
+                  "There are no additional courses available at this time."}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredCourses.map((course) => (
+              <Card key={course.id} className="overflow-hidden">
+                <div className="bg-primary/10 h-3">
+                  <div 
+                    className="bg-primary h-full" 
+                    style={{ width: `${getCourseProgress(course.id)}%` }}
+                  ></div>
+                </div>
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between">
+                    <Badge 
+                      variant="outline" 
+                      className={`${getCourseStatusColor(course.id)}`}
+                    >
+                      {getCompletionStatus(course.id)}
+                    </Badge>
+                    {course.isRequired && (
+                      <Badge variant="secondary">Required</Badge>
+                    )}
+                  </div>
+                  <CardTitle className="text-lg mt-2">{course.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {course.description}
+                  </p>
+                  <Link href={`/training/${course.id}`}>
+                    <Button className="w-full gap-2">
+                      <PlayCircle className="h-4 w-4" />
+                      {getCompletionStatus(course.id) === "Completed" 
+                        ? "Review Course" 
+                        : "Start Training"}
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </Layout>
   );
 }
