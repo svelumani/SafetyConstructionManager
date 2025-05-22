@@ -2554,13 +2554,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Training Courses
   app.get("/api/training-courses", requireAuth, requirePermission("training", "read"), async (req, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 10;
+      const limit = parseInt(req.query.limit as string) || 50; // Increased default limit to 50
       const offset = parseInt(req.query.offset as string) || 0;
       const tenantId = req.user.tenantId;
       
+      console.log(`Fetching training courses with limit: ${limit}, offset: ${offset}`);
       const courses = await storage.listTrainingCourses(tenantId, { limit, offset });
       const total = await storage.countTrainingCourses(tenantId);
       
+      console.log(`Found ${courses.length} training courses out of ${total} total`);
       res.json({ courses, total });
     } catch (err) {
       console.error("Error fetching training courses:", err);
