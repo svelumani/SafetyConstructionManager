@@ -98,9 +98,9 @@ export default function Dashboard() {
   const dashboardData = {
     hazards: data?.hazards || { 
       total: 38, 
-      open: 12, 
+      open: 10, 
       inProgress: 8, 
-      resolved: 18, 
+      resolved: 20, 
       bySeverity: [
         { severity: "High", count: 5 }, 
         { severity: "Medium", count: 15 }, 
@@ -115,16 +115,16 @@ export default function Dashboard() {
       byCourse: [] 
     },
     sites: data?.sites || { 
-      totalSites: 12, 
-      activeSites: 8, 
+      totalSites: 11, 
+      activeSites: 10, 
       sitesWithHazards: 6, 
       recentInspections: 14 
     },
     incidents: data?.incidents || { 
-      total: 24, 
-      open: 5, 
-      investigating: 8, 
-      resolved: 11, 
+      total: 30, 
+      open: 13, 
+      investigating: 10, 
+      resolved: 7, 
       closedLastMonth: 15 
     },
     inspections: data?.inspections || { 
