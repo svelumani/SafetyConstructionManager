@@ -6,6 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { insertHazardReportSchema } from "@shared/schema";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { uploadFiles } from "@/lib/fileUpload";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/layout";
 import PageHeader from "@/components/page-header";
@@ -76,30 +77,14 @@ export default function NewHazardReport() {
       
       console.log("Submitting hazard data:", data);
       
-      // Make sure we have the current user session first
-      const userResponse = await fetch('/api/user', { 
-        credentials: 'include',
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      
-      if (!userResponse.ok) {
-        throw new Error("You must be logged in to create a hazard report");
-      }
-      
-      // Now submit the hazard with the active session
+      // Now submit the hazard using our apiRequest utility which handles sessions properly
       try {
-        const response = await fetch('/api/hazards', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-          credentials: 'include'
-        });
+        // Use our standard apiRequest utility for better integration with React Query
+        const response = await apiRequest("POST", "/api/hazards", data);
         
         if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Server error: ${response.status} - ${errorText}`);
+          const errorData = await response.json();
+          throw new Error(errorData.message || `Failed to create hazard report (${response.status})`);
         }
         
         const responseData = await response.json();
@@ -137,17 +122,48 @@ export default function NewHazardReport() {
   });
 
   // Image upload function 
-  const handleImageUpload = () => {
-    // In a real implementation, this would handle actual file uploads
-    // For development purposes only
-    setUploadedImages([
-      "https://placehold.co/300x200?text=Safety+Hazard+Photo"
-    ]);
+  const handleImageUpload = async () => {
+    // Create an input element to handle file selection
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
     
-    toast({
-      title: "Image uploaded",
-      description: "Image has been uploaded successfully"
-    });
+    // Set up the change event listener
+    input.onchange = async (e) => {
+      const files = Array.from((e.target as HTMLInputElement).files || []);
+      if (files.length === 0) return;
+      
+      try {
+        // Show loading toast
+        toast({
+          title: "Uploading...",
+          description: "Uploading your photos, please wait"
+        });
+        
+        // Upload the files using the utility function
+        const uploadedUrls = await uploadFiles(files, 'hazards/photos');
+        
+        // Update state with the newly uploaded image URLs
+        setUploadedImages(prev => [...prev, ...uploadedUrls]);
+        
+        // Show success toast
+        toast({
+          title: "Upload complete",
+          description: `Successfully uploaded ${files.length} photo${files.length > 1 ? 's' : ''}`
+        });
+      } catch (error) {
+        console.error("Error uploading images:", error);
+        toast({
+          title: "Upload failed",
+          description: "Failed to upload images. Please try again.",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    // Trigger the file selection dialog
+    input.click();
   };
 
   const onSubmit = (data: FormData) => {
