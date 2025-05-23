@@ -29,14 +29,9 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=5000
+      - IS_DOCKER=true
       - DATABASE_URL=postgres://postgres:postgres@postgres-dev:5432/safety_dev_db
       - SESSION_SECRET=dev-session-secret-key
-      # Override any external database settings
-      - PGHOST=postgres-dev
-      - PGPORT=5432
-      - PGUSER=postgres
-      - PGPASSWORD=postgres
-      - PGDATABASE=safety_dev_db
     ports:
       - "5006:5000"  # Different external port to avoid conflicts
     volumes:
