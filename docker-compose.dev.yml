@@ -42,7 +42,7 @@ services:
     depends_on:
       postgres-dev:
         condition: service_healthy
-    command: ["sh", "-c", "npm install && npx node-pg-migrate up && npm run dev"]  # Install, run migrations, and start app
+    command: ["sh", "-c", "npm install && npm run dev"]  # Install and start app (let app handle schema)
 
 volumes:
   postgres_dev_data:

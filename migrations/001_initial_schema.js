@@ -3,16 +3,78 @@
 export const shorthands = undefined;
 
 export const up = pgm => {
-  // Create enums
-  pgm.createType('user_role', ['super_admin', 'safety_officer', 'supervisor', 'subcontractor', 'employee']);
-  pgm.createType('site_role', ['site_manager', 'safety_coordinator', 'foreman', 'worker', 'subcontractor', 'visitor']);
-  pgm.createType('hazard_severity', ['low', 'medium', 'high', 'critical']);
-  pgm.createType('hazard_status', ['open', 'assigned', 'in_progress', 'resolved', 'closed']);
-  pgm.createType('inspection_status', ['scheduled', 'in_progress', 'completed', 'canceled']);
-  pgm.createType('permit_status', ['requested', 'approved', 'denied', 'expired']);
-  pgm.createType('incident_severity', ['minor', 'moderate', 'major', 'critical']);
-  pgm.createType('incident_status', ['reported', 'investigating', 'resolved', 'closed']);
-  pgm.createType('subscription_plan', ['basic', 'standard', 'premium', 'enterprise']);
+  // Create enums only if they don't exist
+  pgm.sql(`
+    DO $$ BEGIN
+      CREATE TYPE user_role AS ENUM ('super_admin', 'safety_officer', 'supervisor', 'subcontractor', 'employee');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  
+  pgm.sql(`
+    DO $$ BEGIN
+      CREATE TYPE site_role AS ENUM ('site_manager', 'safety_coordinator', 'foreman', 'worker', 'subcontractor', 'visitor');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  
+  pgm.sql(`
+    DO $$ BEGIN
+      CREATE TYPE hazard_severity AS ENUM ('low', 'medium', 'high', 'critical');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  
+  pgm.sql(`
+    DO $$ BEGIN
+      CREATE TYPE hazard_status AS ENUM ('open', 'assigned', 'in_progress', 'resolved', 'closed');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  
+  pgm.sql(`
+    DO $$ BEGIN
+      CREATE TYPE inspection_status AS ENUM ('scheduled', 'in_progress', 'completed', 'canceled');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  
+  pgm.sql(`
+    DO $$ BEGIN
+      CREATE TYPE permit_status AS ENUM ('requested', 'approved', 'denied', 'expired');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  
+  pgm.sql(`
+    DO $$ BEGIN
+      CREATE TYPE incident_severity AS ENUM ('minor', 'moderate', 'major', 'critical');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  
+  pgm.sql(`
+    DO $$ BEGIN
+      CREATE TYPE incident_status AS ENUM ('reported', 'investigating', 'resolved', 'closed');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
+  
+  pgm.sql(`
+    DO $$ BEGIN
+      CREATE TYPE subscription_plan AS ENUM ('basic', 'standard', 'premium', 'enterprise');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$;
+  `);
 
   // Create tenants table
   pgm.createTable('tenants', {
