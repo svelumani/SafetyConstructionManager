@@ -1,8 +1,8 @@
 /* eslint-disable camelcase */
 
-exports.shorthands = undefined;
+export const shorthands = undefined;
 
-exports.up = pgm => {
+export const up = pgm => {
   // Create enums
   pgm.createType('user_role', ['super_admin', 'safety_officer', 'supervisor', 'subcontractor', 'employee']);
   pgm.createType('site_role', ['site_manager', 'safety_coordinator', 'foreman', 'worker', 'subcontractor', 'visitor']);
@@ -111,7 +111,7 @@ exports.up = pgm => {
   console.log('✅ MySafety core tables created successfully!');
 };
 
-exports.down = pgm => {
+export const down = pgm => {
   pgm.dropTable('hazards');
   pgm.dropTable('sites');
   pgm.dropTable('users');
