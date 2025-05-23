@@ -18,6 +18,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Make startup script executable
+RUN chmod +x docker-start.sh
+
 # Build the application (dev dependencies are already available)
 RUN npm run build
 
