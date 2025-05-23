@@ -9,13 +9,16 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# Install all dependencies including dev dependencies for build
+RUN npm install
 
 # Build the application
 RUN npm run build
@@ -33,7 +36,9 @@ RUN adduser --system --uid 1001 nextjs
 # Copy built application
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
+
+# Install only production dependencies for runtime
+RUN npm ci --only=production && npm cache clean --force
 
 # Create necessary directories
 RUN mkdir -p uploads/reports && chown -R nextjs:nodejs uploads
