@@ -42,7 +42,7 @@ services:
     depends_on:
       postgres-dev:
         condition: service_healthy
-    command: ["./docker-start.sh"]  # Use startup script with auto migrations
+    command: ["sh", "-c", "npm install && npx drizzle-kit push --config=drizzle.config.ts && npm run dev"]  # Install, migrate, and run
 
 volumes:
   postgres_dev_data:
