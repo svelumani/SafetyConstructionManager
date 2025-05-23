@@ -42,7 +42,7 @@ services:
     depends_on:
       postgres-dev:
         condition: service_healthy
-    command: ["sh", "-c", "npm install && IS_DOCKER=true npm run db:push && npm run dev"]  # Install, use existing db:push script, and run
+    command: ["sh", "-c", "npm install && IS_DOCKER=true node init-database.js && npm run dev"]  # Install, initialize database directly, and run
 
 volumes:
   postgres_dev_data:
