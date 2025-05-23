@@ -42,7 +42,7 @@ services:
     depends_on:
       postgres-dev:
         condition: service_healthy
-    command: ["sh", "-c", "npm install && npm run dev"]  # Install deps and run dev server
+    command: ["./docker-start.sh"]  # Use startup script with auto migrations
 
 volumes:
   postgres_dev_data:
