@@ -42,7 +42,7 @@ services:
     depends_on:
       postgres-dev:
         condition: service_healthy
-    command: ["sh", "-c", "npm install && npx drizzle-kit generate && npx drizzle-kit push --config=drizzle.config.ts && npm run dev"]  # Install, generate migrations, push schema, and run
+    command: ["sh", "-c", "npm install && IS_DOCKER=true npx drizzle-kit push --config=drizzle.config.ts --force && npm run dev"]  # Install, force push complete schema, and run
 
 volumes:
   postgres_dev_data:
