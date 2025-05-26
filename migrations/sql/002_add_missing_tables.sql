@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS email_templates (
 CREATE TABLE IF NOT EXISTS role_permissions (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
-  role_name VARCHAR(100) NOT NULL,
+  role user_role NOT NULL,
   permission_name VARCHAR(100) NOT NULL,
   resource_type VARCHAR(100) NOT NULL,
   can_create BOOLEAN DEFAULT false,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS role_permissions (
   can_update BOOLEAN DEFAULT false,
   can_delete BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(tenant_id, role_name, permission_name, resource_type)
+  UNIQUE(tenant_id, role, permission_name, resource_type)
 );
 
 -- Add system_logs table (for audit trails)
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS system_logs (
 CREATE INDEX IF NOT EXISTS idx_team_members_team_user ON team_members(team_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_inspection_questions_template ON inspection_questions(template_id);
 CREATE INDEX IF NOT EXISTS idx_email_templates_tenant ON email_templates(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_role_permissions_tenant_role ON role_permissions(tenant_id, role_name);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_tenant_role ON role_permissions(tenant_id, role);
 CREATE INDEX IF NOT EXISTS idx_system_logs_tenant_user ON system_logs(tenant_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs(created_at);
 
