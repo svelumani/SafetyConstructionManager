@@ -71,6 +71,4 @@ CREATE INDEX IF NOT EXISTS idx_role_permissions_tenant_role ON role_permissions(
 CREATE INDEX IF NOT EXISTS idx_system_logs_tenant_user ON system_logs(tenant_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_system_logs_created_at ON system_logs(created_at);
 
--- Log this migration
-INSERT INTO migration_history (migration_name) VALUES ('002_add_missing_tables')
-ON CONFLICT (migration_name) DO NOTHING;
+-- This migration is tracked automatically by the migration system
