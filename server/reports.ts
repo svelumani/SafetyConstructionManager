@@ -24,20 +24,23 @@ import * as schema from "@shared/schema";
 import { eq, and, between, desc, sql } from "drizzle-orm";
 import { format } from "date-fns";
 
-// Ensure the uploads directory exists
+// Directory paths - directories should be pre-created in Docker
 const uploadDir = path.join(process.cwd(), "uploads");
 const reportDir = path.join(uploadDir, "reports");
 
-try {
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true, mode: 0o755 });
+// Verify directories exist (but don't try to create them at runtime in Docker)
+if (process.env.IS_DOCKER !== 'true') {
+  // Only attempt directory creation in non-Docker environments
+  try {
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true, mode: 0o755 });
+    }
+    if (!fs.existsSync(reportDir)) {
+      fs.mkdirSync(reportDir, { recursive: true, mode: 0o755 });
+    }
+  } catch (error) {
+    console.warn("Directory creation warning in development:", error);
   }
-  if (!fs.existsSync(reportDir)) {
-    fs.mkdirSync(reportDir, { recursive: true, mode: 0o755 });
-  }
-} catch (error) {
-  console.warn("Directory creation warning:", error);
-  // Directories should be pre-created in Docker, so this is just a fallback
 }
 
 // Define the report generation parameters interface

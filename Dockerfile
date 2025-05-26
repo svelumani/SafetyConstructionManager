@@ -44,8 +44,11 @@ RUN chmod +x docker-start.sh
 
 # Create all necessary directories with proper permissions
 RUN mkdir -p uploads/reports uploads/documents uploads/images public/uploads dist/uploads/reports tmp logs && \
-    chown -R nextjs:nodejs /app && \
-    chmod -R 755 /app
+    chmod -R 777 uploads && \
+    chmod -R 777 public && \
+    chmod -R 777 tmp && \
+    chmod -R 777 logs && \
+    chown -R nextjs:nodejs /app
 
 # Switch to non-root user
 USER nextjs
@@ -78,8 +81,11 @@ RUN npm ci --only=production && npm cache clean --force
 
 # Create all necessary directories with proper permissions
 RUN mkdir -p uploads/reports uploads/documents uploads/images public/uploads dist/uploads/reports tmp logs && \
-    chown -R nextjs:nodejs /app && \
-    chmod -R 755 /app
+    chmod -R 777 uploads && \
+    chmod -R 777 public && \
+    chmod -R 777 tmp && \
+    chmod -R 777 logs && \
+    chown -R nextjs:nodejs /app
 
 USER nextjs
 
