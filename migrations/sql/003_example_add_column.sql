@@ -17,6 +17,4 @@ ADD COLUMN IF NOT EXISTS weather_conditions VARCHAR(100);
 CREATE INDEX IF NOT EXISTS idx_users_certification_expiry ON users(safety_certification_expiry) 
 WHERE safety_certification_expiry IS NOT NULL;
 
--- Log this migration
-INSERT INTO migration_history (migration_name) VALUES ('003_example_add_column')
-ON CONFLICT (migration_name) DO NOTHING;
+-- This migration is tracked automatically by the migration system
