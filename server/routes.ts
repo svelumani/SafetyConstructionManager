@@ -26,14 +26,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up file upload storage configuration
   const uploadsDir = path.join(process.cwd(), 'public/uploads');
   
-  // Ensure uploads directory exists
-  try {
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true, mode: 0o755 });
+  // Only attempt directory creation in non-Docker environments
+  if (process.env.IS_DOCKER !== 'true') {
+    try {
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true, mode: 0o755 });
+      }
+    } catch (error) {
+      console.warn("Upload directory creation warning in development:", error);
     }
-  } catch (error) {
-    console.warn("Upload directory creation warning:", error);
-    // Directory should be pre-created in Docker, so this is just a fallback
   }
   
   // Configure multer for file uploads
