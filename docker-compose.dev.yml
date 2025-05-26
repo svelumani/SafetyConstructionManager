@@ -25,6 +25,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: development
     restart: unless-stopped
     environment:
       - NODE_ENV=development
@@ -36,13 +37,12 @@ services:
       - "5006:5000"  # Different external port to avoid conflicts
     volumes:
       - ./uploads:/app/uploads
-      - .:/app  # Mount source code for development
     networks:
       - mysafety-dev-network
     depends_on:
       postgres-dev:
         condition: service_healthy
-    command: ["sh", "-c", "npm install && node setup-database.js && npm run dev"]  # Install, setup database, and start app
+    command: ["sh", "-c", "node setup-database.js && npm run dev"]  # Setup database and start app
 
 volumes:
   postgres_dev_data:
