@@ -42,7 +42,7 @@ services:
     depends_on:
       postgres-dev:
         condition: service_healthy
-    command: ["sh", "-c", "npm install && npm run dev"]  # Install and start app (let app handle schema)
+    command: ["sh", "-c", "npm install && node setup-database.js && npm run dev"]  # Install, setup database, and start app
 
 volumes:
   postgres_dev_data:
