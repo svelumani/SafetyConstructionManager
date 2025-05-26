@@ -1,0 +1,61 @@
+app-dev-1       | ❌ Failed to apply migration 002_add_missing_tables: error: duplicate key value violates unique constraint "migration_history_migration_name_key"
+app-dev-1       |     at /app/node_modules/pg/lib/client.js:535:17
+app-dev-1       |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+app-dev-1       |     at async MigrationManager.applyMigration (file:///app/migrations/migrate.js:54:7)
+app-dev-1       |     at async MigrationManager.runMigrations (file:///app/migrations/migrate.js:92:7)
+app-dev-1       |     at async main (file:///app/migrations/migrate.js:107:5) {
+app-dev-1       |   length: 277,
+app-dev-1       |   severity: 'ERROR',
+app-dev-1       |   code: '23505',
+app-dev-1       |   detail: 'Key (migration_name)=(002_add_missing_tables) already exists.',
+app-dev-1       |   hint: undefined,
+app-dev-1       |   position: undefined,
+app-dev-1       |   internalPosition: undefined,
+app-dev-1       |   internalQuery: undefined,
+app-dev-1       |   where: undefined,
+app-dev-1       |   schema: 'public',
+app-dev-1       |   table: 'migration_history',
+app-dev-1       |   column: undefined,
+app-dev-1       |   dataType: undefined,
+app-dev-1       |   constraint: 'migration_history_migration_name_key',
+app-dev-1       |   file: 'nbtinsert.c',
+app-dev-1       |   line: '666',
+app-dev-1       |   routine: '_bt_check_unique'
+app-dev-1       | }
+app-dev-1       | 💥 Migration failed: error: duplicate key value violates unique constraint "migration_history_migration_name_key"
+app-dev-1       |     at /app/node_modules/pg/lib/client.js:535:17
+app-dev-1       |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+app-dev-1       |     at async MigrationManager.applyMigration (file:///app/migrations/migrate.js:54:7)
+app-dev-1       |     at async MigrationManager.runMigrations (file:///app/migrations/migrate.js:92:7)
+app-dev-1       |     at async main (file:///app/migrations/migrate.js:107:5) {
+app-dev-1       |   length: 277,
+app-dev-1       |   severity: 'ERROR',
+app-dev-1       |   code: '23505',
+app-dev-1       |   detail: 'Key (migration_name)=(002_add_missing_tables) already exists.',
+app-dev-1       |   hint: undefined,
+app-dev-1       |   position: undefined,
+app-dev-1       |   internalPosition: undefined,
+app-dev-1       |   internalQuery: undefined,
+app-dev-1       |   where: undefined,
+app-dev-1       |   schema: 'public',
+app-dev-1       |   table: 'migration_history',
+app-dev-1       |   column: undefined,
+app-dev-1       |   dataType: undefined,
+app-dev-1       |   constraint: 'migration_history_migration_name_key',
+app-dev-1       |   file: 'nbtinsert.c',
+app-dev-1       |   line: '666',
+app-dev-1       |   routine: '_bt_check_unique'
+app-dev-1       | }
+app-dev-1       | ❌ Database setup failed: Command failed: node migrations/migrate.js
+app-dev-1       | 🔄 Trying fallback method...
+app-dev-1       | /bin/sh: psql: not found
+app-dev-1       | ❌ Fallback also failed: Command failed: psql $DATABASE_URL -f migrations/sql/001_create_mysafety_schema.sql
+app-dev-1       | 🔄 Application will start anyway - database may need manual setup
+app-dev-1       | 🎉 Database setup completed!
+app-dev-1       | 
+app-dev-1       | > rest-express@1.0.0 dev
+app-dev-1       | > NODE_ENV=development tsx server/index.ts
+app-dev-1       | 
+app-dev-1       | Using pg client for Docker environment
+app-dev-1       | Warning: Email configuration incomplete. Email sending will be disabled.
+app-dev-1       | 7:38:45 AM [express] serving on port 5000
