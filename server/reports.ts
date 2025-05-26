@@ -28,11 +28,16 @@ import { format } from "date-fns";
 const uploadDir = path.join(process.cwd(), "uploads");
 const reportDir = path.join(uploadDir, "reports");
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
-if (!fs.existsSync(reportDir)) {
-  fs.mkdirSync(reportDir);
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true, mode: 0o755 });
+  }
+  if (!fs.existsSync(reportDir)) {
+    fs.mkdirSync(reportDir, { recursive: true, mode: 0o755 });
+  }
+} catch (error) {
+  console.warn("Directory creation warning:", error);
+  // Directories should be pre-created in Docker, so this is just a fallback
 }
 
 // Define the report generation parameters interface

@@ -42,8 +42,10 @@ COPY . .
 # Make startup script executable
 RUN chmod +x docker-start.sh
 
-# Create necessary directories with proper permissions
-RUN mkdir -p uploads/reports node_modules && chown -R nextjs:nodejs /app
+# Create all necessary directories with proper permissions
+RUN mkdir -p uploads/reports uploads/documents uploads/images public/uploads dist/uploads/reports tmp logs && \
+    chown -R nextjs:nodejs /app && \
+    chmod -R 755 /app
 
 # Switch to non-root user
 USER nextjs
@@ -74,8 +76,10 @@ COPY --from=builder /app/package*.json ./
 # Install only production dependencies for runtime
 RUN npm ci --only=production && npm cache clean --force
 
-# Create necessary directories
-RUN mkdir -p uploads/reports && chown -R nextjs:nodejs uploads
+# Create all necessary directories with proper permissions
+RUN mkdir -p uploads/reports uploads/documents uploads/images public/uploads dist/uploads/reports tmp logs && \
+    chown -R nextjs:nodejs /app && \
+    chmod -R 755 /app
 
 USER nextjs
 
