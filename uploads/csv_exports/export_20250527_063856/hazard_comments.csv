@@ -1,0 +1,11 @@
+id,hazard_id,user_id,comment,attachment_urls,created_at,updated_at,is_active
+1,3,13,I have inspected the scaffolding and confirmed several loose connections. We need replacement parts before anyone can access it.,[],2025-05-21 08:07:15.161791,2025-05-21 08:07:15.161791,t
+2,4,16,I have contacted the testing lab. They will be on site tomorrow to take samples for analysis. Area has been cordoned off.,[],2025-05-20 08:07:15.161791,2025-05-20 08:07:15.161791,t
+3,4,4,Thank you for the quick response. Please keep us updated on the lab results as soon as they arrive.,[],2025-05-20 08:07:15.161791,2025-05-20 08:07:15.161791,t
+4,5,10,Warning signs have been placed and the area has been treated with anti-slip solution. Safe to use now.,"[""https://placehold.co/400x300?text=Warning+Signs""]",2025-05-19 08:07:15.161791,2025-05-19 08:07:15.161791,t
+5,5,4,Good job on the quick fix. Please make sure the maintenance team is notified to use proper procedures in the future.,[],2025-05-19 08:07:15.161791,2025-05-19 08:07:15.161791,t
+6,6,11,All materials have been cleared from the exit pathway. Exit is now fully accessible.,"[""https://placehold.co/400x300?text=Cleared+Exit""]",2025-05-17 08:07:15.161791,2025-05-17 08:07:15.161791,t
+7,6,4,Confirmed compliance with fire code. This issue is now resolved.,[],2025-05-18 08:07:15.161791,2025-05-18 08:07:15.161791,t
+8,8,14,I have begun reorganizing the chemicals according to the compatibility chart. Expect completion by tomorrow.,[],2025-05-20 08:07:15.161791,2025-05-20 08:07:15.161791,t
+9,9,15,Temporary solution: cords have been secured and covered with cord protectors. Working with facilities to install permanent outlets next week.,"[""https://placehold.co/400x300?text=Cord+Protectors""]",2025-05-20 08:07:15.161791,2025-05-20 08:07:15.161791,t
+10,9,4,Thanks for the update. Please ensure the permanent solution is implemented as scheduled.,[],2025-05-21 08:07:15.161791,2025-05-21 08:07:15.161791,t
