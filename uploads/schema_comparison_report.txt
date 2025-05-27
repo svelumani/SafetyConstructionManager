@@ -1,0 +1,83 @@
+Comprehensive Schema Comparison Report
+=====================================
+Generated: 2025-05-27T07:13:32.051Z
+
+TABLE: tenants
+==============
+⚠️  MISSING COLUMNS (14): city, state, zip_code, country, logo, subscription_status, subscription_end_date, active_users, max_users, active_sites, max_sites, updated_at, stripe_customer_id, settings
+   Replit columns (22): id, name, email, phone, address, city, state, zip_code, country, logo, subscription_plan, subscription_status, subscription_end_date, active_users, max_users, active_sites, max_sites, created_at, updated_at, stripe_customer_id, settings, is_active
+   EC2 columns (8): id, name, email, phone, address, subscription_plan, is_active, created_at
+
+--------------------------------------------------
+
+TABLE: users
+============
+⚠️  MISSING COLUMNS (5): job_title, department, profile_image_url, permissions, updated_at
+   Replit columns (19): id, tenant_id, username, email, password, first_name, last_name, role, phone, job_title, department, profile_image_url, permissions, is_active, last_login, created_at, updated_at, emergency_contact, safety_certification_expiry
+   EC2 columns (14): id, tenant_id, username, email, password, first_name, last_name, phone, role, is_active, last_login, created_at, emergency_contact, safety_certification_expiry
+
+--------------------------------------------------
+
+TABLE: sites
+============
+⚠️  MISSING COLUMNS (9): gps_coordinates, contact_name, contact_phone, contact_email, start_date, end_date, status, description, updated_at
+ℹ️  EXTRA COLUMNS (1): site_manager_id
+   Replit columns (19): id, tenant_id, name, address, city, state, zip_code, country, gps_coordinates, contact_name, contact_phone, contact_email, start_date, end_date, status, description, created_at, updated_at, is_active
+   EC2 columns (11): id, tenant_id, name, address, city, state, zip_code, country, site_manager_id, is_active, created_at
+
+--------------------------------------------------
+
+TABLE: hazard_reports
+=====================
+⚠️  MISSING COLUMNS (7): reported_by_id, gps_coordinates, hazard_type, recommended_action, video_ids, resolved_at, is_active
+ℹ️  EXTRA COLUMNS (3): reporter_id, team_id, priority_score
+   Replit columns (19): id, tenant_id, site_id, reported_by_id, title, description, location, gps_coordinates, hazard_type, severity, status, recommended_action, photo_urls, video_ids, created_at, updated_at, resolved_at, is_active, weather_conditions
+   EC2 columns (15): id, tenant_id, site_id, reporter_id, team_id, title, description, location, severity, status, photo_urls, priority_score, created_at, updated_at, weather_conditions
+
+--------------------------------------------------
+
+TABLE: incident_reports
+=======================
+✅ Schema matches perfectly
+   Replit columns (23): id, tenant_id, site_id, reported_by_id, title, description, incident_date, location, incident_type, severity, injury_occurred, injury_details, witnesses, root_cause, corrective_actions, preventative_measures, photo_urls, video_ids, document_urls, created_at, updated_at, is_active, status
+   EC2 columns (23): id, tenant_id, site_id, reported_by_id, title, description, incident_date, location, incident_type, severity, injury_occurred, injury_details, witnesses, root_cause, corrective_actions, preventative_measures, photo_urls, video_ids, document_urls, created_at, updated_at, is_active, status
+
+--------------------------------------------------
+
+TABLE: inspections
+==================
+⚠️  MISSING COLUMNS (12): inspection_type, description, result, findings, photo_urls, video_ids, document_urls, updated_at, is_active, due_date, started_at, assigned_to_id
+ℹ️  EXTRA COLUMNS (3): team_id, notes, overall_score
+   Replit columns (22): id, tenant_id, site_id, inspector_id, inspection_type, title, description, scheduled_date, completed_date, status, result, findings, photo_urls, video_ids, document_urls, created_at, updated_at, is_active, template_id, due_date, started_at, assigned_to_id
+   EC2 columns (13): id, tenant_id, site_id, template_id, inspector_id, team_id, title, status, scheduled_date, completed_date, notes, overall_score, created_at
+
+--------------------------------------------------
+
+TABLE: inspection_templates
+===========================
+✅ Schema matches perfectly
+   Replit columns (11): id, tenant_id, name, description, category, version, is_default, created_by_id, created_at, updated_at, is_active
+   EC2 columns (11): id, tenant_id, name, description, category, version, is_default, created_by_id, created_at, updated_at, is_active
+
+--------------------------------------------------
+
+TABLE: permit_requests
+======================
+✅ Schema matches perfectly
+   Replit columns (18): id, tenant_id, site_id, requester_id, approver_id, permit_type, title, description, location, start_date, end_date, status, approval_date, denial_reason, attachment_urls, created_at, updated_at, is_active
+   EC2 columns (18): id, tenant_id, site_id, requester_id, approver_id, permit_type, title, description, location, start_date, end_date, status, approval_date, denial_reason, attachment_urls, created_at, updated_at, is_active
+
+--------------------------------------------------
+
+SUMMARY
+=======
+Total tables analyzed: 8
+Tables with issues: 5
+Total missing columns: 47
+
+TABLES WITH ISSUES:
+- tenants
+- users
+- sites
+- hazard_reports
+- inspections
