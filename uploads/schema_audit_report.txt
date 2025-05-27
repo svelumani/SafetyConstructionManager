@@ -1,0 +1,133 @@
+MySafety Database Schema Audit Report
+====================================
+Generated: 2025-05-27T07:01:09.028Z
+Total Tables: 29
+
+TABLE: email_templates
+======================
+Columns (9): id, tenant_id, name, subject, body, is_default, created_at, updated_at, is_active
+
+TABLE: hazard_assignments
+=========================
+Columns (12): id, hazard_id, assigned_by_id, assigned_to_user_id, assigned_to_subcontractor_id, assigned_at, due_date, status, notes, created_at, updated_at, is_active
+
+TABLE: hazard_comments
+======================
+Columns (8): id, hazard_id, user_id, comment, attachment_urls, created_at, updated_at, is_active
+
+TABLE: hazard_reports
+=====================
+Columns (19): id, tenant_id, site_id, reported_by_id, title, description, location, gps_coordinates, hazard_type, severity, status, recommended_action, photo_urls, video_ids, created_at, updated_at, resolved_at, is_active, weather_conditions
+⚠️  MISSING COLUMNS: reporter_id
+
+TABLE: incident_reports
+=======================
+Columns (23): id, tenant_id, site_id, reported_by_id, title, description, incident_date, location, incident_type, severity, injury_occurred, injury_details, witnesses, root_cause, corrective_actions, preventative_measures, photo_urls, video_ids, document_urls, created_at, updated_at, is_active, status
+⚠️  MISSING COLUMNS: reporter_id
+
+TABLE: inspection_checklist_items
+=================================
+Columns (11): id, template_id, category, question, description, expected_answer, is_critical, sort_order, created_at, updated_at, is_active
+
+TABLE: inspection_findings
+==========================
+Columns (16): id, inspection_id, description, recommended_action, severity, priority, due_date, status, is_active, photo_urls, assigned_to_id, created_by_id, resolved_by_id, resolved_at, created_at, updated_at
+
+TABLE: inspection_items
+=======================
+Columns (11): id, section_id, question, type, description, required, category, options, order, created_at, updated_at
+
+TABLE: inspection_questions
+===========================
+Columns (7): id, template_id, question_text, question_type, options, is_required, order_index
+
+TABLE: inspection_responses
+===========================
+Columns (10): id, inspection_id, checklist_item_id, response, photo_urls, is_compliant, notes, created_by_id, created_at, updated_at
+
+TABLE: inspection_sections
+==========================
+Columns (7): id, template_id, name, description, order, created_at, updated_at
+
+TABLE: inspection_templates
+===========================
+Columns (11): id, tenant_id, name, description, category, version, is_default, created_by_id, created_at, updated_at, is_active
+
+TABLE: inspections
+==================
+Columns (22): id, tenant_id, site_id, inspector_id, inspection_type, title, description, scheduled_date, completed_date, status, result, findings, photo_urls, video_ids, document_urls, created_at, updated_at, is_active, template_id, due_date, started_at, assigned_to_id
+✅ All expected columns present
+
+TABLE: migration_history
+========================
+Columns (4): id, migration_name, applied_at, checksum
+
+TABLE: permit_requests
+======================
+Columns (18): id, tenant_id, site_id, requester_id, approver_id, permit_type, title, description, location, start_date, end_date, status, approval_date, denial_reason, attachment_urls, created_at, updated_at, is_active
+✅ All expected columns present
+
+TABLE: report_history
+=====================
+Columns (10): id, tenant_id, user_id, site_id, start_date, end_date, created_at, report_name, report_url, status
+
+TABLE: role_permissions
+=======================
+Columns (8): id, tenant_id, role, resource, action, created_at, updated_at, is_active
+
+TABLE: site_personnel
+=====================
+Columns (14): id, site_id, user_id, tenant_id, site_role, assigned_by_id, start_date, end_date, permissions, team_id, notes, created_at, updated_at, is_active
+
+TABLE: sites
+============
+Columns (19): id, tenant_id, name, address, city, state, zip_code, country, gps_coordinates, contact_name, contact_phone, contact_email, start_date, end_date, status, description, created_at, updated_at, is_active
+✅ All expected columns present
+
+TABLE: subcontractors
+=====================
+Columns (19): id, tenant_id, name, contact_person, email, phone, address, city, state, zip_code, country, contract_number, contract_start_date, contract_end_date, services_provided, status, created_at, updated_at, is_active
+
+TABLE: system_logs
+==================
+Columns (10): id, tenant_id, user_id, action, entity_type, entity_id, details, ip_address, user_agent, created_at
+
+TABLE: team_members
+===================
+Columns (5): id, team_id, user_id, site_role, joined_at
+
+TABLE: teams
+============
+Columns (12): id, tenant_id, site_id, name, description, leader_id, color, specialties, created_by_id, created_at, updated_at, is_active
+
+TABLE: tenants
+==============
+Columns (22): id, name, email, phone, address, city, state, zip_code, country, logo, subscription_plan, subscription_status, subscription_end_date, active_users, max_users, active_sites, max_sites, created_at, updated_at, stripe_customer_id, settings, is_active
+✅ All expected columns present
+
+TABLE: training_content
+=======================
+Columns (14): id, tenant_id, title, description, content_type, video_id, document_url, language, duration, is_common, created_by_id, created_at, updated_at, is_active
+
+TABLE: training_courses
+=======================
+Columns (14): id, tenant_id, title, description, passing_score, is_required, assigned_roles, assigned_site_ids, assigned_subcontractor_ids, content_ids, created_by_id, created_at, updated_at, is_active
+
+TABLE: training_records
+=======================
+Columns (12): id, tenant_id, user_id, course_id, start_date, completion_date, score, passed, certificate_url, created_at, updated_at, is_active
+
+TABLE: user_sessions
+====================
+Columns (3): sid, sess, expire
+
+TABLE: users
+============
+Columns (19): id, tenant_id, username, email, password, first_name, last_name, role, phone, job_title, department, profile_image_url, permissions, is_active, last_login, created_at, updated_at, emergency_contact, safety_certification_expiry
+✅ All expected columns present
+
+
+🚨 CRITICAL ISSUES SUMMARY
+========================
+- hazard_reports: missing reporter_id
+- incident_reports: missing reporter_id
