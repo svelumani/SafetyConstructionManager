@@ -1,0 +1,17 @@
+id,tenant_id,name,description,category,version,is_default,created_by_id,created_at,updated_at,is_active
+1,1,Monthly template ,Test template ,general,1.0,f,4,2025-05-22 04:04:56.857413,2025-05-22 04:04:56.857413,t
+2,1,Monthly testing,Testing monthly ,general,1.0,f,4,2025-05-22 04:10:37.845478,2025-05-22 04:10:37.845478,t
+3,1,Monthly test ,Monthly test ,general,1.0,f,4,2025-05-22 04:15:41.175299,2025-05-22 04:15:41.175299,t
+4,1,Monthly tempalte 4,test tempalte for the monthly,general,1.0,f,4,2025-05-22 04:31:48.777611,2025-05-22 04:31:48.777611,t
+5,1,tst 4,asyasfuhoiuashfsodbfobu ,fire,1.0,f,4,2025-05-22 04:33:26.515279,2025-05-22 04:33:26.515279,t
+6,1,Weekly test ,Weekly test report for inspection,general,1.0,f,4,2025-05-22 04:50:21.684461,2025-05-22 04:50:21.684461,t
+7,1,Electrical Safety Inspection,Comprehensive electrical safety checks for construction sites,electrical,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
+8,1,Fall Protection Inspection,Inspection of fall protection equipment and procedures,safety,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
+9,1,Scaffold Safety Inspection,Scaffold integrity and safety compliance checks,safety,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
+10,1,Heavy Equipment Inspection,Safety inspection for heavy machinery and equipment,equipment,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
+11,1,PPE Compliance Inspection,Personal Protective Equipment compliance verification,safety,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
+12,1,Fire Safety Inspection,Fire prevention equipment and evacuation route inspection,fire,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
+13,1,Confined Space Entry Inspection,Pre-entry checks for confined spaces,safety,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
+14,1,Excavation Safety Inspection,Trench and excavation safety compliance verification,safety,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
+15,1,Environmental Compliance Inspection,Site environmental impact and compliance assessment,environmental,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
+16,1,Weekly Site Safety Walkthrough,General safety walkthrough for construction sites,general,1.0,f,4,2025-05-22 09:45:06.81216,2025-05-22 09:45:06.81216,t
