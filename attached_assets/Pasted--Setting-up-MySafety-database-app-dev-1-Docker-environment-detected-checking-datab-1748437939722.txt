@@ -1,0 +1,45 @@
+🚀 Setting up MySafety database...
+app-dev-1       | 📋 Docker environment detected - checking database schema...
+app-dev-1       | 🔍 MySafety Database Migration Tool
+app-dev-1       | ==================================
+app-dev-1       | 📁 Docker SQL file loaded successfully
+app-dev-1       | 📊 Current database has 30 tables
+app-dev-1       | 🎯 Docker SQL defines 28 tables
+app-dev-1       | 
+app-dev-1       | 🧪 Validation Results:
+app-dev-1       | ======================
+app-dev-1       | ⚠️  STRUCTURE DIFFERENCES FOUND:
+app-dev-1       |    ❌ Table count mismatch: Current 30, Expected 28
+app-dev-1       |    ❌ Enum count mismatch: Current 9, Expected 11
+app-dev-1       |    ❌ Missing tables: user_preferences
+app-dev-1       |    ❌ Extra tables: inspection_questions, pgmigrations, team_members
+app-dev-1       |    ❌ Missing enums: compliance_status, inspection_item_type
+app-dev-1       | 
+app-dev-1       | 📊 Summary:
+app-dev-1       |    Tables: ❌ 30 current, 28 expected
+app-dev-1       |    Enums: ❌ 9 current, 11 expected
+app-dev-1       | 
+app-dev-1       | 🔧 The docker-db-setup.sql needs adjustments before Docker deployment.
+app-dev-1       | 
+app-dev-1       | ⏱️  Validation completed in 131ms
+app-dev-1       | 🏁 Validation completed with issues - review needed
+app-dev-1       | ⚠️  Migration system had conflicts, using direct schema approach...
+app-dev-1       | Reading config file '/app/drizzle.config.ts'
+app-dev-1       | Using 'pg' driver for database querying
+app-dev-1       | [⣷] Pulling schema from database...
+[⣯] Pulling schema from database...
+[⣟] Pulling schema from database...
+[⡿] Pulling schema from database...
+[⢿] Pulling schema from database...
+[✓] Pulling schema from database...
+app-dev-1       | 
+app-dev-1       | Is gps_coordinates column in sites table created or renamed from another column?
+app-dev-1       | ❯ + gps_coordinates                   create column
+app-dev-1       | npm notice
+app-dev-1       | npm notice New major version of npm available! 10.8.2 -> 11.4.1
+app-dev-1       | npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.4.1
+app-dev-1       | npm notice To update run: npm install -g npm@11.4.1
+app-dev-1       | npm notice
+app-dev-1       |   ~ site_manager_id › gps_coordinates rename column✅ Direct schema push successful!
+app-dev-1       | 📊 MySafety database ready with all safety management tables!
+app-dev-1       | 🎉 Database setup completed!
