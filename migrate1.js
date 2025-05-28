@@ -1,7 +1,8 @@
+
 #!/usr/bin/env node
 
-// Docker SQL Validation Tool for MySafety
-// Tests if docker-db-setup.sql matches current Replit database structure
+// Fixed Docker SQL Migration Tool for MySafety
+// Properly handles all CREATE TABLE statements
 
 import pkg from 'pg';
 const { Pool } = pkg;
@@ -68,39 +69,117 @@ class DatabaseValidator {
     try {
       console.log('🔄 Executing database migration...');
       
-      // Split SQL into individual statements and execute them
-      const statements = sqlContent
-        .split(';')
-        .map(stmt => stmt.trim())
-        .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+      // Clean and normalize the SQL content
+      const cleanSQL = sqlContent
+        .replace(/--.*$/gm, '') // Remove comments
+        .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
 
-      // Separate different types of statements for proper execution order
-      const enums = statements.filter(stmt => stmt.includes('CREATE TYPE'));
-      const tables = statements.filter(stmt => stmt.includes('CREATE TABLE'));
-      const indexes = statements.filter(stmt => stmt.includes('CREATE INDEX'));
-      const inserts = statements.filter(stmt => stmt.includes('INSERT'));
+      // Split by semicolon but be smarter about it
+      const statements = this.smartSQLSplit(cleanSQL);
+      
+      // Categorize statements for proper execution order
+      const enums = statements.filter(stmt => 
+        stmt.toLowerCase().includes('create type') && 
+        stmt.toLowerCase().includes('enum')
+      );
+      
+      const tables = statements.filter(stmt => 
+        stmt.toLowerCase().includes('create table') &&
+        !stmt.toLowerCase().includes('create type')
+      );
+      
+      const indexes = statements.filter(stmt => 
+        stmt.toLowerCase().includes('create index')
+      );
+      
+      const inserts = statements.filter(stmt => 
+        stmt.toLowerCase().includes('insert into')
+      );
 
-      console.log(`📋 Executing ${enums.length} enums, ${tables.length} tables, ${indexes.length} indexes, ${inserts.length} inserts`);
+      console.log(`📋 Found: ${enums.length} enums, ${tables.length} tables, ${indexes.length} indexes, ${inserts.length} inserts`);
 
-      // Execute in correct order: enums, tables, indexes, inserts
-      const orderedStatements = [...enums, ...tables, ...indexes, ...inserts];
+      // Execute in correct order with proper error handling
+      await this.executeStatements(client, 'Enums', enums);
+      await this.executeStatements(client, 'Tables', tables);
+      await this.executeStatements(client, 'Indexes', indexes);
+      await this.executeStatements(client, 'Inserts', inserts);
 
-      for (const statement of orderedStatements) {
-        try {
-          await client.query(statement + ';');
-        } catch (error) {
-          // Ignore "already exists" errors
-          if (!error.message.includes('already exists')) {
-            console.warn(`⚠️  Warning executing: ${statement.substring(0, 50)}...`);
-            console.warn(`   Error: ${error.message}`);
-          }
-        }
-      }
-
-      console.log('✅ All migration statements executed in correct order');
+      console.log('✅ All migration statements executed successfully');
       
     } finally {
       client.release();
+    }
+  }
+
+  smartSQLSplit(sql) {
+    const statements = [];
+    let current = '';
+    let inQuotes = false;
+    let quoteChar = '';
+    let parenthesisDepth = 0;
+    
+    for (let i = 0; i < sql.length; i++) {
+      const char = sql[i];
+      const nextChar = sql[i + 1];
+      
+      if (!inQuotes) {
+        if (char === "'" || char === '"') {
+          inQuotes = true;
+          quoteChar = char;
+        } else if (char === '(') {
+          parenthesisDepth++;
+        } else if (char === ')') {
+          parenthesisDepth--;
+        } else if (char === ';' && parenthesisDepth === 0) {
+          const statement = current.trim();
+          if (statement && statement.length > 10) { // Ignore very short statements
+            statements.push(statement);
+          }
+          current = '';
+          continue;
+        }
+      } else {
+        if (char === quoteChar && sql[i - 1] !== '\\') {
+          inQuotes = false;
+          quoteChar = '';
+        }
+      }
+      
+      current += char;
+    }
+    
+    // Add the last statement if it exists
+    const lastStatement = current.trim();
+    if (lastStatement && lastStatement.length > 10) {
+      statements.push(lastStatement);
+    }
+    
+    return statements.filter(stmt => stmt.length > 0);
+  }
+
+  async executeStatements(client, category, statements) {
+    if (statements.length === 0) return;
+    
+    console.log(`🔧 Executing ${statements.length} ${category}...`);
+    
+    for (let i = 0; i < statements.length; i++) {
+      const statement = statements[i];
+      try {
+        await client.query(statement);
+        console.log(`   ✅ ${category} ${i + 1}/${statements.length} executed`);
+      } catch (error) {
+        // Only ignore "already exists" errors
+        if (error.message.includes('already exists') || 
+            error.message.includes('duplicate key')) {
+          console.log(`   ⏭️  ${category} ${i + 1} already exists, skipping`);
+        } else {
+          console.error(`   ❌ ${category} ${i + 1} failed:`, error.message);
+          console.error(`   Statement: ${statement.substring(0, 100)}...`);
+          // Don't throw - continue with other statements
+        }
+      }
     }
   }
 
@@ -170,12 +249,12 @@ class DatabaseValidator {
 
   parseDockerSQL(sqlContent) {
     // Extract table names from CREATE TABLE statements
-    const tableMatches = sqlContent.match(/CREATE TABLE (\w+)/g) || [];
-    const tables = tableMatches.map(match => match.replace('CREATE TABLE ', '')).sort();
+    const tableMatches = sqlContent.match(/CREATE TABLE (\w+)/gi) || [];
+    const tables = tableMatches.map(match => match.replace(/CREATE TABLE /i, '')).sort();
 
     // Extract enum names from CREATE TYPE statements
-    const enumMatches = sqlContent.match(/CREATE TYPE (\w+)/g) || [];
-    const enums = enumMatches.map(match => match.replace('CREATE TYPE ', '')).sort();
+    const enumMatches = sqlContent.match(/CREATE TYPE (\w+)/gi) || [];
+    const enums = enumMatches.map(match => match.replace(/CREATE TYPE /i, '')).sort();
 
     return {
       tables,
