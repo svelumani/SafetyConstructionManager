@@ -74,21 +74,30 @@ class DatabaseValidator {
         .map(stmt => stmt.trim())
         .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
 
-      for (const statement of statements) {
-        if (statement.includes('CREATE') || statement.includes('INSERT')) {
-          try {
-            await client.query(statement + ';');
-          } catch (error) {
-            // Ignore "already exists" errors
-            if (!error.message.includes('already exists')) {
-              console.warn(`⚠️  Warning executing: ${statement.substring(0, 50)}...`);
-              console.warn(`   Error: ${error.message}`);
-            }
+      // Separate different types of statements for proper execution order
+      const enums = statements.filter(stmt => stmt.includes('CREATE TYPE'));
+      const tables = statements.filter(stmt => stmt.includes('CREATE TABLE'));
+      const indexes = statements.filter(stmt => stmt.includes('CREATE INDEX'));
+      const inserts = statements.filter(stmt => stmt.includes('INSERT'));
+
+      console.log(`📋 Executing ${enums.length} enums, ${tables.length} tables, ${indexes.length} indexes, ${inserts.length} inserts`);
+
+      // Execute in correct order: enums, tables, indexes, inserts
+      const orderedStatements = [...enums, ...tables, ...indexes, ...inserts];
+
+      for (const statement of orderedStatements) {
+        try {
+          await client.query(statement + ';');
+        } catch (error) {
+          // Ignore "already exists" errors
+          if (!error.message.includes('already exists')) {
+            console.warn(`⚠️  Warning executing: ${statement.substring(0, 50)}...`);
+            console.warn(`   Error: ${error.message}`);
           }
         }
       }
 
-      console.log('✅ All migration statements executed');
+      console.log('✅ All migration statements executed in correct order');
       
     } finally {
       client.release();
