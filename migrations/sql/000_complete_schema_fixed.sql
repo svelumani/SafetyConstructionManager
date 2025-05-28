@@ -1,6 +1,6 @@
--- MySafety Complete Database Schema Migration
+-- MySafety Complete Database Schema Migration (Fixed Order)
 -- This migration creates ALL tables with ALL columns from the Drizzle schema
--- Run order: 000 (first migration to ensure complete schema)
+-- Fixed table creation order to avoid circular dependencies
 
 -- ============================================================================
 -- ENUMS - Create all required enums first
@@ -73,7 +73,7 @@ EXCEPTION
 END $$;
 
 -- ============================================================================
--- CORE TABLES - Tenants, Users, Sites (Foundation tables)
+-- FOUNDATION TABLES (no dependencies)
 -- ============================================================================
 
 -- Tenants Table
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- Users Table (Complete with ALL columns)
+-- Users Table
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Sites Table (Complete with ALL columns)
+-- Sites Table
 CREATE TABLE IF NOT EXISTS sites (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -169,62 +169,42 @@ CREATE TABLE IF NOT EXISTS subcontractors (
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- ============================================================================
--- HAZARD MANAGEMENT TABLES
--- ============================================================================
-
--- Hazard Reports Table (Complete with ALL columns)
-CREATE TABLE IF NOT EXISTS hazard_reports (
+-- Teams Table
+CREATE TABLE IF NOT EXISTS teams (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-  reported_by_id INTEGER NOT NULL REFERENCES users(id),
-  title TEXT NOT NULL,
-  description TEXT NOT NULL,
-  location TEXT NOT NULL,
-  gps_coordinates TEXT,
-  hazard_type TEXT NOT NULL,
-  severity hazard_severity NOT NULL,
-  status hazard_status NOT NULL DEFAULT 'open',
-  recommended_action TEXT,
-  photo_urls JSONB,
-  video_ids JSONB,
+  name TEXT NOT NULL,
+  description TEXT,
+  leader_id INTEGER REFERENCES users(id),
+  color TEXT,
+  specialties JSONB,
+  created_by_id INTEGER NOT NULL REFERENCES users(id),
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  resolved_at TIMESTAMP,
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- Hazard Assignments Table
-CREATE TABLE IF NOT EXISTS hazard_assignments (
+-- Site Personnel Table
+CREATE TABLE IF NOT EXISTS site_personnel (
   id SERIAL PRIMARY KEY,
-  hazard_id INTEGER NOT NULL REFERENCES hazard_reports(id) ON DELETE CASCADE,
+  site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  site_role site_role NOT NULL DEFAULT 'worker',
   assigned_by_id INTEGER NOT NULL REFERENCES users(id),
-  assigned_to_user_id INTEGER REFERENCES users(id),
-  assigned_to_subcontractor_id INTEGER REFERENCES subcontractors(id),
-  assigned_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  due_date TIMESTAMP,
-  status hazard_status NOT NULL DEFAULT 'assigned',
+  start_date DATE,
+  end_date DATE,
+  permissions JSONB,
+  team_id INTEGER REFERENCES teams(id),
   notes TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- Hazard Comments Table
-CREATE TABLE IF NOT EXISTS hazard_comments (
-  id SERIAL PRIMARY KEY,
-  hazard_id INTEGER NOT NULL REFERENCES hazard_reports(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES users(id),
-  comment TEXT NOT NULL,
-  attachment_urls JSONB,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  is_active BOOLEAN NOT NULL DEFAULT TRUE
-);
-
 -- ============================================================================
--- INSPECTION MANAGEMENT TABLES
+-- INSPECTION FRAMEWORK TABLES
 -- ============================================================================
 
 -- Inspection Templates Table
@@ -283,7 +263,7 @@ CREATE TABLE IF NOT EXISTS inspection_checklist_items (
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- Inspections Table (Complete with ALL columns) - MOVED UP
+-- Inspections Table
 CREATE TABLE IF NOT EXISTS inspections (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -309,11 +289,97 @@ CREATE TABLE IF NOT EXISTS inspections (
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+-- Inspection Responses Table
+CREATE TABLE IF NOT EXISTS inspection_responses (
+  id SERIAL PRIMARY KEY,
+  inspection_id INTEGER NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
+  checklist_item_id INTEGER NOT NULL REFERENCES inspection_checklist_items(id) ON DELETE CASCADE,
+  response compliance_status NOT NULL,
+  notes TEXT,
+  photo_urls JSONB,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Inspection Findings Table
+CREATE TABLE IF NOT EXISTS inspection_findings (
+  id SERIAL PRIMARY KEY,
+  inspection_id INTEGER NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  severity hazard_severity NOT NULL DEFAULT 'medium',
+  location TEXT,
+  photo_urls JSONB,
+  recommended_action TEXT,
+  due_date TIMESTAMP,
+  assigned_to_id INTEGER REFERENCES users(id),
+  status hazard_status NOT NULL DEFAULT 'open',
+  created_by_id INTEGER NOT NULL REFERENCES users(id),
+  resolved_by_id INTEGER REFERENCES users(id),
+  resolved_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- ============================================================================
+-- HAZARD MANAGEMENT TABLES
+-- ============================================================================
+
+-- Hazard Reports Table
+CREATE TABLE IF NOT EXISTS hazard_reports (
+  id SERIAL PRIMARY KEY,
+  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
+  reported_by_id INTEGER NOT NULL REFERENCES users(id),
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  location TEXT NOT NULL,
+  gps_coordinates TEXT,
+  hazard_type TEXT NOT NULL,
+  severity hazard_severity NOT NULL,
+  status hazard_status NOT NULL DEFAULT 'open',
+  recommended_action TEXT,
+  photo_urls JSONB,
+  video_ids JSONB,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  resolved_at TIMESTAMP,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- Hazard Assignments Table
+CREATE TABLE IF NOT EXISTS hazard_assignments (
+  id SERIAL PRIMARY KEY,
+  hazard_id INTEGER NOT NULL REFERENCES hazard_reports(id) ON DELETE CASCADE,
+  assigned_by_id INTEGER NOT NULL REFERENCES users(id),
+  assigned_to_user_id INTEGER REFERENCES users(id),
+  assigned_to_subcontractor_id INTEGER REFERENCES subcontractors(id),
+  assigned_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  due_date TIMESTAMP,
+  status hazard_status NOT NULL DEFAULT 'assigned',
+  notes TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- Hazard Comments Table
+CREATE TABLE IF NOT EXISTS hazard_comments (
+  id SERIAL PRIMARY KEY,
+  hazard_id INTEGER NOT NULL REFERENCES hazard_reports(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  comment TEXT NOT NULL,
+  attachment_urls JSONB,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
 -- ============================================================================
 -- PERMIT MANAGEMENT TABLES
 -- ============================================================================
 
--- Permit Requests Table (Complete with ALL columns)
+-- Permit Requests Table
 CREATE TABLE IF NOT EXISTS permit_requests (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -339,7 +405,7 @@ CREATE TABLE IF NOT EXISTS permit_requests (
 -- INCIDENT MANAGEMENT TABLES
 -- ============================================================================
 
--- Incident Reports Table (Complete with ALL columns)
+-- Incident Reports Table
 CREATE TABLE IF NOT EXISTS incident_reports (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -370,7 +436,7 @@ CREATE TABLE IF NOT EXISTS incident_reports (
 -- TRAINING MANAGEMENT TABLES
 -- ============================================================================
 
--- Training Content Table (Complete with ALL columns)
+-- Training Content Table
 CREATE TABLE IF NOT EXISTS training_content (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER REFERENCES tenants(id),
@@ -388,7 +454,7 @@ CREATE TABLE IF NOT EXISTS training_content (
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- Training Courses Table (Complete with ALL columns)
+-- Training Courses Table
 CREATE TABLE IF NOT EXISTS training_courses (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -406,7 +472,7 @@ CREATE TABLE IF NOT EXISTS training_courses (
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- Training Records Table (Complete with ALL columns)
+-- Training Records Table
 CREATE TABLE IF NOT EXISTS training_records (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -423,48 +489,10 @@ CREATE TABLE IF NOT EXISTS training_records (
 );
 
 -- ============================================================================
--- TEAM AND PERSONNEL MANAGEMENT TABLES
--- ============================================================================
-
--- Teams Table (Complete with ALL columns)
-CREATE TABLE IF NOT EXISTS teams (
-  id SERIAL PRIMARY KEY,
-  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  description TEXT,
-  leader_id INTEGER REFERENCES users(id),
-  color TEXT,
-  specialties JSONB,
-  created_by_id INTEGER NOT NULL REFERENCES users(id),
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  is_active BOOLEAN NOT NULL DEFAULT TRUE
-);
-
--- Site Personnel Table (Complete with ALL columns)
-CREATE TABLE IF NOT EXISTS site_personnel (
-  id SERIAL PRIMARY KEY,
-  site_id INTEGER NOT NULL REFERENCES sites(id) ON DELETE CASCADE,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  site_role site_role NOT NULL DEFAULT 'worker',
-  assigned_by_id INTEGER NOT NULL REFERENCES users(id),
-  start_date DATE,
-  end_date DATE,
-  permissions JSONB,
-  team_id INTEGER REFERENCES teams(id),
-  notes TEXT,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  is_active BOOLEAN NOT NULL DEFAULT TRUE
-);
-
--- ============================================================================
 -- SYSTEM AND UTILITY TABLES
 -- ============================================================================
 
--- System Logs Table (Complete with ALL columns)
+-- System Logs Table
 CREATE TABLE IF NOT EXISTS system_logs (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER REFERENCES tenants(id),
@@ -478,7 +506,7 @@ CREATE TABLE IF NOT EXISTS system_logs (
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Email Templates Table (Complete with ALL columns)
+-- Email Templates Table
 CREATE TABLE IF NOT EXISTS email_templates (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER REFERENCES tenants(id),
@@ -491,7 +519,7 @@ CREATE TABLE IF NOT EXISTS email_templates (
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- Role Permissions Table (Complete with ALL columns)
+-- Role Permissions Table
 CREATE TABLE IF NOT EXISTS role_permissions (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -504,7 +532,7 @@ CREATE TABLE IF NOT EXISTS role_permissions (
   UNIQUE(tenant_id, role, resource, action)
 );
 
--- Report History Table (Complete with ALL columns)
+-- Report History Table
 CREATE TABLE IF NOT EXISTS report_history (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -588,4 +616,4 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- Success message
-SELECT 'MySafety Complete Schema Migration Completed Successfully!' as status;
+SELECT 'MySafety Complete Schema Migration Successfully Applied - All Tables Created!' as status;
