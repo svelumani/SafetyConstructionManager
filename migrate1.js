@@ -35,12 +35,9 @@ class DatabaseValidator {
       const currentStructure = await this.getCurrentDatabaseStructure();
       console.log(`📊 Current database has ${currentStructure.tables.length} tables`);
 
-      // Check if essential MySafety tables exist
-      const essentialTables = ['users', 'tenants', 'sites', 'hazard_reports', 'inspections', 'incident_reports'];
-      const missingEssential = essentialTables.filter(table => !currentStructure.tables.includes(table));
-      
-      if (missingEssential.length > 0) {
-        console.log(`🚀 Running database migration for missing tables: ${missingEssential.join(', ')}`);
+      // Force migration if we don't have exactly 28 tables
+      if (currentStructure.tables.length < 28) {
+        console.log(`🚀 Running complete database migration - currently ${currentStructure.tables.length}/28 tables`);
         await this.runMigration(dockerSQL);
         console.log('✅ Migration completed successfully!');
         
