@@ -69,33 +69,25 @@ class DatabaseValidator {
     try {
       console.log('🔄 Executing database migration...');
       
-      // Clean and normalize the SQL content
-      const cleanSQL = sqlContent
-        .replace(/--.*$/gm, '') // Remove comments
-        .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
-        .replace(/\s+/g, ' ') // Normalize whitespace
-        .trim();
-
-      // Split by semicolon but be smarter about it
-      const statements = this.smartSQLSplit(cleanSQL);
+      // Split SQL content by logical blocks instead of just semicolons
+      const statements = this.extractSQLStatements(sqlContent);
       
       // Categorize statements for proper execution order
       const enums = statements.filter(stmt => 
-        stmt.toLowerCase().includes('create type') && 
+        stmt.toLowerCase().trim().startsWith('create type') && 
         stmt.toLowerCase().includes('enum')
       );
       
       const tables = statements.filter(stmt => 
-        stmt.toLowerCase().includes('create table') &&
-        !stmt.toLowerCase().includes('create type')
+        stmt.toLowerCase().trim().startsWith('create table')
       );
       
       const indexes = statements.filter(stmt => 
-        stmt.toLowerCase().includes('create index')
+        stmt.toLowerCase().trim().startsWith('create index')
       );
       
       const inserts = statements.filter(stmt => 
-        stmt.toLowerCase().includes('insert into')
+        stmt.toLowerCase().trim().startsWith('insert into')
       );
 
       console.log(`📋 Found: ${enums.length} enums, ${tables.length} tables, ${indexes.length} indexes, ${inserts.length} inserts`);
@@ -106,24 +98,32 @@ class DatabaseValidator {
       await this.executeStatements(client, 'Indexes', indexes);
       await this.executeStatements(client, 'Inserts', inserts);
 
-      console.log('✅ All migration statements executed successfully');
+      console.log('✅ All migration statements executed');
       
     } finally {
       client.release();
     }
   }
 
-  smartSQLSplit(sql) {
+  extractSQLStatements(sql) {
+    // Remove comments and normalize whitespace
+    let cleanSQL = sql
+      .replace(/--.*$/gm, '') // Remove line comments
+      .replace(/\/\*[\s\S]*?\*\//g, '') // Remove block comments
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+
     const statements = [];
-    let current = '';
+    let currentStatement = '';
+    let parenthesisDepth = 0;
     let inQuotes = false;
     let quoteChar = '';
-    let parenthesisDepth = 0;
-    
-    for (let i = 0; i < sql.length; i++) {
-      const char = sql[i];
-      const nextChar = sql[i + 1];
-      
+    let i = 0;
+
+    while (i < cleanSQL.length) {
+      const char = cleanSQL[i];
+      const nextChar = cleanSQL[i + 1] || '';
+
       if (!inQuotes) {
         if (char === "'" || char === '"') {
           inQuotes = true;
@@ -132,31 +132,41 @@ class DatabaseValidator {
           parenthesisDepth++;
         } else if (char === ')') {
           parenthesisDepth--;
-        } else if (char === ';' && parenthesisDepth === 0) {
-          const statement = current.trim();
-          if (statement && statement.length > 10) { // Ignore very short statements
-            statements.push(statement);
+        } else if (char === ';') {
+          // Only split on semicolon if we're not inside parentheses
+          if (parenthesisDepth === 0) {
+            const statement = currentStatement.trim();
+            if (statement.length > 20) { // Only include substantial statements
+              statements.push(statement);
+            }
+            currentStatement = '';
+            i++;
+            continue;
           }
-          current = '';
-          continue;
         }
       } else {
-        if (char === quoteChar && sql[i - 1] !== '\\') {
+        if (char === quoteChar && (i === 0 || cleanSQL[i - 1] !== '\\')) {
           inQuotes = false;
           quoteChar = '';
         }
       }
-      
-      current += char;
+
+      currentStatement += char;
+      i++;
     }
-    
+
     // Add the last statement if it exists
-    const lastStatement = current.trim();
-    if (lastStatement && lastStatement.length > 10) {
+    const lastStatement = currentStatement.trim();
+    if (lastStatement.length > 20) {
       statements.push(lastStatement);
     }
-    
-    return statements.filter(stmt => stmt.length > 0);
+
+    return statements.filter(stmt => {
+      const trimmed = stmt.trim().toLowerCase();
+      return trimmed.length > 0 && 
+             !trimmed.startsWith('select ') &&
+             !trimmed.includes('mysafety database setup complete');
+    });
   }
 
   async executeStatements(client, category, statements) {
@@ -172,12 +182,17 @@ class DatabaseValidator {
       } catch (error) {
         // Only ignore "already exists" errors
         if (error.message.includes('already exists') || 
-            error.message.includes('duplicate key')) {
+            error.message.includes('duplicate key') ||
+            error.message.includes('relation') && error.message.includes('already exists')) {
           console.log(`   ⏭️  ${category} ${i + 1} already exists, skipping`);
         } else {
           console.error(`   ❌ ${category} ${i + 1} failed:`, error.message);
-          console.error(`   Statement: ${statement.substring(0, 100)}...`);
-          // Don't throw - continue with other statements
+          console.error(`   Statement preview: ${statement.substring(0, 100)}...`);
+          // For tables and enums, this is critical - re-throw
+          if (category === 'Tables' || category === 'Enums') {
+            throw error;
+          }
+          // For indexes and inserts, continue with other statements
         }
       }
     }
