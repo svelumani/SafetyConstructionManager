@@ -1,5 +1,5 @@
--- MySafety Complete Schema Migration
--- This creates all the tables for your safety management platform
+-- DEPRECATED: This file is replaced by 000_complete_schema.sql
+-- DO NOT USE - kept for reference only
 
 -- Create enums
 DO $$ BEGIN
