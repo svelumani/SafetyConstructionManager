@@ -283,39 +283,7 @@ CREATE TABLE IF NOT EXISTS inspection_checklist_items (
   is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- Inspection Responses Table
-CREATE TABLE IF NOT EXISTS inspection_responses (
-  id SERIAL PRIMARY KEY,
-  inspection_id INTEGER NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
-  checklist_item_id INTEGER NOT NULL REFERENCES inspection_checklist_items(id) ON DELETE CASCADE,
-  response compliance_status NOT NULL,
-  notes TEXT,
-  photo_urls JSONB,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
--- Inspection Findings Table
-CREATE TABLE IF NOT EXISTS inspection_findings (
-  id SERIAL PRIMARY KEY,
-  inspection_id INTEGER NOT NULL REFERENCES inspections(id) ON DELETE CASCADE,
-  description TEXT NOT NULL,
-  severity hazard_severity NOT NULL DEFAULT 'medium',
-  location TEXT,
-  photo_urls JSONB,
-  recommended_action TEXT,
-  due_date TIMESTAMP,
-  assigned_to_id INTEGER REFERENCES users(id),
-  status hazard_status NOT NULL DEFAULT 'open',
-  created_by_id INTEGER NOT NULL REFERENCES users(id),
-  resolved_by_id INTEGER REFERENCES users(id),
-  resolved_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  is_active BOOLEAN NOT NULL DEFAULT TRUE
-);
-
--- Inspections Table (Complete with ALL columns)
+-- Inspections Table (Complete with ALL columns) - MOVED UP
 CREATE TABLE IF NOT EXISTS inspections (
   id SERIAL PRIMARY KEY,
   tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,

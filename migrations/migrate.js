@@ -86,17 +86,8 @@ class MigrationManager {
       
       console.log(`🔄 Executing migration: ${migrationName}`);
       
-      // Split SQL content by statements to handle complex migrations
-      const statements = sqlContent
-        .split(';')
-        .map(stmt => stmt.trim())
-        .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
-      
-      for (const statement of statements) {
-        if (statement.trim()) {
-          await client.query(statement);
-        }
-      }
+      // Execute the entire SQL content as one statement to handle DO blocks properly
+      await client.query(sqlContent);
       
       const executionTime = Date.now() - startTime;
       const checksum = this.calculateChecksum(sqlContent);
