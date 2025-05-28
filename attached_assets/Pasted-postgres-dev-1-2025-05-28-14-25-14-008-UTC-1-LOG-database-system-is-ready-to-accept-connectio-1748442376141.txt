@@ -1,0 +1,124 @@
+postgres-dev-1  | 2025-05-28 14:25:14.008 UTC [1] LOG:  database system is ready to accept connections
+app-dev-1       | 🚀 Setting up MySafety database...
+app-dev-1       | 📋 Docker environment detected - checking database schema...
+app-dev-1       | 🔍 MySafety Database Migration Tool
+app-dev-1       | ==================================
+app-dev-1       | 📁 Docker SQL file loaded successfully
+app-dev-1       | 📊 Current database has 0 tables
+app-dev-1       | 🚀 Running complete database migration - currently 0/28 tables
+app-dev-1       | 🔄 Executing database migration...
+postgres-dev-1  | 2025-05-28 14:25:19.816 UTC [39] ERROR:  relation "users" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.816 UTC [39] STATEMENT:  CREATE INDEX idx_users_email ON users(email);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_users_email ON users(email)...
+postgres-dev-1  | 2025-05-28 14:25:19.816 UTC [39] ERROR:  relation "sites" does not exist
+app-dev-1       |    Error: relation "users" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.816 UTC [39] STATEMENT:  CREATE INDEX idx_sites_tenant_id ON sites(tenant_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_sites_tenant_id ON sites(tenant_i...
+postgres-dev-1  | 2025-05-28 14:25:19.817 UTC [39] ERROR:  relation "sites" does not exist
+app-dev-1       |    Error: relation "sites" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.817 UTC [39] STATEMENT:  CREATE INDEX idx_sites_status ON sites(status);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_sites_status ON sites(status)...
+postgres-dev-1  | 2025-05-28 14:25:19.817 UTC [39] ERROR:  relation "hazard_reports" does not exist
+app-dev-1       |    Error: relation "sites" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.817 UTC [39] STATEMENT:  CREATE INDEX idx_hazard_reports_tenant_site ON hazard_reports(tenant_id, site_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_hazard_reports_tenant_site ON haz...
+postgres-dev-1  | 2025-05-28 14:25:19.817 UTC [39] ERROR:  relation "hazard_reports" does not exist
+app-dev-1       |    Error: relation "hazard_reports" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.817 UTC [39] STATEMENT:  CREATE INDEX idx_hazard_reports_status ON hazard_reports(status);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_hazard_reports_status ON hazard_r...
+postgres-dev-1  | 2025-05-28 14:25:19.817 UTC [39] ERROR:  relation "hazard_reports" does not exist
+app-dev-1       |    Error: relation "hazard_reports" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.817 UTC [39] STATEMENT:  CREATE INDEX idx_hazard_reports_severity ON hazard_reports(severity);
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] ERROR:  relation "hazard_assignments" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] STATEMENT:  CREATE INDEX idx_hazard_assignments_hazard_id ON hazard_assignments(hazard_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_hazard_reports_severity ON hazard...
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] ERROR:  relation "inspections" does not exist
+app-dev-1       |    Error: relation "hazard_reports" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] STATEMENT:  CREATE INDEX idx_inspections_tenant_site ON inspections(tenant_id, site_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_hazard_assignments_hazard_id ON h...
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] ERROR:  relation "inspections" does not exist
+app-dev-1       |    Error: relation "hazard_assignments" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] STATEMENT:  CREATE INDEX idx_inspections_status ON inspections(status);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_inspections_tenant_site ON inspec...
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] ERROR:  relation "inspection_responses" does not exist
+app-dev-1       |    Error: relation "inspections" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] STATEMENT:  CREATE INDEX idx_inspection_responses_inspection_id ON inspection_responses(inspection_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_inspections_status ON inspections...
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] ERROR:  relation "permit_requests" does not exist
+app-dev-1       |    Error: relation "inspections" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.818 UTC [39] STATEMENT:  CREATE INDEX idx_permit_requests_tenant_site ON permit_requests(tenant_id, site_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_inspection_responses_inspection_i...
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] ERROR:  relation "permit_requests" does not exist
+app-dev-1       |    Error: relation "inspection_responses" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] STATEMENT:  CREATE INDEX idx_permit_requests_status ON permit_requests(status);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_permit_requests_tenant_site ON pe...
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] ERROR:  relation "incident_reports" does not exist
+app-dev-1       |    Error: relation "permit_requests" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] STATEMENT:  CREATE INDEX idx_incident_reports_tenant_site ON incident_reports(tenant_id, site_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_permit_requests_status ON permit_...
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] ERROR:  relation "incident_reports" does not exist
+app-dev-1       |    Error: relation "permit_requests" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] STATEMENT:  CREATE INDEX idx_incident_reports_severity ON incident_reports(severity);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_incident_reports_tenant_site ON i...
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] ERROR:  relation "training_records" does not exist
+app-dev-1       |    Error: relation "incident_reports" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] STATEMENT:  CREATE INDEX idx_training_records_user ON training_records(user_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_incident_reports_severity ON inci...
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] ERROR:  relation "training_records" does not exist
+app-dev-1       |    Error: relation "incident_reports" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.819 UTC [39] STATEMENT:  CREATE INDEX idx_training_records_course ON training_records(course_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_training_records_user ON training...
+postgres-dev-1  | 2025-05-28 14:25:19.820 UTC [39] ERROR:  relation "site_personnel" does not exist
+app-dev-1       |    Error: relation "training_records" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.820 UTC [39] STATEMENT:  CREATE INDEX idx_site_personnel_site_id ON site_personnel(site_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_training_records_course ON traini...
+postgres-dev-1  | 2025-05-28 14:25:19.820 UTC [39] ERROR:  relation "site_personnel" does not exist
+app-dev-1       |    Error: relation "training_records" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.820 UTC [39] STATEMENT:  CREATE INDEX idx_site_personnel_user_id ON site_personnel(user_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_site_personnel_site_id ON site_pe...
+postgres-dev-1  | 2025-05-28 14:25:19.820 UTC [39] ERROR:  relation "teams" does not exist
+app-dev-1       |    Error: relation "site_personnel" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.820 UTC [39] STATEMENT:  CREATE INDEX idx_teams_site_id ON teams(site_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_site_personnel_user_id ON site_pe...
+postgres-dev-1  | 2025-05-28 14:25:19.823 UTC [39] ERROR:  relation "system_logs" does not exist
+app-dev-1       |    Error: relation "site_personnel" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.823 UTC [39] STATEMENT:  CREATE INDEX idx_system_logs_tenant_id ON system_logs(tenant_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_teams_site_id ON teams(site_id)...
+postgres-dev-1  | 2025-05-28 14:25:19.824 UTC [39] ERROR:  relation "system_logs" does not exist
+app-dev-1       |    Error: relation "teams" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.824 UTC [39] STATEMENT:  CREATE INDEX idx_system_logs_user_id ON system_logs(user_id);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_system_logs_tenant_id ON system_l...
+postgres-dev-1  | 2025-05-28 14:25:19.824 UTC [39] ERROR:  relation "user_sessions" does not exist
+app-dev-1       |    Error: relation "system_logs" does not exist
+postgres-dev-1  | 2025-05-28 14:25:19.824 UTC [39] STATEMENT:  CREATE INDEX idx_user_sessions_expire ON user_sessions(expire);
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_system_logs_user_id ON system_log...
+app-dev-1       |    Error: relation "system_logs" does not exist
+app-dev-1       | ⚠️  Warning executing: CREATE INDEX idx_user_sessions_expire ON user_sess...
+app-dev-1       |    Error: relation "user_sessions" does not exist
+app-dev-1       | ✅ All migration statements executed
+app-dev-1       | ✅ Migration completed successfully!
+app-dev-1       | 📊 Database now has 0 tables
+app-dev-1       | 
+app-dev-1       | ⏱️  Validation completed in 75ms
+app-dev-1       | 🏁 Validation completed with issues - review needed
+app-dev-1       | ⚠️  Migration system had conflicts, using direct schema approach...
+app-dev-1       | Reading config file '/app/drizzle.config.ts'
+app-dev-1       | Using 'pg' driver for database querying
+app-dev-1       | [⣷] Pulling schema from database...
+[✓] Pulling schema from database...
+app-dev-1       | [✓] Changes applied
+app-dev-1       | npm notice
+app-dev-1       | npm notice New major version of npm available! 10.8.2 -> 11.4.1
+app-dev-1       | npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.4.1
+app-dev-1       | npm notice To update run: npm install -g npm@11.4.1
+app-dev-1       | npm notice
+app-dev-1       | ✅ Direct schema push successful!
+app-dev-1       | 📊 MySafety database ready with all safety management tables!
+app-dev-1       | 🎉 Database setup completed!
+app-dev-1       | 
+app-dev-1       | > rest-express@1.0.0 dev
+app-dev-1       | > NODE_ENV=development tsx server/index.ts
+app-dev-1       | 
+app-dev-1       | Using pg client for Docker environment
+app-dev-1       | Warning: Email configuration incomplete. Email sending will be disabled.
+app-dev-1       | 2:25:21 PM [express] serving on port 5000
