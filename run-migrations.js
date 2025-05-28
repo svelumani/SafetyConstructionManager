@@ -10,7 +10,7 @@ console.log('====================================');
 
 try {
   console.log('📦 Running migrations...');
-  execSync('tsx migrations/migrate.js', { 
+  execSync('tsx migrate1.js', { 
     stdio: 'inherit',
     env: { ...process.env, NODE_ENV: process.env.NODE_ENV || 'development' }
   });
