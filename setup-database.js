@@ -13,7 +13,7 @@ try {
     
     // Try the migration system, but handle conflicts gracefully
     try {
-      execSync('node migrations/migrate.js', { 
+      execSync('node migrate1.js', { 
         stdio: 'inherit',
         env: { ...process.env, IS_DOCKER: 'true' }
       });

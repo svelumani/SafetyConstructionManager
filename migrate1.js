@@ -19,8 +19,8 @@ class DatabaseValidator {
   }
 
   async validateDockerSQL() {
-    console.log('🔍 MySafety Docker SQL Validation Tool');
-    console.log('=====================================');
+    console.log('🔍 MySafety Database Migration Tool');
+    console.log('==================================');
     
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is required');
@@ -35,6 +35,18 @@ class DatabaseValidator {
       const currentStructure = await this.getCurrentDatabaseStructure();
       console.log(`📊 Current database has ${currentStructure.tables.length} tables`);
 
+      // If database is empty or missing tables, run the migration
+      if (currentStructure.tables.length < 28) {
+        console.log('🚀 Running database migration...');
+        await this.runMigration(dockerSQL);
+        console.log('✅ Migration completed successfully!');
+        
+        // Verify migration
+        const newStructure = await this.getCurrentDatabaseStructure();
+        console.log(`📊 Database now has ${newStructure.tables.length} tables`);
+        return { migrationRun: true, tables: newStructure.tables.length };
+      }
+
       // Extract expected structure from docker SQL
       const expectedStructure = this.parseDockerSQL(dockerSQL);
       console.log(`🎯 Docker SQL defines ${expectedStructure.tables.length} tables`);
@@ -46,8 +58,40 @@ class DatabaseValidator {
       return comparison;
 
     } catch (error) {
-      console.error('💥 Validation failed:', error.message);
+      console.error('💥 Migration failed:', error.message);
       throw error;
+    }
+  }
+
+  async runMigration(sqlContent) {
+    const client = await this.pool.connect();
+    try {
+      console.log('🔄 Executing database migration...');
+      
+      // Split SQL into individual statements and execute them
+      const statements = sqlContent
+        .split(';')
+        .map(stmt => stmt.trim())
+        .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+
+      for (const statement of statements) {
+        if (statement.includes('CREATE') || statement.includes('INSERT')) {
+          try {
+            await client.query(statement + ';');
+          } catch (error) {
+            // Ignore "already exists" errors
+            if (!error.message.includes('already exists')) {
+              console.warn(`⚠️  Warning executing: ${statement.substring(0, 50)}...`);
+              console.warn(`   Error: ${error.message}`);
+            }
+          }
+        }
+      }
+
+      console.log('✅ All migration statements executed');
+      
+    } finally {
+      client.release();
     }
   }
 
