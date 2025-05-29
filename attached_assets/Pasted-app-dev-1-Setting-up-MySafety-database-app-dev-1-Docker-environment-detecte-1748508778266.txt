@@ -1,0 +1,41 @@
+app-dev-1       | 🚀 Setting up MySafety database...
+app-dev-1       | 📋 Docker environment detected - checking database schema...
+app-dev-1       | 🐳 Docker Migration System for MySafety
+app-dev-1       | ======================================
+app-dev-1       | 🔄 Waiting for PostgreSQL to be ready...
+app-dev-1       | ✅ PostgreSQL is ready!
+app-dev-1       | 📊 Current database has 25 tables
+app-dev-1       | 🚀 Running Docker database setup...
+app-dev-1       | 📁 Docker SQL file loaded successfully
+app-dev-1       | 🔄 Executing Docker database setup...
+postgres-dev-1  | 2025-05-29 08:52:38.693 UTC [41] ERROR:  type "site_role" already exists
+postgres-dev-1  | 2025-05-29 08:52:38.693 UTC [41] STATEMENT:  CREATE TYPE site_role AS ENUM ('site_manager', 'safety_coordinator', 'foreman', 'worker', 'subcontractor', 'visitor')
+app-dev-1       | ⚠️  Skipping existing object: type "site_role" already exists
+postgres-dev-1  | 2025-05-29 08:52:38.694 UTC [41] ERROR:  current transaction is aborted, commands ignored until end of transaction block
+postgres-dev-1  | 2025-05-29 08:52:38.694 UTC [41] STATEMENT:  CREATE TYPE hazard_severity AS ENUM ('low', 'medium', 'high', 'critical')
+app-dev-1       | ❌ Docker migration failed: current transaction is aborted, commands ignored until end of transaction block
+app-dev-1       | 💥 Docker migration failed: current transaction is aborted, commands ignored until end of transaction block
+app-dev-1       | ⚠️  Migration system had conflicts, using direct schema approach...
+app-dev-1       | Reading config file '/app/drizzle.config.ts'
+app-dev-1       | Using 'pg' driver for database querying
+app-dev-1       | [⣷] Pulling schema from database...
+[⣯] Pulling schema from database...
+[⣟] Pulling schema from database...
+[⡿] Pulling schema from database...
+[✓] Pulling schema from database...
+app-dev-1       | [✓] Changes applied
+app-dev-1       | npm notice
+app-dev-1       | npm notice New major version of npm available! 10.8.2 -> 11.4.1
+app-dev-1       | npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.4.1
+app-dev-1       | npm notice To update run: npm install -g npm@11.4.1
+app-dev-1       | npm notice
+app-dev-1       | ✅ Direct schema push successful!
+app-dev-1       | 📊 MySafety database ready with all safety management tables!
+app-dev-1       | 🎉 Database setup completed!
+app-dev-1       | 
+app-dev-1       | > rest-express@1.0.0 dev
+app-dev-1       | > NODE_ENV=development tsx server/index.ts
+app-dev-1       | 
+app-dev-1       | Using pg client for Docker environment
+app-dev-1       | Warning: Email configuration incomplete. Email sending will be disabled.
+app-dev-1       | 8:52:40 AM [express] serving on port 5000
