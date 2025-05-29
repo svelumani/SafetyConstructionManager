@@ -77,7 +77,7 @@ CREATE TABLE users (
 );
 
 -- 3. USER PREFERENCES TABLE
-CREATE TABLE user_preferences (
+CREATE TABLE IF NOT EXISTS user_preferences (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   theme TEXT DEFAULT 'light' CHECK (theme IN ('light', 'dark', 'auto')),
@@ -511,14 +511,14 @@ CREATE TABLE report_history (
 );
 
 -- 27. USER SESSIONS TABLE
-CREATE TABLE user_sessions (
+CREATE TABLE IF NOT EXISTS user_sessions (
   sid VARCHAR NOT NULL PRIMARY KEY,
   sess JSON NOT NULL,
   expire TIMESTAMP(6) NOT NULL
 );
 
 -- 28. MIGRATION HISTORY TABLE
-CREATE TABLE migration_history (
+CREATE TABLE IF NOT EXISTS migration_history (
   id SERIAL PRIMARY KEY,
   migration_name VARCHAR(255) UNIQUE NOT NULL,
   applied_at TIMESTAMP DEFAULT NOW(),

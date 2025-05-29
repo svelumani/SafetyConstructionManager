@@ -107,15 +107,42 @@ class DockerMigrationManager {
 
       console.log('🔄 Executing Docker database setup...');
 
-      // Split the SQL into chunks to handle it properly
+      // Split SQL and organize by execution order (ENUMS, TABLES, INDEXES)
       const sqlChunks = dockerSQL
         .split(';')
         .map(chunk => chunk.trim())
         .filter(chunk => chunk.length > 0 && !chunk.startsWith('--'));
 
+      // Separate different types of SQL commands for proper execution order
+      const enumCommands = sqlChunks.filter(chunk => 
+        chunk.toUpperCase().includes('CREATE TYPE'));
+      const tableCommands = sqlChunks.filter(chunk => 
+        chunk.toUpperCase().includes('CREATE TABLE'));
+      const indexCommands = sqlChunks.filter(chunk => 
+        chunk.toUpperCase().includes('CREATE INDEX'));
+      const otherCommands = sqlChunks.filter(chunk => 
+        !chunk.toUpperCase().includes('CREATE TYPE') && 
+        !chunk.toUpperCase().includes('CREATE TABLE') && 
+        !chunk.toUpperCase().includes('CREATE INDEX') &&
+        !chunk.toUpperCase().includes('INSERT INTO') &&
+        chunk.trim().length > 0);
+      const insertCommands = sqlChunks.filter(chunk => 
+        chunk.toUpperCase().includes('INSERT INTO'));
+
       let executedCommands = 0;
 
-      for (const chunk of sqlChunks) {
+      // Execute in proper order: ENUMs -> TABLEs -> INDEXes -> OTHERs -> INSERTs
+      const orderedCommands = [
+        ...enumCommands,
+        ...tableCommands, 
+        ...indexCommands,
+        ...otherCommands,
+        ...insertCommands
+      ];
+
+      console.log(`🔧 Executing ${orderedCommands.length} SQL commands in order...`);
+
+      for (const chunk of orderedCommands) {
         if (chunk.trim()) {
           try {
             await client.query(chunk);
@@ -123,10 +150,12 @@ class DockerMigrationManager {
           } catch (error) {
             // Ignore "already exists" errors in Docker environment
             if (error.message.includes('already exists') || 
-                error.message.includes('duplicate key')) {
-              console.log(`⚠️  Skipping existing object: ${error.message.split(':')[0]}`);
+                error.message.includes('duplicate key') ||
+                error.message.includes('duplicate object')) {
+              console.log(`⚠️  Skipping existing: ${chunk.substring(0, 50)}...`);
               continue;
             }
+            console.error(`❌ Error executing: ${chunk.substring(0, 100)}...`);
             throw error;
           }
         }
