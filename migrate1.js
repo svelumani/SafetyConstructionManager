@@ -93,11 +93,13 @@ class DockerMigrationManager {
     console.log('🚀 Running Docker database setup...');
 
     // Check if docker-db-setup.sql exists
-    if (!fs.existsSync('./docker-db-setup.sql')) {
-      throw new Error('❌ docker-db-setup.sql file not found');
+    if (!fs.existsSync('./docker-db-setup.sql') && !fs.existsSync('./docker-db-setup-no-fk.sql')) {
+      throw new Error('❌ docker-db-setup.sql or docker-db-setup-no-fk.sql file not found');
     }
 
-    const dockerSQL = fs.readFileSync('./docker-db-setup.sql', 'utf8');
+    // Read Docker SQL setup file (without FK constraints)
+    const dockerSQL = fs.readFileSync('docker-db-setup-no-fk.sql', 'utf8');
+
     console.log('📁 Docker SQL file loaded successfully');
 
     const client = await this.pool.connect();
