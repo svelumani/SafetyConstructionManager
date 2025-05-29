@@ -132,6 +132,7 @@ class DockerMigrationManager {
         chunk.toUpperCase().includes('INSERT INTO'));
 
       let executedCommands = 0;
+      let dockerSqlSuccess = true;
 
       // Execute in proper order: ENUMs -> TABLEs -> INDEXes -> OTHERs -> INSERTs
       const orderedCommands = [
@@ -158,6 +159,7 @@ class DockerMigrationManager {
               continue;
             }
             console.error(`❌ Error executing: ${chunk.substring(0, 100)}...`);
+            dockerSqlSuccess = false;
             throw error;
           }
         }
@@ -181,6 +183,31 @@ class DockerMigrationManager {
     } catch (error) {
       await client.query('ROLLBACK');
       console.error('❌ Docker migration failed:', error.message);
+
+      // If Docker SQL setup failed, use modern migration approach
+      if (!dockerSqlSuccess) {
+        console.log('⚠️  Migration system had conflicts, using direct schema approach...');
+
+        try {
+          // Try sequential setup first
+          const sequentialFile = './docker-db-setup-sequential.sql';
+          if (fs.existsSync(sequentialFile)) {
+            console.log('📁 Loading sequential migration file...');
+            const sequentialSql = fs.readFileSync(sequentialFile, 'utf8');
+            await client.query(sequentialSql);
+            console.log('✅ Sequential migration successful!');
+          } else {
+            // Fallback to Drizzle push
+            // Use execSync to run shell commands
+            const { execSync } = await import('child_process');
+            execSync('npx drizzle-kit push', { stdio: 'inherit' });
+            console.log('✅ Direct schema push successful!');
+          }
+        } catch (alternativeError) {
+          console.error('❌ Alternative migration failed:', alternativeError.message);
+          throw new Error('All migration methods failed');
+        }
+      }
       throw error;
     } finally {
       client.release();
