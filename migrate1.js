@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Docker-Compatible Migration Tool for MySafety
-// Handles Docker PostgreSQL initialization properly
+// Fixed: Handles existing objects without transaction abort
 
 import pkg from 'pg';
 const { Pool } = pkg;
@@ -36,25 +36,6 @@ class DockerMigrationManager {
       }
     }
     throw new Error('❌ Database connection timeout after 60 seconds');
-  }
-
-  async checkTableExists(tableName) {
-    const client = await this.pool.connect();
-    try {
-      const result = await client.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = $1
-        )
-      `, [tableName]);
-      return result.rows[0].exists;
-    } catch (error) {
-      console.error(`Error checking table ${tableName}:`, error.message);
-      return false;
-    } finally {
-      client.release();
-    }
   }
 
   async getCurrentTableCount() {
@@ -92,88 +73,25 @@ class DockerMigrationManager {
 
     console.log('🚀 Running Docker database setup...');
 
-    // Check if docker-db-setup-fixed.sql exists, fallback to other files
-    let sqlFile = './docker-db-setup-fixed.sql';
+    // Use the fixed SQL file
+    const sqlFile = './docker-db-setup-fixed.sql';
     if (!fs.existsSync(sqlFile)) {
-      if (fs.existsSync('./docker-db-setup-no-fk.sql')) {
-        sqlFile = './docker-db-setup-no-fk.sql';
-      } else if (fs.existsSync('./docker-db-setup.sql')) {
-        sqlFile = './docker-db-setup.sql';
-      } else {
-        throw new Error('❌ No docker setup SQL file found');
-      }
+      throw new Error('❌ docker-db-setup-fixed.sql file not found');
     }
 
-    // Read Docker SQL setup file
     const dockerSQL = fs.readFileSync(sqlFile, 'utf8');
-
     console.log('📁 Docker SQL file loaded successfully');
 
     const client = await this.pool.connect();
 
     try {
-      await client.query('BEGIN');
-
       console.log('🔄 Executing Docker database setup...');
 
-      // Split SQL and organize by execution order (ENUMS, TABLES, INDEXES)
-      const sqlChunks = dockerSQL
-        .split(';')
-        .map(chunk => chunk.trim())
-        .filter(chunk => chunk.length > 0 && !chunk.startsWith('--'));
+      // CRITICAL FIX: Execute the entire SQL as one statement
+      // This allows the DO blocks to handle "already exists" errors properly
+      await client.query(dockerSQL);
 
-      // Separate different types of SQL commands for proper execution order
-      const enumCommands = sqlChunks.filter(chunk => 
-        chunk.toUpperCase().includes('CREATE TYPE'));
-      const tableCommands = sqlChunks.filter(chunk => 
-        chunk.toUpperCase().includes('CREATE TABLE'));
-      const indexCommands = sqlChunks.filter(chunk => 
-        chunk.toUpperCase().includes('CREATE INDEX'));
-      const otherCommands = sqlChunks.filter(chunk => 
-        !chunk.toUpperCase().includes('CREATE TYPE') && 
-        !chunk.toUpperCase().includes('CREATE TABLE') && 
-        !chunk.toUpperCase().includes('CREATE INDEX') &&
-        !chunk.toUpperCase().includes('INSERT INTO') &&
-        chunk.trim().length > 0);
-      const insertCommands = sqlChunks.filter(chunk => 
-        chunk.toUpperCase().includes('INSERT INTO'));
-
-      let executedCommands = 0;
-      let dockerSqlSuccess = true;
-
-      // Execute in proper order: ENUMs -> TABLEs -> INDEXes -> OTHERs -> INSERTs
-      const orderedCommands = [
-        ...enumCommands,
-        ...tableCommands, 
-        ...indexCommands,
-        ...otherCommands,
-        ...insertCommands
-      ];
-
-      console.log(`🔧 Executing ${orderedCommands.length} SQL commands in order...`);
-
-      for (const chunk of orderedCommands) {
-        if (chunk.trim()) {
-          try {
-            await client.query(chunk);
-            executedCommands++;
-          } catch (error) {
-            // Ignore "already exists" errors in Docker environment
-            if (error.message.includes('already exists') || 
-                error.message.includes('duplicate key') ||
-                error.message.includes('duplicate object')) {
-              console.log(`⚠️  Skipping existing: ${chunk.substring(0, 50)}...`);
-              continue;
-            }
-            console.error(`❌ Error executing: ${chunk.substring(0, 100)}...`);
-            dockerSqlSuccess = false;
-            throw error;
-          }
-        }
-      }
-
-      await client.query('COMMIT');
-      console.log(`✅ Executed ${executedCommands} SQL commands successfully`);
+      console.log('✅ Database setup completed successfully!');
 
       // Verify final table count
       const newTableCount = await this.getCurrentTableCount();
@@ -183,39 +101,28 @@ class DockerMigrationManager {
         console.log('🎉 Docker migration completed successfully!');
       } else {
         console.log(`⚠️  Expected 28 tables but got ${newTableCount}`);
+        console.log('💡 Some tables may still be missing - check manually');
       }
 
       return { migrationRun: true, tables: newTableCount };
 
     } catch (error) {
-      await client.query('ROLLBACK');
       console.error('❌ Docker migration failed:', error.message);
 
-      // If Docker SQL setup failed, use modern migration approach
-      if (!dockerSqlSuccess) {
-        console.log('⚠️  Migration system had conflicts, using direct schema approach...');
+      // Fallback to Drizzle push if SQL migration fails
+      console.log('⚠️  Migration system had conflicts, using direct schema approach...');
 
-        try {
-          // Try sequential setup first
-          const sequentialFile = './docker-db-setup-sequential.sql';
-          if (fs.existsSync(sequentialFile)) {
-            console.log('📁 Loading sequential migration file...');
-            const sequentialSql = fs.readFileSync(sequentialFile, 'utf8');
-            await client.query(sequentialSql);
-            console.log('✅ Sequential migration successful!');
-          } else {
-            // Fallback to Drizzle push
-            // Use execSync to run shell commands
-            const { execSync } = await import('child_process');
-            execSync('npx drizzle-kit push', { stdio: 'inherit' });
-            console.log('✅ Direct schema push successful!');
-          }
-        } catch (alternativeError) {
-          console.error('❌ Alternative migration failed:', alternativeError.message);
-          throw new Error('All migration methods failed');
-        }
+      try {
+        const { execSync } = await import('child_process');
+        execSync('npx drizzle-kit push', { stdio: 'inherit' });
+        console.log('✅ Direct schema push successful!');
+
+        const finalCount = await this.getCurrentTableCount();
+        return { migrationRun: true, tables: finalCount };
+      } catch (alternativeError) {
+        console.error('❌ Alternative migration failed:', alternativeError.message);
+        throw new Error('All migration methods failed');
       }
-      throw error;
     } finally {
       client.release();
     }
@@ -235,7 +142,6 @@ class DockerMigrationManager {
 async function main() {
   const migrationManager = new DockerMigrationManager();
 
-  // Handle Docker container shutdown signals
   process.on('SIGTERM', async () => {
     console.log('\n🛑 Docker container stopping...');
     await migrationManager.close();
@@ -256,27 +162,16 @@ async function main() {
     console.log(`⏱️  Total migration time: ${totalTime}ms`);
     console.log('🏁 Docker migration system completed!');
 
-    // Exit with success code
     process.exit(0);
 
   } catch (error) {
     console.error('💥 Docker migration failed:', error.message);
-
-    // Provide Docker-specific debugging info
-    if (error.code === 'ECONNREFUSED') {
-      console.error('🔍 Docker database connection issues:');
-      console.error('   - Check if PostgreSQL container is running');
-      console.error('   - Verify DATABASE_URL points to postgres service');
-      console.error('   - Ensure containers are on same network');
-    }
-
     process.exit(1);
   } finally {
     await migrationManager.close();
   }
 }
 
-// Only run if executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
