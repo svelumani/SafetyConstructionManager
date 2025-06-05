@@ -2389,11 +2389,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listHazardAssignments(hazardId: number): Promise<HazardAssignment[]> {
-    return await db
-      .select()
+    const assignments = await db
+      .select({
+        id: hazardAssignments.id,
+        hazardId: hazardAssignments.hazardId,
+        assignedById: hazardAssignments.assignedById,
+        assignedToUserId: hazardAssignments.assignedToUserId,
+        assignedToSubcontractorId: hazardAssignments.assignedToSubcontractorId,
+        assignedAt: hazardAssignments.assignedAt,
+        dueDate: hazardAssignments.dueDate,
+        status: hazardAssignments.status,
+        notes: hazardAssignments.notes,
+        createdAt: hazardAssignments.createdAt,
+        updatedAt: hazardAssignments.updatedAt,
+        isActive: hazardAssignments.isActive,
+      })
       .from(hazardAssignments)
       .where(eq(hazardAssignments.hazardId, hazardId))
       .orderBy(desc(hazardAssignments.assignedAt));
+    
+    return assignments;
   }
 
   // Hazard comment operations
@@ -2403,11 +2418,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listHazardComments(hazardId: number): Promise<HazardComment[]> {
-    return await db
-      .select()
+    const comments = await db
+      .select({
+        id: hazardComments.id,
+        hazardId: hazardComments.hazardId,
+        userId: hazardComments.userId,
+        comment: hazardComments.comment,
+        attachmentUrls: hazardComments.attachmentUrls,
+        createdAt: hazardComments.createdAt,
+        updatedAt: hazardComments.updatedAt,
+        isActive: hazardComments.isActive,
+      })
       .from(hazardComments)
       .where(eq(hazardComments.hazardId, hazardId))
       .orderBy(asc(hazardComments.createdAt));
+    
+    return comments;
   }
 
   // Inspection operations
