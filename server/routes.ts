@@ -3511,7 +3511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const sectionsResult = await db.execute(`
               SELECT * FROM inspection_sections
               WHERE template_id = ${inspection.template_id}
-              ORDER BY "order" ASC
+              ORDER BY order_index ASC
             `);
             
             const sections = [];
@@ -3522,7 +3522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const itemsResult = await db.execute(`
                 SELECT * FROM inspection_items
                 WHERE section_id = ${section.id}
-                ORDER BY "order" ASC
+                ORDER BY order_index ASC
               `);
               
               sections.push({
