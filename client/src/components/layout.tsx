@@ -198,7 +198,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <h1 className="text-lg font-bold">MySafety</h1>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 ml-auto">
             <Button variant="ghost" size="icon">
               <Bell className="h-5 w-5" />
               <span className="sr-only">Notifications</span>
@@ -390,7 +390,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Main content area */}
-        <main className="flex-1 overflow-auto bg-background">{children}</main>
+        <main className="flex-1 overflow-auto bg-background p-10">{children}</main>
       </div>
     </div>
   );
