@@ -20,7 +20,9 @@ export default defineConfig({
       : []),
   ],
   server: {
-    allowedHosts: ["mysafetydemo.venpep.net"],
+    host: "0.0.0.0",
+    port: 5173,
+    allowedHosts: ["mysafetydemo.venpep.net", "localhost", "127.0.0.1"],
   },
   resolve: {
     alias: {
