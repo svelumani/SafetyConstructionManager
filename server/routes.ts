@@ -458,6 +458,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const { role } = req.body;
       
+      // Debug logging
+      console.log("=== Role Update Debug Info ===");
+      console.log("Target user ID:", id);
+      console.log("Requesting user ID:", (req.user as any).id);
+      console.log("Requesting user tenantId:", (req.user as any)?.tenantId);
+      console.log("New role:", role);
+      
       // Prevent users from changing their own role (more user-friendly for safety officers)
       if ((req.user as any).id === id) {
         return res.status(403).json({ 
@@ -479,9 +486,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const user = await storage.getUser(id);
       
-      if (!user || user.tenantId !== (req.user as any)?.tenantId) {
+      // Debug logging for user lookup
+      console.log("Found user:", user ? {
+        id: user.id,
+        tenantId: user.tenantId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      } : "No user found");
+      
+      if (!user) {
+        console.log("User not found in database");
         return res.status(404).json({ message: "User not found" });
       }
+      
+      if (user.tenantId !== (req.user as any)?.tenantId) {
+        console.log("Tenant mismatch - user tenantId:", user.tenantId, "vs requesting user tenantId:", (req.user as any)?.tenantId);
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      console.log("=== End Debug Info ===");
       
       const updatedUser = await storage.updateUser(id, { role });
       

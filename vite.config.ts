@@ -19,6 +19,9 @@ export default defineConfig({
         ]
       : []),
   ],
+  server: {
+    allowedHosts: ["mysafetydemo.venpep.net"],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
