@@ -237,7 +237,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Main content area */}
-        <main className="flex-1 overflow-auto bg-background">{children}</main>
+        <main className="flex-1 overflow-auto bg-background p-10">{children}</main>
       </div>
     </div>
   );
