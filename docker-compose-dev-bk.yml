@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for development
+  postgres-dev:
+    image: postgres:16-alpine
+    environment:
+      - DATABASE_URL=postgres://postgres:venpep123@postgres-dev:5432/mysafety
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=venpep123
+      - POSTGRES_DB=mysafety
+    ports:
+      - "5432:5432"  # Different port to avoid conflicts
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - mysafety-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MySafety Application for development
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - IS_DOCKER=false
+      - DATABASE_URL=postgres://postgres:venpep123@postgres-dev:5432/mysafety
+      - SESSION_SECRET=dev-session-secret-key
+    ports:
+      - "5006:5000"  # Different external port to avoid conflicts
+    volumes:
+      - ./uploads:/app/uploads
+      - .:/app  # Mount source code for development
+    networks:
+      - mysafety-dev-network
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+    command: ["sh", "-c", "npm install && node setup-database.js && npm run dev"]  # Install, setup database, and start app
+
+volumes:
+  postgres_dev_data:
+
+networks:
+  mysafety-dev-network:
+    driver: bridge

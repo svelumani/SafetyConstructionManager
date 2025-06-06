@@ -140,24 +140,36 @@ export default function HazardDetail() {
   const [activeTab, setActiveTab] = useState("details");
   
   // Fetch hazard details
-  const { data: hazard, isLoading, isError } = useQuery<HazardDetail>({
-    queryKey: ['/api/hazards', hazardId],
+  const { data: hazard, isLoading, isError, error } = useQuery<HazardDetail>({
+    queryKey: [`/api/hazards/${hazardId}`],
+    enabled: !isNaN(hazardId),
   });
   
   // Fetch comments
   const { data: commentsData } = useQuery<{ comments: HazardComment[] }>({
-    queryKey: ['/api/hazards', hazardId, 'comments'],
+    queryKey: [`/api/hazards/${hazardId}/comments`],
     enabled: !isLoading && !isError,
   });
   
   // Fetch assignments
   const { data: assignmentsData } = useQuery<{ assignments: HazardAssignment[] }>({
-    queryKey: ['/api/hazards', hazardId, 'assignments'],
+    queryKey: [`/api/hazards/${hazardId}/assignments`],
     enabled: !isLoading && !isError,
   });
   
   const comments = commentsData?.comments || [];
   const assignments = assignmentsData?.assignments || [];
+  
+  // Debug logging
+  console.log("Hazard Detail Debug:", {
+    hazardId,
+    isLoading,
+    isError,
+    error,
+    hazard,
+    hazardType: typeof hazard,
+    hazardKeys: hazard ? Object.keys(hazard) : null
+  });
   
   // Comment form
   const commentForm = useForm<CommentFormData>({
@@ -189,7 +201,7 @@ export default function HazardDetail() {
       });
       
       // Refresh comments
-      queryClient.invalidateQueries({ queryKey: ['/api/hazards', hazardId, 'comments'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/hazards/${hazardId}/comments`] });
     },
     onError: (error: Error) => {
       toast({
@@ -216,7 +228,7 @@ export default function HazardDetail() {
       });
       
       // Refresh hazard details
-      queryClient.invalidateQueries({ queryKey: ['/api/hazards', hazardId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/hazards/${hazardId}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/hazards'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard-stats'] });
     },
@@ -265,12 +277,15 @@ export default function HazardDetail() {
   }
   
   if (isError || !hazard) {
+    console.log("Error state:", { isError, error, hazard, hazardId });
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center h-screen">
           <AlertCircle className="w-16 h-16 text-destructive mb-4" />
           <h2 className="text-xl font-semibold mb-2">Error Loading Hazard</h2>
-          <p className="text-muted-foreground mb-4">Unable to load the hazard details.</p>
+          <p className="text-muted-foreground mb-4">
+            {error?.message || "Unable to load the hazard details."}
+          </p>
           <Button onClick={() => setLocation("/hazards")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Hazards

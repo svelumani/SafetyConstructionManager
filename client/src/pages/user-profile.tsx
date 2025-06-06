@@ -20,21 +20,25 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 
 interface UserProfile {
   id: number;
+  tenantId: number;
   username: string;
   email: string;
   firstName: string;
   lastName: string;
   role: string;
-  phone: string;
-  jobTitle: string;
-  department: string;
-  profileImageUrl: string;
+  phone: string | null;
+  jobTitle: string | null;
+  department: string | null;
+  profileImageUrl: string | null;
+  permissions: any;
   isActive: boolean;
-  bio: string;
-  emergencyContact: string;
   lastLogin: string;
   createdAt: string;
-  certifications: string[];
+  updatedAt: string;
+  // Optional fields that might not be in the API response
+  bio?: string;
+  emergencyContact?: string;
+  certifications?: string[];
 }
 
 export default function UserProfilePage() {
@@ -137,6 +141,12 @@ export default function UserProfilePage() {
   }
 
   if (error || !user) {
+    // Parse the error message to check for permission errors
+    const errorMessage = error?.message || "";
+    const isPermissionError = errorMessage.includes("permission") || 
+                             errorMessage.includes("You don't have permission") ||
+                             errorMessage.includes("403");
+    
     return (
       <Layout>
         <div className="flex items-center mb-6">
@@ -147,9 +157,15 @@ export default function UserProfilePage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Error Loading Profile</CardTitle>
+            <CardTitle className="text-xl flex items-center">
+              <AlertCircle className="h-6 w-6 mr-2 text-amber-500" />
+              {isPermissionError ? "Access Denied" : "Error Loading Profile"}
+            </CardTitle>
             <CardDescription>
-              We couldn't load this user's profile. Please try again or return to the users list.
+              {isPermissionError 
+                ? "You don't have permission to view this user's profile. You can only view profiles of users within your organization."
+                : "We couldn't load this user's profile. Please try again or return to the users list."
+              }
             </CardDescription>
           </CardHeader>
           <CardFooter>
@@ -178,7 +194,7 @@ export default function UserProfilePage() {
                 <AvatarImage src={user.profileImageUrl} alt={`${user.firstName} ${user.lastName}`} />
               ) : (
                 <AvatarFallback className="bg-primary text-white text-xl">
-                  {getInitials(user.firstName, user.lastName)}
+                  {getInitials(`${user.firstName} ${user.lastName}`)}
                 </AvatarFallback>
               )}
             </Avatar>
@@ -208,7 +224,7 @@ export default function UserProfilePage() {
                 <div className="text-sm text-muted-foreground">
                   <span className="flex items-center">
                     <Clock className="h-3.5 w-3.5 mr-1 opacity-70" />
-                    Member since {formatUTCToLocal(user.createdAt, "MMMM d, yyyy")}
+                    Member since {formatUTCToLocal(user.createdAt, "PP")}
                   </span>
                 </div>
               </div>

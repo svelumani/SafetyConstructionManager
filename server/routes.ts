@@ -1,8 +1,10 @@
+import * as dotenv from "dotenv";
+dotenv.config();
 import express, { type Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db, pool } from "./db";
-import { setupAuth } from "./auth";
+import { setupAuth, hashPassword } from "./auth";
 import { setupEmailService } from "./email";
 import { generateReport, getReportHistory, downloadReport } from "./reports";
 import * as schema from "@shared/schema";
@@ -16,10 +18,9 @@ import fs from "fs";
 // Import schemas for validation
 import { 
   insertHazardReportSchema, insertHazardCommentSchema, insertHazardAssignmentSchema,
-  insertInspectionSchema, insertInspectionTemplateSchema, insertInspectionSectionSchema,
-  insertInspectionItemSchema, insertInspectionResponseSchema, insertInspectionFindingSchema,
-  insertPermitRequestSchema, insertTenantSchema, insertUserSchema, userRoleEnum, permitStatusEnum,
-  insertEmailTemplateSchema, insertIncidentReportSchema
+  insertInspectionSchema, insertInspectionTemplateSchema, insertInspectionResponseSchema,
+  insertInspectionFindingSchema, insertPermitRequestSchema, insertTenantSchema, insertUserSchema, userRoleEnum, permitStatusEnum,
+  insertEmailTemplateSchema, insertIncidentReportSchema, insertSiteSchema, registerTenantSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -230,11 +231,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       await storage.createSystemLog({
         tenantId: id,
-        userId: req.user.id,
+        userId: (req.user as any)?.id,
         action: "tenant_updated",
         entityType: "tenant",
         entityId: id.toString(),
-        details: data,
+        details: `Tenant ${id} updated`
       });
       
       res.json(updatedTenant);
@@ -261,11 +262,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const template = await storage.createEmailTemplate(data);
       
       await storage.createSystemLog({
-        userId: req.user.id,
+        userId: (req.user as any)?.id,
         action: "email_template_created",
         entityType: "email_template",
         entityId: template.id.toString(),
-        details: { name: template.name },
+        details: `Email template "${data.name}" created`
       });
       
       res.status(201).json(template);
@@ -287,11 +288,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       await storage.createSystemLog({
-        userId: req.user.id,
+        userId: (req.user as any)?.id,
         action: "email_template_updated",
         entityType: "email_template",
         entityId: id.toString(),
-        details: { name: updatedTemplate.name },
+        details: `Email template ${id} updated`
       });
       
       res.json(updatedTemplate);
@@ -329,7 +330,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = parseInt(req.query.offset as string) || 0;
-      const tenantId = req.user.tenantId;
+      const tenantId = (req.user as any)?.tenantId;
       
       // Get users directly from database
       const users = await db
@@ -371,7 +372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      if (user.tenantId !== req.user.tenantId) {
+      if (user.tenantId !== (req.user as any)?.tenantId) {
         return res.status(403).json({ message: "You don't have permission to view this user" });
       }
       
@@ -389,7 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertUserSchema.parse({
         ...req.body,
-        tenantId: req.user.tenantId
+        tenantId: (req.user as any)?.tenantId
       });
       
       // Check if user already exists
@@ -401,12 +402,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.createUser(data);
       
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "user_created",
         entityType: "user",
         entityId: user.id.toString(),
-        details: { username: user.username, email: user.email, role: user.role },
+        details: `User "${data.firstName} ${data.lastName}" created`
       });
       
       res.status(201).json({ ...user, password: undefined });
@@ -421,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const user = await storage.getUser(id);
       
-      if (!user || user.tenantId !== req.user.tenantId) {
+      if (!user || user.tenantId !== (req.user as any)?.tenantId) {
         return res.status(404).json({ message: "User not found" });
       }
       
@@ -432,8 +433,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedUser = await storage.updateUser(id, data);
       
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "user_updated",
         entityType: "user",
         entityId: id.toString(),
@@ -450,11 +451,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Simple role management endpoint for safety officers
   app.put("/api/users/:id/role", requireAuth, requirePermission("users", "update"), async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const id = parseInt(req.params.id);
       const { role } = req.body;
       
       // Prevent users from changing their own role (more user-friendly for safety officers)
-      if (req.user.id === id) {
+      if ((req.user as any).id === id) {
         return res.status(403).json({ 
           message: "You cannot change your own role. Please ask another administrator to change your role if needed." 
         });
@@ -468,21 +473,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Super admin role can only be assigned by super admins
-      if (role === 'super_admin' && req.user.role !== 'super_admin') {
+      if (role === 'super_admin' && (req.user as any).role !== 'super_admin') {
         return res.status(403).json({ message: "You don't have permission to assign this role" });
       }
       
       const user = await storage.getUser(id);
       
-      if (!user || user.tenantId !== req.user.tenantId) {
+      if (!user || user.tenantId !== (req.user as any)?.tenantId) {
         return res.status(404).json({ message: "User not found" });
       }
       
       const updatedUser = await storage.updateUser(id, { role });
       
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "user_role_updated",
         entityType: "user",
         entityId: id.toString(),
@@ -510,10 +515,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Password reset endpoint for safety officers
   app.post("/api/users/:id/reset-password", requireAuth, requirePermission("users", "update"), async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const id = parseInt(req.params.id);
       
       // Prevent resetting own password through this endpoint
-      if (req.user.id === id) {
+      if ((req.user as any).id === id) {
         return res.status(403).json({
           message: "To reset your own password, use the profile settings page"
         });
@@ -521,12 +530,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const user = await storage.getUser(id);
       
-      if (!user || user.tenantId !== req.user.tenantId) {
+      if (!user || user.tenantId !== (req.user as any)?.tenantId) {
         return res.status(404).json({ message: "User not found" });
       }
       
       // Check if user is safety officer (role-based permission check)
-      if (req.user.role !== "safety_officer" && req.user.role !== "super_admin") {
+      if ((req.user as any).role !== "safety_officer" && (req.user as any).role !== "super_admin") {
         return res.status(403).json({ message: "Only safety officers can reset passwords" });
       }
       
@@ -544,8 +553,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create system log for audit trail
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "password_reset",
         entityType: "user",
         entityId: id.toString(),
@@ -568,10 +577,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Suspend user account endpoint
   app.post("/api/users/:id/suspend", requireAuth, requirePermission("users", "update"), async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const id = parseInt(req.params.id);
       
       // Prevent suspending own account
-      if (req.user.id === id) {
+      if ((req.user as any).id === id) {
         return res.status(403).json({
           message: "You cannot suspend your own account"
         });
@@ -579,12 +592,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const user = await storage.getUser(id);
       
-      if (!user || user.tenantId !== req.user.tenantId) {
+      if (!user || user.tenantId !== (req.user as any)?.tenantId) {
         return res.status(404).json({ message: "User not found" });
       }
       
       // Check if user is safety officer (role-based permission check)
-      if (req.user.role !== "safety_officer" && req.user.role !== "super_admin") {
+      if ((req.user as any).role !== "safety_officer" && (req.user as any).role !== "super_admin") {
         return res.status(403).json({ message: "Only safety officers can suspend accounts" });
       }
       
@@ -592,8 +605,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create system log for audit trail
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "account_suspended",
         entityType: "user",
         entityId: id.toString(),
@@ -616,16 +629,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Activate user account endpoint
   app.post("/api/users/:id/activate", requireAuth, requirePermission("users", "update"), async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const id = parseInt(req.params.id);
       
       const user = await storage.getUser(id);
       
-      if (!user || user.tenantId !== req.user.tenantId) {
+      if (!user || user.tenantId !== (req.user as any)?.tenantId) {
         return res.status(404).json({ message: "User not found" });
       }
       
       // Check if user is safety officer (role-based permission check)
-      if (req.user.role !== "safety_officer" && req.user.role !== "super_admin") {
+      if ((req.user as any).role !== "safety_officer" && (req.user as any).role !== "super_admin") {
         return res.status(403).json({ message: "Only safety officers can activate accounts" });
       }
       
@@ -633,8 +650,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create system log for audit trail
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "account_activated",
         entityType: "user",
         entityId: id.toString(),
@@ -659,7 +676,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = parseInt(req.query.offset as string) || 0;
-      const tenantId = req.user.tenantId;
+      const tenantId = (req.user as any)?.tenantId;
       
       // Get sites directly from database
       const sites = await db
@@ -700,7 +717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if site belongs to user's tenant
-      if (site.tenantId !== req.user.tenantId) {
+      if (site.tenantId !== (req.user as any)?.tenantId) {
         return res.status(403).json({ message: "You don't have permission to access this site" });
       }
       
@@ -715,14 +732,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertSiteSchema.parse({
         ...req.body,
-        tenantId: req.user.tenantId
+        tenantId: (req.user as any)?.tenantId
       });
       
       const site = await storage.createSite(data);
       
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "site_created",
         entityType: "site",
         entityId: site.id.toString(),
@@ -749,7 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Site not found" });
       }
       
-      if (existingSite.tenantId !== req.user.tenantId) {
+      if (existingSite.tenantId !== (req.user as any)?.tenantId) {
         return res.status(403).json({ message: "You don't have permission to update this site" });
       }
       
@@ -762,8 +779,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedSite = await storage.updateSite(id, updateData);
       
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "site_updated",
         entityType: "site",
         entityId: id.toString(),
@@ -794,13 +811,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Site not found" });
       }
       
-      if (existingSite.tenantId !== req.user.tenantId) {
+      if (existingSite.tenantId !== (req.user as any)?.tenantId) {
         return res.status(403).json({ message: "You don't have permission to delete this site" });
       }
       
       // Check if there are hazards or other entities related to this site
       // This is a simplified check - in production, you might want to check all related entities
-      const hazardCount = await storage.countHazardReports(req.user.tenantId, { siteId: id });
+      const hazardCount = await storage.countHazardReports((req.user as any)?.tenantId, { siteId: id });
       
       if (hazardCount > 0) {
         return res.status(400).json({ 
@@ -811,8 +828,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.deleteSite(id);
       
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "site_deleted",
         entityType: "site",
         entityId: id.toString(),
@@ -831,7 +848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const site = await storage.getSite(id);
       
-      if (!site || site.tenantId !== req.user.tenantId) {
+      if (!site || site.tenantId !== (req.user as any)?.tenantId) {
         return res.status(404).json({ message: "Site not found" });
       }
       
@@ -842,8 +859,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedSite = await storage.updateSite(id, data);
       
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId,
+        userId: (req.user as any)?.id,
         action: "site_updated",
         entityType: "site",
         entityId: id.toString(),
@@ -860,11 +877,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Team Management
   app.get("/api/teams", requireAuth, async (req, res) => {
     try {
-      console.log("Fetching teams for tenant:", req.user.tenantId);
-      const teams = await storage.listTeamsByTenant(req.user.tenantId);
+      console.log("Fetching teams for tenant:", (req.user as any)?.tenantId);
+      const teams = await storage.listTeamsByTenant((req.user as any)?.tenantId);
       console.log("Teams found:", teams?.length || 0);
       
-      // Return empty array if no teams found (avoid null)
+      // Return object with teams property to match frontend expectation
       res.json({ teams: teams || [] });
     } catch (err) {
       console.error("Error fetching teams:", err);
@@ -884,7 +901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Site not found" });
       }
       
-      if (site.tenantId !== req.user.tenantId) {
+      if (site.tenantId !== (req.user as any)?.tenantId) {
         return res.status(403).json({ message: "You don't have permission to access this site" });
       }
       
@@ -909,7 +926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Team not found" });
       }
       
-      if (team.tenantId !== req.user.tenantId) {
+      if (team.tenantId !== (req.user as any)?.tenantId) {
         return res.status(403).json({ message: "You don't have permission to access this team" });
       }
       
@@ -922,6 +939,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/teams", requireAuth, async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       console.log("Team creation request received:", req.body);
       
       // Simple validation
@@ -947,14 +968,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       `;
       
       const values = [
-        req.user.tenantId,
+        (req.user as any).tenantId,
         siteId,
         req.body.name,
         req.body.description || null,
         req.body.leaderId || null,
         req.body.color || null,
         req.body.specialties ? JSON.stringify(req.body.specialties) : null,
-        req.user.id,
+        (req.user as any).id,
         new Date().toISOString(),
         new Date().toISOString(),
         true
@@ -974,8 +995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Log the team creation
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any).tenantId,
+        userId: (req.user as any).id,
         action: "team_created",
         entityType: "team",
         entityId: team.id.toString(),
@@ -991,6 +1012,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.patch("/api/teams/:id", requireAuth, async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid team ID" });
@@ -1002,7 +1027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Team not found" });
       }
       
-      if (existingTeam.tenantId !== req.user.tenantId) {
+      if (existingTeam.tenantId !== (req.user as any).tenantId) {
         return res.status(403).json({ message: "You don't have permission to update this team" });
       }
       
@@ -1016,8 +1041,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedTeam = await storage.updateTeam(id, updateData);
       
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any).tenantId,
+        userId: (req.user as any).id,
         action: "team_updated",
         entityType: "team",
         entityId: id.toString(),
@@ -1565,28 +1590,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/hazards", requireAuth, async (req, res) => {
     try {
       // Log the request for debugging
-      console.log("Hazard creation request:", JSON.stringify({
-        body: req.body,
-        user: {
-          id: req.user?.id,
-          tenantId: req.user?.tenantId,
-          role: req.user?.role
-        },
-        session: req.session?.id
+      console.log("=== HAZARD CREATION REQUEST ===");
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
+      console.log("Request headers:", JSON.stringify(req.headers, null, 2));
+      console.log("User info:", JSON.stringify({
+        id: req.user?.id,
+        tenantId: req.user?.tenantId,
+        role: req.user?.role,
+        email: req.user?.email
+      }, null, 2));
+      console.log("Session info:", JSON.stringify({
+        id: req.session?.id,
+        authenticated: req.isAuthenticated()
       }, null, 2));
       
       // Skip permission check if no error is found
       const user = req.user;
       if (!user) {
+        console.error("ERROR: User not authenticated");
         return res.status(401).json({ message: "User not authenticated" });
       }
       
       if (!user.tenantId) {
+        console.error("ERROR: User doesn't belong to a tenant");
         return res.status(400).json({ message: "User doesn't belong to a tenant" });
       }
       
       // Check permission manually to provide better error messages
       try {
+        console.log("Checking permissions for user...");
         const hasPermission = await storage.hasPermission(
           user.tenantId,
           user.role,
@@ -1594,8 +1626,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           "create"
         );
         
+        console.log("Permission check result:", hasPermission);
+        
         if (!hasPermission && user.role !== 'super_admin') {
-          console.log(`User ${user.id} with role ${user.role} doesn't have permission to create hazards`);
+          console.log(`ERROR: User ${user.id} with role ${user.role} doesn't have permission to create hazards`);
           return res.status(403).json({ message: "You don't have permission to create hazard reports" });
         }
       } catch (permError) {
@@ -1604,15 +1638,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Ensure required fields are present
+      console.log("Validating required fields...");
       if (!req.body.siteId) {
+        console.error("ERROR: Site ID is required");
         return res.status(400).json({ message: "Site ID is required" });
       }
       
       if (!req.body.title) {
+        console.error("ERROR: Hazard title is required");
         return res.status(400).json({ message: "Hazard title is required" });
       }
       
       if (!req.body.description) {
+        console.error("ERROR: Hazard description is required");
         return res.status(400).json({ message: "Hazard description is required" });
       }
       
@@ -1645,9 +1683,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Skip email notifications for now to simplify troubleshooting
       // Return success response immediately
+      console.log("Returning success response");
       return res.status(201).json(hazard);
     } catch (err) {
-      console.error("Error creating hazard:", err);
+      console.error("=== ERROR CREATING HAZARD ===");
+      console.error("Error type:", err.constructor.name);
+      console.error("Error message:", err.message);
+      console.error("Error stack:", err.stack);
+      console.error("Full error object:", err);
       return res.status(500).json({ 
         message: "Failed to create hazard", 
         error: err instanceof Error ? err.message : String(err),
@@ -2164,56 +2207,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inspections", requireAuth, requirePermission("inspections", "create"), async (req, res) => {
     try {
+      // Enhanced debug logging
+      console.log("=== DETAILED INSPECTION CREATION DEBUG ===");
+      console.log("req.body:", JSON.stringify(req.body, null, 2));
+      console.log("req.user:", JSON.stringify(req.user, null, 2));
+      console.log("req.user type:", typeof req.user);
+      console.log("req.user.id:", req.user?.id);
+      console.log("(req.user as any).id:", (req.user as any)?.id);
+      console.log("formData.createdById:", req.body.createdById);
+      console.log("formData.created_by_id:", req.body.created_by_id);
+      console.log("Final created_by_id value:", req.body.createdById || req.body.created_by_id || (req.user as any)?.id);
+      console.log("=== END DETAILED DEBUG ===");
+      
+      // Type guard for authenticated user - fix the type casting
+      if (!req.user || !(req.user as any).id) {
+        console.log("Authentication failed - req.user or id is missing");
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
       // Get the form data
       const formData = req.body;
       
-      // Create a raw SQL query that only uses the exact fields present in the database
-      // This avoids any schema mismatches between our code models and the actual database
-      const result = await db.execute(`
+      // Validate required fields
+      if (!formData.title || !formData.siteId || !formData.scheduledDate) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Calculate the final created_by_id value
+      const finalCreatedById = formData.createdById || formData.created_by_id || (req.user as any).id;
+      
+      // Additional validation
+      if (!finalCreatedById) {
+        console.error("CRITICAL: final created_by_id is still null/undefined");
+        console.error("Available values:");
+        console.error("- formData.createdById:", formData.createdById);
+        console.error("- formData.created_by_id:", formData.created_by_id);
+        console.error("- (req.user as any).id:", (req.user as any).id);
+        return res.status(400).json({ message: "Unable to determine created_by_id value" });
+      }
+
+      // Log the values we're about to use in the SQL query
+      console.log("SQL parameters:", {
+        tenantId: (req.user as any)?.tenantId || 1,
+        siteId: formData.siteId,
+        inspectorId: (req.user as any).id,
+        assignedToId: formData.assignedToId || (req.user as any).id,
+        title: formData.title,
+        description: formData.description || '',
+        scheduledDate: new Date(formData.scheduledDate).toISOString(),
+        dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : new Date(formData.scheduledDate).toISOString(),
+        status: formData.status || 'scheduled',
+        isActive: true,
+        templateId: formData.templateId || null,
+        created_by_id: finalCreatedById
+      });
+
+      // Use proper parameter binding to avoid SQL injection
+      const result = await pool.query(`
         INSERT INTO inspections (
           tenant_id, 
           site_id, 
-          inspector_id, 
+          template_id,
           title, 
           description, 
           scheduled_date,
           due_date,
+          assigned_to_id,
+          created_by_id,
           status,
-          inspection_type,
           is_active,
-          template_id
+          inspector_id
         ) VALUES (
-          ${req.user.tenantId}, 
-          ${formData.siteId}, 
-          ${req.user.id}, 
-          '${formData.title.replace(/'/g, "''")}', 
-          '${(formData.description || '').replace(/'/g, "''")}', 
-          '${new Date(formData.scheduledDate).toISOString()}',
-          '${formData.dueDate ? new Date(formData.dueDate).toISOString() : new Date(formData.scheduledDate).toISOString()}',
-          'pending',
-          'routine',
-          true,
-          ${formData.templateId ? formData.templateId : 'NULL'}
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
         ) RETURNING *;
-      `);
+      `, [
+        (req.user as any)?.tenantId || 1, // $1 - tenant_id
+        formData.siteId, // $2 - site_id
+        formData.templateId || null, // $3 - template_id
+        formData.title, // $4 - title
+        formData.description || '', // $5 - description
+        new Date(formData.scheduledDate).toISOString(), // $6 - scheduled_date
+        formData.dueDate ? new Date(formData.dueDate).toISOString() : new Date(formData.scheduledDate).toISOString(), // $7 - due_date
+        formData.assignedToId || (req.user as any).id, // $8 - assigned_to_id
+        finalCreatedById, // $9 - created_by_id (use the calculated value)
+        formData.status || 'scheduled', // $10 - status
+        true, // $11 - is_active
+        (req.user as any).id // $12 - inspector_id
+      ]);
       
       // Get the inserted inspection from the result
       const inspection = result.rows[0];
       
       // Log the creation
       await storage.createSystemLog({
-        tenantId: req.user.tenantId,
-        userId: req.user.id,
+        tenantId: (req.user as any)?.tenantId || 1,
+        userId: (req.user as any).id,
         action: "inspection_created",
         entityType: "inspection",
         entityId: inspection.id.toString(),
-        details: { title: inspection.title, siteId: inspection.site_id },
+        details: `Inspection "${formData.title}" scheduled for site ${formData.siteId}`
       });
       
       res.status(201).json(inspection);
     } catch (err) {
       console.error("Error creating inspection:", err);
-      res.status(500).json({ message: "Failed to create inspection" });
+      res.status(500).json({ message: "Failed to create inspection", error: (err as any).message });
     }
   });
 
@@ -4329,6 +4427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
+  // Create and return the HTTP server
+  const server = createServer(app);
+  return server;
 }

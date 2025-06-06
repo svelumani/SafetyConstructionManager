@@ -30,15 +30,30 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-// Extended schema with validation
-const formSchema = insertHazardReportSchema.extend({
-  siteId: z.coerce.number().min(1, "Please select a site"),
-});
+// Extended schema with validation - exclude server-only fields
+const formSchema = insertHazardReportSchema
+  .omit({ 
+    tenantId: true, 
+    reportedById: true 
+  })
+  .extend({
+    siteId: z.coerce.number().min(1, "Please select a site"),
+  });
 
 type FormData = z.infer<typeof formSchema>;
+
+// Define interface for site data
+interface Site {
+  id: number;
+  name: string;
+}
+
+interface SitesData {
+  sites: Site[];
+}
 
 export default function NewHazardReport() {
   const [, setLocation] = useLocation();
@@ -46,7 +61,7 @@ export default function NewHazardReport() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
 
   // Get sites for dropdown
-  const { data: sitesData } = useQuery({
+  const { data: sitesData, isLoading: sitesLoading, error: sitesError } = useQuery<SitesData>({
     queryKey: ['/api/sites'],
   });
   
@@ -77,21 +92,28 @@ export default function NewHazardReport() {
       
       console.log("Submitting hazard data:", data);
       
-      // Now submit the hazard using our apiRequest utility which handles sessions properly
       try {
-        // Use our standard apiRequest utility for better integration with React Query
         const response = await apiRequest("POST", "/api/hazards", data);
         
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorText = await response.text();
+          console.error("API Error Response:", errorText);
+          
+          let errorData;
+          try {
+            errorData = JSON.parse(errorText);
+          } catch {
+            errorData = { message: errorText };
+          }
+          
           throw new Error(errorData.message || `Failed to create hazard report (${response.status})`);
         }
         
         const responseData = await response.json();
-        console.log("Hazard creation response:", responseData);
+        console.log("Hazard created successfully:", responseData);
         return responseData;
       } catch (error) {
-        console.error("Error in hazard creation:", error);
+        console.error("Error creating hazard:", error);
         throw error;
       }
     },
@@ -122,7 +144,13 @@ export default function NewHazardReport() {
   });
 
   // Image upload function 
-  const handleImageUpload = async () => {
+  const handleImageUpload = async (e?: React.MouseEvent) => {
+    // Prevent any form submission
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     // Create an input element to handle file selection
     const input = document.createElement('input');
     input.type = 'file';
@@ -167,20 +195,21 @@ export default function NewHazardReport() {
   };
 
   const onSubmit = (data: FormData) => {
+    console.log("=== FORM SUBMISSION STARTED ===");
+    console.log("Form data:", data);
+    
     // Make sure to include uploaded images
     if (uploadedImages.length > 0) {
       data.photoUrls = uploadedImages;
+      console.log("Added photoUrls to data:", data.photoUrls?.length);
     }
-    
-    // Log the submission data for debugging
-    console.log("Submitting hazard report:", data);
     
     // Execute the mutation to create the hazard
     createHazardMutation.mutate(data);
   };
 
   return (
-    <Layout title="Report New Hazard" description="Submit details about a safety hazard">
+    <Layout>
       <PageHeader title="Report New Hazard" description="Submit a new safety hazard report" />
       
       <div className="max-w-3xl mx-auto">
@@ -197,7 +226,7 @@ export default function NewHazardReport() {
                     </AlertDescription>
                   </Alert>
                 )}
-                
+
                 <FormField
                   control={form.control}
                   name="siteId"
@@ -207,20 +236,36 @@ export default function NewHazardReport() {
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value?.toString()}
+                        disabled={sitesLoading}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select site" />
+                            <SelectValue placeholder={
+                              sitesLoading ? "Loading sites..." : 
+                              sitesError ? "Error loading sites" :
+                              sites.length === 0 ? "No sites available" :
+                              "Select site"
+                            } />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {sites.map((site) => (
+                          {sites.map((site: Site) => (
                             <SelectItem key={site.id} value={site.id.toString()}>
                               {site.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {sitesError && (
+                        <div className="text-sm text-red-600 mt-1">
+                          Error loading sites: {sitesError.message}
+                        </div>
+                      )}
+                      {!sitesLoading && !sitesError && sites.length === 0 && (
+                        <div className="text-sm text-yellow-600 mt-1">
+                          No sites available. Please contact your administrator.
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -353,7 +398,8 @@ export default function NewHazardReport() {
                         <Textarea 
                           placeholder="Suggest how this hazard should be addressed" 
                           className="h-24"
-                          {...field} 
+                          {...field}
+                          value={field.value || ""}
                         />
                       </FormControl>
                       <FormDescription>
@@ -415,23 +461,6 @@ export default function NewHazardReport() {
                   <Button 
                     type="submit" 
                     disabled={createHazardMutation.isPending}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (!form.formState.isValid) {
-                        // Log validation errors for debugging
-                        console.log("Form validation errors:", form.formState.errors);
-                        
-                        // Show toast with validation errors
-                        toast({
-                          title: "Please check the form",
-                          description: "Some required fields are missing or invalid",
-                          variant: "destructive"
-                        });
-                      } else {
-                        // Form is valid, manually trigger submission
-                        form.handleSubmit(onSubmit)();
-                      }
-                    }}
                   >
                     {createHazardMutation.isPending ? (
                       <>

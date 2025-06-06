@@ -19,17 +19,46 @@ class MigrationManager {
     });
   }
 
+  async getExistingTables() {
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(`
+        SELECT table_name, column_name, data_type, character_maximum_length
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        ORDER BY table_name, column_name;
+      `);
+      
+      // Group by table
+      const tables = {};
+      result.rows.forEach(row => {
+        if (!tables[row.table_name]) {
+          tables[row.table_name] = {};
+        }
+        tables[row.table_name][row.column_name] = {
+          data_type: row.data_type,
+          length: row.character_maximum_length
+        };
+      });
+      
+      return tables;
+    } finally {
+      client.release();
+    }
+  }
+
   async initMigrationTable() {
     const client = await this.pool.connect();
     try {
       await client.query(`
         CREATE TABLE IF NOT EXISTS migration_history (
           id SERIAL PRIMARY KEY,
-          migration_name VARCHAR(255) UNIQUE NOT NULL,
+          migration_name VARCHAR(255) NOT NULL,
           applied_at TIMESTAMP DEFAULT NOW(),
           checksum VARCHAR(64),
           execution_time_ms INTEGER,
-          status VARCHAR(20) DEFAULT 'completed'
+          status VARCHAR(20) DEFAULT 'completed',
+          UNIQUE(migration_name)
         )
       `);
       console.log('✅ Migration tracking table ready');
@@ -77,46 +106,333 @@ class MigrationManager {
     return true; // Needs to be applied
   }
 
-  async applyMigration(migrationName, sqlContent) {
-    const client = await this.pool.connect();
-    const startTime = Date.now();
+  async getLatestMigrationFile() {
+    const migrationsDir = './migrations/sql';
+    if (!fs.existsSync(migrationsDir)) {
+      return null;
+    }
+
+    // Check for the fixed version first
+    const fixedFile = path.join(migrationsDir, '002_complete_schema_rebuild.sql');
+    if (fs.existsSync(fixedFile)) {
+      return fixedFile;
+    }
+
+    const files = fs.readdirSync(migrationsDir)
+      .filter(file => file.match(/^\d{3}_complete_schema_rebuild\.sql$/))
+      .sort((a, b) => b.localeCompare(a)); // Sort in descending order
+
+    return files.length > 0 ? path.join(migrationsDir, files[0]) : null;
+  }
+
+  splitSqlStatements(sql) {
+    const statements = [];
+    let currentStatement = '';
+    let inDollarQuote = false;
+    let dollarTag = '';
     
-    try {
-      await client.query('BEGIN');
+    // Split the SQL into lines and process
+    const lines = sql.split('\n');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
       
-      console.log(`🔄 Executing migration: ${migrationName}`);
-      
-      // Execute the entire SQL content as one statement to handle DO blocks properly
-      await client.query(sqlContent);
-      
-      const executionTime = Date.now() - startTime;
-      const checksum = this.calculateChecksum(sqlContent);
-      
-      // Record migration in history
-      await client.query(
-        'INSERT INTO migration_history (migration_name, checksum, execution_time_ms) VALUES ($1, $2, $3)',
-        [migrationName, checksum, executionTime]
-      );
-      
-      await client.query('COMMIT');
-      console.log(`✅ Applied migration: ${migrationName} (${executionTime}ms)`);
-      
-    } catch (error) {
-      await client.query('ROLLBACK');
-      console.error(`❌ Failed to apply migration ${migrationName}:`, error.message);
-      
-      // Log failed migration attempt
-      try {
-        await client.query('BEGIN');
-        await client.query(
-          'INSERT INTO migration_history (migration_name, status, execution_time_ms) VALUES ($1, $2, $3)',
-          [migrationName, 'failed', Date.now() - startTime]
-        );
-        await client.query('COMMIT');
-      } catch (logError) {
-        console.error('Failed to log migration failure:', logError.message);
+      // Skip empty lines and comments
+      if (!trimmedLine || trimmedLine.startsWith('--')) {
+        continue;
       }
       
+      // Check for dollar quotes
+      if (!inDollarQuote && trimmedLine.includes('$$')) {
+        inDollarQuote = true;
+        currentStatement += line + '\n';
+        continue;
+      }
+      
+      if (inDollarQuote) {
+        currentStatement += line + '\n';
+        if (trimmedLine.includes('$$')) {
+          inDollarQuote = false;
+          if (trimmedLine.endsWith(';')) {
+            statements.push(currentStatement.trim());
+            currentStatement = '';
+          }
+        }
+        continue;
+      }
+      
+      currentStatement += line + '\n';
+      
+      if (trimmedLine.endsWith(';')) {
+        statements.push(currentStatement.trim());
+        currentStatement = '';
+      }
+    }
+    
+    return statements.filter(stmt => stmt.length > 0);
+  }
+
+  async getExistingConstraints() {
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(`
+        SELECT 
+          tc.table_name, 
+          tc.constraint_name,
+          tc.constraint_type,
+          kcu.column_name,
+          ccu.table_name AS foreign_table_name,
+          ccu.column_name AS foreign_column_name
+        FROM 
+          information_schema.table_constraints tc
+          JOIN information_schema.key_column_usage kcu
+            ON tc.constraint_name = kcu.constraint_name
+            AND tc.table_schema = kcu.table_schema
+          LEFT JOIN information_schema.constraint_column_usage ccu
+            ON ccu.constraint_name = tc.constraint_name
+            AND ccu.table_schema = tc.table_schema
+        WHERE tc.table_schema = 'public'
+        ORDER BY tc.table_name, tc.constraint_name;
+      `);
+      
+      // Group by table
+      const constraints = {};
+      result.rows.forEach(row => {
+        if (!constraints[row.table_name]) {
+          constraints[row.table_name] = {
+            primaryKey: null,
+            foreignKeys: new Set(),
+            uniqueConstraints: new Set()
+          };
+        }
+        
+        if (row.constraint_type === 'PRIMARY KEY') {
+          constraints[row.table_name].primaryKey = row.column_name;
+        } else if (row.constraint_type === 'FOREIGN KEY') {
+          constraints[row.table_name].foreignKeys.add(
+            `${row.column_name} REFERENCES ${row.foreign_table_name}(${row.foreign_column_name})`
+          );
+        } else if (row.constraint_type === 'UNIQUE') {
+          constraints[row.table_name].uniqueConstraints.add(row.column_name);
+        }
+      });
+      
+      return constraints;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getExistingIndexes() {
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(`
+        SELECT 
+          schemaname,
+          tablename,
+          indexname,
+          indexdef
+        FROM pg_indexes
+        WHERE schemaname = 'public'
+        ORDER BY tablename, indexname;
+      `);
+      
+      // Group by table
+      const indexes = {};
+      result.rows.forEach(row => {
+        if (!indexes[row.tablename]) {
+          indexes[row.tablename] = new Set();
+        }
+        indexes[row.tablename].add(row.indexdef);
+      });
+      
+      return indexes;
+    } finally {
+      client.release();
+    }
+  }
+
+  async applyMigration(sqlContent, existingTables) {
+    const client = await this.pool.connect();
+    let hasErrors = false;
+    
+    try {
+      // Get existing constraints and indexes
+      const existingConstraints = await this.getExistingConstraints();
+      const existingIndexes = await this.getExistingIndexes();
+
+      // Split SQL content into individual statements
+      const statements = this.splitSqlStatements(sqlContent);
+
+      for (const statement of statements) {
+        try {
+          await client.query('BEGIN');
+
+          // Check if it's a CREATE INDEX statement
+          if (statement.toUpperCase().startsWith('CREATE INDEX')) {
+            const tableMatch = statement.match(/ON\s+(?:public\.)?(\w+)/i);
+            if (tableMatch) {
+              const tableName = tableMatch[1];
+              const tableIndexes = existingIndexes[tableName] || new Set();
+              
+              // Check if index already exists
+              if ([...tableIndexes].some(idx => idx.replace(/public\./g, '').trim() === statement.trim())) {
+                console.log(`⏭️  Skipping index (already exists): ${statement.split('\n')[0]}`);
+                await client.query('COMMIT');
+                continue;
+              }
+            }
+          }
+
+          // Check if it's a CREATE TABLE statement
+          if (statement.toUpperCase().includes('CREATE TABLE')) {
+            const tableName = statement.match(/CREATE TABLE(?:\s+IF NOT EXISTS)?\s+(\w+)/i)?.[1];
+            if (tableName && existingTables[tableName]) {
+              console.log(`⏭️  Table ${tableName} already exists, checking columns...`);
+              
+              // Extract columns from CREATE TABLE statement
+              const columnMatches = statement.match(/\(([\s\S]*)\)/);
+              if (columnMatches) {
+                const parts = columnMatches[1]
+                  .split(',')
+                  .map(part => part.trim())
+                  .filter(part => part.length > 0);
+
+                // Process regular columns first
+                for (const part of parts) {
+                  if (!part.startsWith('CONSTRAINT') && !part.startsWith('PRIMARY KEY') && !part.startsWith('FOREIGN KEY')) {
+                    const colMatch = part.match(/^(\w+)\s+([^,]+)/);
+                    if (colMatch) {
+                      const [, colName, colDef] = colMatch;
+                      if (!existingTables[tableName][colName]) {
+                        try {
+                          // Replace USER-DEFINED with actual enum type
+                          let processedColDef = colDef;
+                          if (colDef.includes('USER-DEFINED')) {
+                            // Extract the enum type from the DEFAULT clause if it exists
+                            const enumTypeMatch = colDef.match(/::([\w_]+)/);
+                            if (enumTypeMatch) {
+                              processedColDef = colDef.replace('USER-DEFINED', enumTypeMatch[1]);
+                            } else {
+                              // If no DEFAULT clause, try to infer from column name
+                              if (colName === 'role' && tableName === 'site_personnel') {
+                                processedColDef = colDef.replace('USER-DEFINED', 'site_role');
+                              } else if (colName === 'role') {
+                                processedColDef = colDef.replace('USER-DEFINED', 'user_role');
+                              } else if (colName === 'status') {
+                                if (tableName.includes('permit')) {
+                                  processedColDef = colDef.replace('USER-DEFINED', 'permit_status');
+                                } else if (tableName.includes('incident')) {
+                                  processedColDef = colDef.replace('USER-DEFINED', 'incident_status');
+                                } else if (tableName.includes('hazard')) {
+                                  processedColDef = colDef.replace('USER-DEFINED', 'hazard_status');
+                                } else if (tableName.includes('inspection')) {
+                                  processedColDef = colDef.replace('USER-DEFINED', 'inspection_status');
+                                }
+                              } else if (colName === 'severity') {
+                                if (tableName.includes('incident')) {
+                                  processedColDef = colDef.replace('USER-DEFINED', 'incident_severity');
+                                } else if (tableName.includes('hazard')) {
+                                  processedColDef = colDef.replace('USER-DEFINED', 'hazard_severity');
+                                }
+                              } else if (colName === 'subscription_plan') {
+                                processedColDef = colDef.replace('USER-DEFINED', 'subscription_plan');
+                              }
+                            }
+                          }
+
+                          const alterStmt = `ALTER TABLE ${tableName} ADD COLUMN ${colName} ${processedColDef}`;
+                          console.log(`➕ Adding column to ${tableName}: ${colName} ${processedColDef}`);
+                          await client.query(alterStmt);
+                        } catch (error) {
+                          if (!error.message.includes('already exists')) {
+                            console.warn(`⚠️  Failed to add column ${colName} to ${tableName}: ${error.message}`);
+                            hasErrors = true;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+
+                // Process constraints separately
+                for (const part of parts) {
+                  if (part.startsWith('CONSTRAINT') || part.startsWith('PRIMARY KEY') || part.startsWith('FOREIGN KEY')) {
+                    try {
+                      // Check if constraint already exists
+                      const tableConstraints = existingConstraints[tableName] || {
+                        primaryKey: null,
+                        foreignKeys: new Set(),
+                        uniqueConstraints: new Set()
+                      };
+
+                      let shouldAdd = true;
+                      
+                      if (part.includes('PRIMARY KEY')) {
+                        const pkMatch = part.match(/PRIMARY KEY\s*\(([^)]+)\)/);
+                        if (pkMatch && tableConstraints.primaryKey === pkMatch[1].trim()) {
+                          shouldAdd = false;
+                        }
+                      } else if (part.includes('FOREIGN KEY')) {
+                        const fkMatch = part.match(/FOREIGN KEY\s*\(([^)]+)\)\s*REFERENCES\s+([^(]+)\(([^)]+)\)/);
+                        if (fkMatch) {
+                          const fkDef = `${fkMatch[1].trim()} REFERENCES ${fkMatch[2].trim()}(${fkMatch[3].trim()})`;
+                          if (tableConstraints.foreignKeys.has(fkDef)) {
+                            shouldAdd = false;
+                          }
+                        }
+                      }
+
+                      if (shouldAdd) {
+                        const alterStmt = `ALTER TABLE ${tableName} ADD ${part}`;
+                        console.log(`➕ Adding constraint to ${tableName}: ${part.split('\n')[0]}`);
+                        await client.query(alterStmt);
+                      } else {
+                        console.log(`⏭️  Skipping constraint (already exists): ${part.split('\n')[0]}`);
+                      }
+                    } catch (error) {
+                      if (!error.message.includes('already exists')) {
+                        console.warn(`⚠️  Failed to add constraint to ${tableName}: ${error.message}`);
+                        hasErrors = true;
+                      }
+                    }
+                  }
+                }
+              }
+              await client.query('COMMIT');
+              continue; // Skip CREATE TABLE statement
+            }
+          }
+
+          // Execute other statements (CREATE TYPE, etc.)
+          try {
+            console.log(`🔄 Executing: ${statement.split('\n')[0]}...`);
+            await client.query(statement);
+            console.log('✅ Statement executed successfully');
+          } catch (error) {
+            if (error.message.includes('already exists')) {
+              console.log(`⏭️  Skipping: ${statement.split('\n')[0]}... (already exists)`);
+            } else {
+              console.warn(`⚠️  Failed to execute statement: ${error.message}`);
+              hasErrors = true;
+            }
+          }
+
+          await client.query('COMMIT');
+        } catch (error) {
+          await client.query('ROLLBACK');
+          console.warn(`⚠️  Transaction rolled back: ${error.message}`);
+          hasErrors = true;
+        }
+      }
+
+      if (hasErrors) {
+        console.log('⚠️  Migration completed with some errors');
+      } else {
+        console.log('✅ Migration completed successfully');
+      }
+    } catch (error) {
+      console.error('❌ Migration failed:', error.message);
       throw error;
     } finally {
       client.release();
@@ -124,68 +440,30 @@ class MigrationManager {
   }
 
   async runMigrations() {
-    console.log('🚀 Starting MySafety Enhanced Migration System...');
-    console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🐘 Database: ${process.env.DATABASE_URL ? 'Connected' : 'Not configured'}`);
+    console.log('🚀 Starting Enhanced Migration System...');
     
-    if (!process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL environment variable is required');
-    }
-
     try {
       await this.initMigrationTable();
-      const appliedMigrations = await this.getAppliedMigrations();
       
-      console.log(`📋 Found ${appliedMigrations.length} previously applied migrations`);
-      
-      // Get all migration files and sort them properly
-      const migrationsDir = './migrations/sql';
-      
-      if (!fs.existsSync(migrationsDir)) {
-        console.error(`❌ Migrations directory not found: ${migrationsDir}`);
+      // Get latest schema file
+      const latestSchemaFile = await this.getLatestMigrationFile();
+      if (!latestSchemaFile) {
+        console.log('❌ No schema files found in migrations/sql');
         return;
       }
       
-      const migrationFiles = fs.readdirSync(migrationsDir)
-        .filter(file => file.endsWith('.sql'))
-        .sort((a, b) => {
-          // Sort by number prefix (000_xxx.sql, 001_xxx.sql, etc.)
-          const aNum = parseInt(a.split('_')[0]) || 999;
-          const bNum = parseInt(b.split('_')[0]) || 999;
-          return aNum - bNum;
-        });
+      console.log(`📄 Using schema file: ${latestSchemaFile}`);
       
-      console.log(`📁 Found ${migrationFiles.length} migration files`);
+      // Get existing database structure
+      console.log('🔍 Analyzing existing database structure...');
+      const existingTables = await this.getExistingTables();
       
-      let appliedCount = 0;
-      
-      for (const file of migrationFiles) {
-        const migrationName = file.replace('.sql', '');
-        const filePath = path.join(migrationsDir, file);
-        const sqlContent = fs.readFileSync(filePath, 'utf8');
-        
-        const shouldApply = await this.validateMigration(migrationName, sqlContent, appliedMigrations);
-        
-        if (!shouldApply) {
-          console.log(`⏭️  Skipping ${migrationName} (already applied)`);
-          continue;
-        }
-        
-        await this.applyMigration(migrationName, sqlContent);
-        appliedCount++;
-      }
-      
-      if (appliedCount === 0) {
-        console.log('✨ Database is up to date - no migrations needed');
-      } else {
-        console.log(`🎉 Migration complete! Applied ${appliedCount} new migrations`);
-      }
+      // Read and apply the schema
+      const sqlContent = fs.readFileSync(latestSchemaFile, 'utf8');
+      await this.applyMigration(sqlContent, existingTables);
       
     } catch (error) {
       console.error('💥 Migration system failed:', error.message);
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Full error details:', error);
-      }
       throw error;
     }
   }

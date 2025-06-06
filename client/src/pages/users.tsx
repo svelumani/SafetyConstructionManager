@@ -38,6 +38,7 @@ import { UserBulkUpload } from "@/components/user-bulk-upload";
 
 interface User {
   id: number;
+  tenantId: number | null;
   username: string;
   email: string;
   firstName: string;
@@ -91,7 +92,7 @@ export default function Users() {
               <img src={item.profileImageUrl} alt={`${item.firstName} ${item.lastName}`} />
             ) : (
               <AvatarFallback className="bg-primary text-white">
-                {getInitials(item.firstName, item.lastName)}
+                {getInitials(`${item.firstName} ${item.lastName}`)}
               </AvatarFallback>
             )}
           </Avatar>
@@ -150,6 +151,12 @@ export default function Users() {
       cell: (item: User) => {
         // Check if this is the current user
         const isCurrentUser = currentUser && currentUser.id === item.id;
+        // Check if user can access this profile (same tenant)
+        const canAccessProfile = currentUser && (
+          currentUser.tenantId === item.tenantId || 
+          currentUser.role === "super_admin" ||
+          item.tenantId === null
+        );
         
         return (
           <div className="flex items-center gap-2">
@@ -173,11 +180,23 @@ export default function Users() {
                 <ShieldCheck className="h-4 w-4 mr-1 text-blue-600" /> Change Role
               </Button>
             )}
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/users/${item.id}`}>
-                <UserCog className="h-4 w-4 mr-1" /> Manage
-              </Link>
-            </Button>
+            {canAccessProfile ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/users/${item.id}`}>
+                  <UserCog className="h-4 w-4 mr-1" /> Manage
+                </Link>
+              </Button>
+            ) : (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={true}
+                className="bg-gray-50 hover:bg-gray-50 border-gray-200 cursor-not-allowed"
+                title="You can only access profiles of users in your organization"
+              >
+                <AlertCircle className="h-4 w-4 mr-1 text-amber-500" /> No Access
+              </Button>
+            )}
           </div>
         );
       },

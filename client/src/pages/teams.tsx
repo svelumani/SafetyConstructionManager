@@ -18,11 +18,16 @@ import {
 } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
 
+// Extended team type with member count
+type TeamWithMemberCount = Team & {
+  memberCount?: number;
+};
+
 export default function Teams() {
   requirePermission("teams", "read");
   const [, navigate] = useLocation();
   
-  const { data, isLoading } = useQuery<{ teams: Team[] }>({
+  const { data, isLoading } = useQuery<{ teams: TeamWithMemberCount[] }>({
     queryKey: ["/api/teams"],
   });
   

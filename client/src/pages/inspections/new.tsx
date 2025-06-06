@@ -39,6 +39,39 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
+// Interface definitions for API responses
+interface Site {
+  id: number;
+  name: string;
+  address: string;
+  // ... other site properties
+}
+
+interface SitesResponse {
+  sites: Site[];
+  total: number;
+}
+
+interface InspectionTemplate {
+  id: number;
+  name: string;
+  description?: string;
+  // ... other template properties
+}
+
+interface User {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+  // ... other user properties
+}
+
+interface UsersResponse {
+  users: User[];
+  total: number;
+}
+
 // Schema validation for the form
 const formSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -72,8 +105,8 @@ export default function NewInspection() {
     queryKey: ['/api/sites'],
   });
   
-  // Ensure sites is always an array
-  const sites = sitesResponse?.sites || [];
+  // Ensure sites is always an array with proper type guard
+  const sites = (sitesResponse as SitesResponse)?.sites || [];
 
   // Fetch templates
   const { data: templatesResponse } = useQuery({
@@ -81,15 +114,15 @@ export default function NewInspection() {
   });
   
   // Ensure templates is always an array
-  const templates = Array.isArray(templatesResponse) ? templatesResponse : [];
+  const templates = Array.isArray(templatesResponse) ? templatesResponse as InspectionTemplate[] : [];
 
   // Fetch users
   const { data: usersResponse } = useQuery({
     queryKey: ['/api/users'],
   });
   
-  // Ensure users is always an array
-  const users = usersResponse?.users || [];
+  // Ensure users is always an array with proper type guard
+  const users = (usersResponse as UsersResponse)?.users || [];
 
   // Form setup
   const form = useForm<FormValues>({
@@ -110,17 +143,20 @@ export default function NewInspection() {
     queryKey: ['/api/user'],
   });
 
+  // Type guard for currentUser
+  const typedCurrentUser = currentUser as User | undefined;
+
   // Mutation for creating a new inspection
   const createInspectionMutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      if (!currentUser) {
+      if (!typedCurrentUser?.id) {
         throw new Error("You must be logged in to create an inspection");
       }
       
       const response = await apiRequest("POST", "/api/inspections", {
         ...data,
         status: "scheduled",
-        createdById: currentUser.id,
+        created_by_id: typedCurrentUser.id,
       });
 
       if (!response.ok) {
@@ -198,7 +234,7 @@ export default function NewInspection() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {Array.isArray(templates) && templates.map((template) => (
+                          {templates.map((template) => (
                             <SelectItem
                               key={template.id}
                               value={template.id.toString()}
@@ -343,7 +379,7 @@ export default function NewInspection() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="0">Unassigned</SelectItem>
-                          {Array.isArray(users) && users
+                          {users
                             .filter((user) => user.role === "safety_officer" || user.role === "supervisor")
                             .map((user) => (
                               <SelectItem
