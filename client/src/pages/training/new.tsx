@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { ArrowLeft, Plus, Upload, Video, X } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Badge } from "@/components/ui/badge";
 
 // Form validation schema
 const trainingCourseSchema = z.object({
@@ -24,51 +25,11 @@ const trainingCourseSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   isRequired: z.boolean().default(false),
   assignedRoles: z.array(z.string()).optional(),
-  contentIds: z.array(z.number()).optional(),
+  contentIds: z.array(z.number()).min(1, "Please select at least one video"),
   passingScore: z.number().min(0).max(100).default(70),
 });
 
 type FormValues = z.infer<typeof trainingCourseSchema>;
-
-// Mock data for video content
-const mockVideos = [
-  {
-    id: 1,
-    title: "Fall Protection Basics",
-    description: "Introduction to fall protection equipment and safety procedures",
-    contentType: "video",
-    videoId: "LXb3EKWsInQ", // YouTube video ID
-    duration: 360, // in seconds
-    language: "en",
-  },
-  {
-    id: 2,
-    title: "Harness Inspection and Usage",
-    description: "How to properly inspect and wear a safety harness",
-    contentType: "video",
-    videoId: "dQw4w9WgXcQ", // YouTube video ID as placeholder
-    duration: 480, // in seconds
-    language: "en",
-  },
-  {
-    id: 3,
-    title: "Safety Harness Donning Demonstration",
-    description: "Step-by-step guide to properly putting on a safety harness",
-    contentType: "video",
-    videoId: "6Q3uaSnRGtI", // YouTube video ID
-    duration: 240, // in seconds
-    language: "en",
-  },
-  {
-    id: 4,
-    title: "Construction Site PPE Requirements",
-    description: "Overview of required personal protective equipment on construction sites",
-    contentType: "video",
-    videoId: "mJR-ClYZ1wQ", // YouTube video ID
-    duration: 300, // in seconds
-    language: "en",
-  },
-];
 
 // User roles for the form
 const userRoles = [
@@ -87,6 +48,17 @@ export default function CreateTrainingCourse() {
   const [newVideoUrl, setNewVideoUrl] = useState("");
   const [newVideoTitle, setNewVideoTitle] = useState("");
   const [newVideoDuration, setNewVideoDuration] = useState("");
+
+  // Fetch training content from API
+  const { data: trainingContentData, isLoading: isLoadingContent } = useQuery({
+    queryKey: ["/api/training-content"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/training-content");
+      return res.json();
+    },
+  });
+
+  const availableVideos = trainingContentData?.tenantContent || [];
 
   // Only safety officers and admins can create training courses
   if (user?.role !== "safety_officer" && user?.role !== "super_admin") {
@@ -108,9 +80,6 @@ export default function CreateTrainingCourse() {
 
   const createCourseMutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      // Add selected videos to the form data
-      data.contentIds = selectedVideos;
-      
       const res = await apiRequest("POST", "/api/training-courses", data);
       return res.json();
     },
@@ -132,25 +101,18 @@ export default function CreateTrainingCourse() {
   });
 
   const onSubmit = (data: FormValues) => {
-    if (selectedVideos.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please add at least one video to the training course",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     createCourseMutation.mutate(data);
   };
 
   const toggleVideo = (videoId: number) => {
     setSelectedVideos(prev => {
-      if (prev.includes(videoId)) {
-        return prev.filter(id => id !== videoId);
-      } else {
-        return [...prev, videoId];
-      }
+      const newSelection = prev.includes(videoId) 
+        ? prev.filter(id => id !== videoId)
+        : [...prev, videoId];
+      
+      // Update form data
+      form.setValue('contentIds', newSelection);
+      return newSelection;
     });
   };
 
@@ -323,6 +285,20 @@ export default function CreateTrainingCourse() {
                       )}
                     />
 
+                    <FormField
+                      control={form.control}
+                      name="contentIds"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Training Videos</FormLabel>
+                          <FormDescription>
+                            Select videos from the sidebar to include in this course
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <div className="space-y-2">
                       <Button
                         type="submit"
@@ -344,35 +320,52 @@ export default function CreateTrainingCourse() {
                 <CardTitle>Training Videos</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  {mockVideos.map((video) => (
-                    <div
-                      key={video.id}
-                      className={`p-3 border rounded-md flex items-center gap-3 cursor-pointer ${
-                        selectedVideos.includes(video.id) 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border'
-                      }`}
-                      onClick={() => toggleVideo(video.id)}
-                    >
-                      <div className="flex-shrink-0 h-12 w-12 bg-muted rounded-md flex items-center justify-center">
-                        <Video className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                      <div className="flex-grow">
-                        <div className="font-medium">{video.title}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {Math.floor(video.duration / 60)} minutes
+                {isLoadingContent ? (
+                  <div className="text-center py-4">
+                    <div className="text-sm text-muted-foreground">Loading training content...</div>
+                  </div>
+                ) : availableVideos.length === 0 ? (
+                  <div className="text-center py-4">
+                    <div className="text-sm text-muted-foreground">No training content available</div>
+                    <div className="text-xs text-muted-foreground mt-1">Add some training videos first</div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {availableVideos.map((video: any) => (
+                      <div
+                        key={video.id}
+                        className={`p-3 border rounded-md flex items-center gap-3 ${
+                          selectedVideos.includes(video.id) 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border'
+                        }`}
+                      >
+                        <div className="flex-shrink-0 h-12 w-12 bg-muted rounded-md flex items-center justify-center">
+                          <Video className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div 
+                          className="flex-grow cursor-pointer"
+                          onClick={() => toggleVideo(video.id)}
+                        >
+                          <div className="font-medium">{video.title}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {Math.floor(video.duration / 60)} minutes
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Checkbox
+                            checked={selectedVideos.includes(video.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked !== selectedVideos.includes(video.id)) {
+                                toggleVideo(video.id);
+                              }
+                            }}
+                          />
                         </div>
                       </div>
-                      <div className="flex-shrink-0">
-                        <Checkbox
-                          checked={selectedVideos.includes(video.id)}
-                          onCheckedChange={() => toggleVideo(video.id)}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
                 {addingVideo ? (
                   <div className="mt-4 space-y-3 border p-3 rounded-md">
@@ -449,7 +442,7 @@ export default function CreateTrainingCourse() {
                 ) : (
                   <div className="space-y-2">
                     {selectedVideos.map(videoId => {
-                      const video = mockVideos.find(v => v.id === videoId);
+                      const video = availableVideos.find((v: any) => v.id === videoId);
                       return (
                         <div key={videoId} className="flex justify-between items-center p-2 border rounded-md">
                           <span className="text-sm truncate">{video?.title}</span>

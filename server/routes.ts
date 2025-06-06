@@ -20,7 +20,8 @@ import {
   insertHazardReportSchema, insertHazardCommentSchema, insertHazardAssignmentSchema,
   insertInspectionSchema, insertInspectionTemplateSchema, insertInspectionResponseSchema,
   insertInspectionFindingSchema, insertPermitRequestSchema, insertTenantSchema, insertUserSchema, userRoleEnum, permitStatusEnum,
-  insertEmailTemplateSchema, insertIncidentReportSchema, insertSiteSchema, registerTenantSchema
+  insertEmailTemplateSchema, insertIncidentReportSchema, insertSiteSchema, registerTenantSchema,
+  insertTrainingCourseSchema, insertTrainingContentSchema, insertTrainingRecordSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -4357,7 +4358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create a new training course (safety officer only)
-  app.post('/api/training-courses', requireAuth, async (req, res) => {
+  app.post('/api/training-courses', requireAuth, requirePermission("training", "create"), async (req, res) => {
     try {
       if (req.user.role !== 'safety_officer' && req.user.role !== 'super_admin') {
         return res.status(403).json({ message: 'Not authorized to create training courses' });

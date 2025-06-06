@@ -27,11 +27,11 @@ export default function Teams() {
   requirePermission("teams", "read");
   const [, navigate] = useLocation();
   
-  const { data, isLoading } = useQuery<TeamWithMemberCount[]>({
+  const { data, isLoading } = useQuery<{ teams: TeamWithMemberCount[] }>({
     queryKey: ["/api/teams"],
   });
   
-  const teams = data || [];
+  const teams = data?.teams || [];
 
   return (
     <Layout>
