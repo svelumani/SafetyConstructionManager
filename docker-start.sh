@@ -45,7 +45,7 @@ main() {
     
     # Run database migration
     echo "🚀 Running database migration..."
-    if node migrate1.js; then
+    if node migrations/migrate.js; then
         echo "✅ Database migration completed successfully"
     else
         echo "⚠️  Migration had issues, but continuing..."
