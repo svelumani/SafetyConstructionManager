@@ -96,3 +96,6 @@ If your Drizzle schema doesn't match the database, create a migration to align t
 
 ### Docker Issues
 The migration system is designed for Docker with enhanced connection handling and error reporting.
+
+### Migrate Backup to Production Database
+DATABASE_URL=postgres://postgres:venpep123@localhost:5432/mysafety node migrations/migrate.js
