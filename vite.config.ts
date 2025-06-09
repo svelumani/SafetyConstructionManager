@@ -22,7 +22,10 @@ export default async () => {
     server: {
       host: "0.0.0.0",
       port: 5000,
-      allowedHosts: ['mysafetydemo.venpep.net', 'localhost', '127.0.0.1'],
+      allowedHosts: ['mysafetydemo.venpep.net', 'localhost', '127.0.0.1', '.venpep.net'],
+      hmr: {
+        host: 'localhost'
+      }
     },
     resolve: {
       alias: {
