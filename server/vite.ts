@@ -78,7 +78,12 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  app.use("*", (_req, res) => {
+  // Only serve index.html for non-API routes
+  app.use("*", (req, res) => {
+    // Don't serve static files for API routes
+    if (req.originalUrl.startsWith('/api/')) {
+      return res.status(404).json({ message: 'API endpoint not found' });
+    }
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

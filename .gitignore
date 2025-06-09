@@ -5,3 +5,7 @@ server/public
 vite.config.ts.*
 *.tar.gz
 .env
+# Environment files with sensitive data
+.env.backup
+server-corrected.env
+server-no-ssl.env
